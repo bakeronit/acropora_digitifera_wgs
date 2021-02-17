@@ -1,0 +1,127 @@
+---
+title: "Sample information"
+output: 
+  github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+# loading required packages:
+library(tidyverse)
+library(stringi)
+```
+
+### Sampling sites
+
+Samples were collected from three locations in Kimberley region, we labeled them inshore, north offshore, and soutch offshore as their origin geographic habitat. Sample sizes are 30 from inshore, 20 from north offshore, and 25 from south offshore. The exact locations are shown in the map below.
+
+```{r}
+# loading packages for map ploting
+library(rgdal)
+library(sf)
+library(raster) # install.package("rgeos")
+library(ggsci)
+library(ggrepel)
+library(ozmaps)
+library(cowplot)
+```
+
+
+```{r, results='hide'}
+wa <- rgdal::readOGR(dsn = "data/maps/61395_shp/western_australia",layer = "cstwacd_r")
+wa_coast <- base::subset(wa,FEAT_CODE != "sea")
+
+Sites <- read.csv("data/maps/point_data.csv")
+buffer <- 5
+geo_bounds <- c(left = min(Sites$lon)-buffer, 
+                bottom = min(Sites$lat)-buffer, 
+                right = max(Sites$lon)+buffer, 
+                top = max(Sites$lat)+buffer)
+
+Sites.grid <- expand.grid(lon_bound = c(geo_bounds[1], geo_bounds[3]), 
+                       lat_bound = c(geo_bounds[2], geo_bounds[4]))
+coordinates(Sites.grid) <- ~ lon_bound + lat_bound
+wa_coral <- crop(wa_coast, extent(Sites.grid))
+```
+
+```{r plot-sampling-map,cache=TRUE,fig.align='center',fig.retina=2,fig.cap="Map showing sampling sites in Kimberley region: Sampling location in the Kimberley region, Western Australia. N=25 at offshore south (green dots), N=30 at inshore (red dots), and N=20 at offshore north (blue dots)."}
+mainland_color="grey36"
+source("scripts/utils.R")
+p1<- ggplot() + 
+  geom_polygon(data=wa_coral,aes(x=long,y=lat,group=group), fill=mainland_color)+
+  coord_equal(xlim = c(114,127.5),ylim = c(-22,-11)) + 
+  geom_point(data=Sites, aes(x=lon, y=lat,color=type), size=2.5) + scale_color_startrek() +
+  geom_text_repel(data = Sites, aes(x=lon, y=lat, label = label), size = 4,fontface="bold") +
+  xlab("") + ylab("") + scale_x_continuous(breaks=seq(112,130, 4),labels = c(paste(seq(112,130,4),"°E",sep=""))) +
+  scale_y_continuous(breaks=seq(-22.5,-12.5,2.5),labels=c(paste(seq(22.5,12.5, -2.5),"°S", sep=""))) + 
+  theme(axis.text.y =element_text(angle = 0, hjust=0.5),
+        axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.position = "none",
+        plot.margin = unit(c(0.5, 0, 0, 0), "cm"),
+        panel.grid = element_blank(),
+        panel.background = element_rect(fill = "white",colour = "grey36", size = 1),
+        legend.title = element_blank()) +
+  scale_bar(lon = 125,lat = -22,distance_lon = 120, distance_lat = 20,distance_legend = 50,dist_unit = "km",orientation = FALSE )
+
+oz_states <- ozmaps::ozmap_states
+region = data.frame(xmin=geo_bounds[1],ymin=geo_bounds[2],xmax=geo_bounds[3],ymax=geo_bounds[4])
+
+p2 <- ggplot(oz_states) + 
+  geom_sf(fill="grey81",color="grey71",size=.2) + 
+  coord_sf(expand = FALSE) + theme_bw()+labs(x=NULL,y=NULL) +
+  geom_rect(data = region,aes(xmin=xmin,ymin=ymin,xmax = xmax, ymax=ymax-1),alpha=0.1, colour="black", size = 0.3, linetype=1, fill="yellow") +
+  theme(axis.text.x =element_blank(),
+        axis.text.y= element_blank(), 
+        axis.ticks=element_blank(),
+        axis.title.x =element_blank(),
+        axis.title.y= element_blank(),
+        plot.margin = unit(c(0.5, 0, 0, 0), "cm"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        panel.background = element_blank())
+
+## Inset maps with ggplot2: https://geocompr.github.io/post/2019/ggplot2-inset-maps/
+ggdraw() + draw_plot(p1) + draw_plot(p2, x = 0.17, y = 0.65, width = 0.3, height = 0.3)
+
+```
+
+### Sequencing and data processing
+Raw data was sequenced and demultiplexed by California Institute for Quantitative Bioscience qb3 sequencing centre. In total, we obtained 911,977Mbp sequencing data of 75 samples as fastq files. We had 25, 30, and 20 samples sequenced from offshore south, inshore, and offshore north, respectively. A detailed inforamtion of the raw data are in [S-table1](https://github.com/bakeronit/acropora_digitifera_wgs/blob/master/hpc/tables/S-table1.txt).
+
+We applied [GATK4 best practices](https://gatk.broadinstitute.org/hc/en-us/sections/360007226651-Best-Practices-Workflows) for germline short variant discovery workflow using a reproducible and scalable pipeline written with [snakemake](https://github.com/bakeronit/snakemake-gatk4-non-model).
+
+```{r mapping-results}
+#fix the select function
+detach("package:raster", unload=TRUE)
+
+bamstats_files <- list.files("data/hpc/bamstats",pattern = "*.stats",full.names = TRUE) 
+genoCov_files <- list.files("data/hpc/genomeCov",pattern = "*_coverage.txt",full.names = TRUE)
+
+extract_mapping_rate <- function(filename) {
+    vroom::vroom(pipe(paste0("grep Mapped ",filename)),
+                col_names = c("name","value"),
+                delim = ":" ,col_select = "value") %>% 
+    add_column(id=basename(filename) %>% str_remove("_bamtools.stats")) %>% 
+    mutate(mapping_rate=str_extract(value,pattern="[1-9][0-9]\\.[0-9]+") %>% as.numeric) %>% select("id","mapping_rate")
+}
+
+read_coverage <- function(filename) {
+  limma::read.columns(filename,c("#rname","coverage","meandepth")) %>% add_column(id=basename(filename) %>% str_remove("_coverage.txt"))
+}
+
+#make the table
+map_df(genoCov_files, read_coverage) %>% group_by(id) %>%   summarise(genome_coverage=mean(coverage), mean_mapping_depth=mean(meandepth)) %>% left_join(map_df(bamstats_files,extract_mapping_rate)) %>% mutate(location=case_when(substr(id,1,2) == "AI" ~"Inshore",
+                            substr(id,1,2) == "BR" ~"Inshore", 
+                            substr(id,1,2)=="AR" ~ "North Offshore",
+                            substr(id,1,2)=="RS"~"South Offshore")) %>%  
+  mutate(id = case_when(
+    grepl('merged$',id) ~ stri_reverse(id) %>% str_split("_",2) %>% map(last) %>% unlist %>% stri_reverse,
+    TRUE ~stri_reverse(id) %>% str_split("_",3) %>% map(last) %>% unlist %>% stri_reverse)) %>% 
+  select(id,location,mapping_rate,mean_mapping_depth,genome_coverage) %>% 
+  rename("Sample ID"=id,"Location"=location, "Mapping rate (%)"=mapping_rate,"Mean mapping depth (X)"=mean_mapping_depth, "Genome coverage (%)"=genome_coverage)  %>% 
+  knitr::kable(escape = F,caption = "Summary of mapping results") 
+```
+
+
