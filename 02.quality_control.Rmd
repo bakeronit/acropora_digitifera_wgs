@@ -67,7 +67,7 @@ We perform further filtering steps and sampled down SNPs callset for [population
 4.To minimize the effect of SNPs in high likage disequilibrium (LD), we filtered out SNPs based on pairwise LD using PLINK v1.9.
 
 ## SNPs data for Sequentially Markovian Coalescent (SMC) analyses
-We only used variations from scaffolds with a length greater than the N50 and used phased data in [demography analyses]. Specifically, we used:
+We only used variations from scaffolds with a length greater than the N50 in [demography analyses], moreover, phased data in MSMC analysis. Specifically, we used:
 
 - three individuals from each location in **PSMC analysis**.
 - eight haplotypes from each reef in **MSMC**.
