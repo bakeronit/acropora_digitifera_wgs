@@ -90,7 +90,7 @@ ggdraw() + draw_plot(p1) + draw_plot(p2, x = 0.17, y = 0.65, width = 0.3, height
 ### Sequencing and data processing
 Raw data was sequenced and demultiplexed by California Institute for Quantitative Bioscience qb3 sequencing centre. In total, we obtained 911,977Mbp sequencing data of 75 samples as fastq files. We had 25, 30, and 20 samples sequenced from offshore south, inshore, and offshore north, respectively. A detailed inforamtion of the raw data are in [S-table1](https://github.com/bakeronit/acropora_digitifera_wgs/blob/master/hpc/tables/S-table1.txt).
 
-We applied [GATK4 best practices](https://gatk.broadinstitute.org/hc/en-us/sections/360007226651-Best-Practices-Workflows) for germline short variant discovery workflow using a reproducible and scalable pipeline written with [snakemake](https://github.com/bakeronit/snakemake-gatk4-non-model).
+We applied [GATK4 best practices](https://gatk.broadinstitute.org/hc/en-us/sections/360007226651-Best-Practices-Workflows) for germline short variant discovery workflow using a reproducible and scalable pipeline written with [snakemake](https://github.com/bakeronit/snakemake-gatk4-non-model). Fastq files were mapped to *Acropora gitifiera* genome ([GCA_014634065.1_Adig_2.0](https://www.ncbi.nlm.nih.gov/assembly/GCA_014634065.1)) using bwa. The average mapping rate is over 96.97% and most regions of the genome is covered by at least one read. The mean mapping depth is 19.52X and several samples are sequenced at high depth. In average, approximately 80% (79.86%) of genome regions were coverd by at least one read.
 
 ```{r mapping-results}
 #fix the select function
