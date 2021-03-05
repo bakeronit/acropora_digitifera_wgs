@@ -59,7 +59,7 @@ vcftools --gzvcf Adigi.indel5bp_snp_hardfilter_passed_biallelic_mdust.vcf.gz \
     --stdout | bgzip > Adigi.v2.DPg90gdp3gq30.vcf.gz
 ```
 
-**SNPs left: 11,731,102 **
+**SNPs left: 11,731,102**
 
 6. We remove SNPs with Inbreding Coefficient < -0.05. According to  [gatk](https://gatk.broadinstitute.org/hc/en-us/articles/360035531992-Inbreeding-Coefficient) `InbreedingCoeff` can be used as a proxy for poor mapping. 
 

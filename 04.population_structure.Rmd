@@ -16,7 +16,7 @@ source(file = "scripts/color_scheme.R")
 
 Starting with a fully filtered VCF, we then preformed linkage pruning and prepare data for PCA, ADMIXTURE analysis.
 
-#### LD pruning
+### LD pruning
 
 Because plink will only take common chromosome id like in human, we first created a map file for *Acropora digitifera*.
 
@@ -41,7 +41,7 @@ plink --bfile Adigitifera --extract Adigitifera.prune.in \
 ```
 We then start with our PCA analysis and Admixture analysis with **919,129** SNPs.
 
-#### PCA
+### PCA
 **Is there genetic structure in Kimberley corals?**
 
 `smartpca` has a design flaw that it won't work with chromosome id other than small numbers (1-22,X,Y). So we used an [in-house script](scripts/fix_mapfile_for_smartpca.py) to fix the map file and run smartpca with default parameters.
@@ -83,7 +83,7 @@ ggplot(pca %>% arrange(desc(location)), aes(PC2,PC3,color=location)) +
 
 Corals from different regions were well separated as inshore, offshore north, and offshore south, expect on sample from Beagle reef was clustered with offshore south. In the right plot, inshore samples were tightly congregated compared to two offshore groups. Therefore, our samples from six locations form three clusters which corresponding to three geographic regions we called inshore, offshore north, and offshore south.
 
-#### PC loadings
+### PC loadings
 To make sure this PCA clustering was represented by the SNPs across the genome instead of regional variation, we inspect the PC laoding for the first two principle components.
 
 ```{r pc_loading,cache=TRUE,fig.retina=2,fig.show="hold", out.width="50%"}
@@ -98,7 +98,7 @@ pcaviz_loadingsplot(hgdp,pc.dim = "PC2",min.rank = 0.8,geom.point.params = list(
 ```
 The SNPs the high PC loading seems to be spreading the genome, thus our data reveals a genomic population structure instead of a local population structure.
 
-#### Admixture
+### Admixture
 
 **Is there any mixture in samples?**
 
@@ -150,7 +150,7 @@ p2<-ggplot(read_Q("data/hpc/admixture/Adigitifera_ldpruned.3.Q"),aes(x=samples))
 p1/p2
 ```
 
-```{r cv, fig.retina=2, fig.width=3.6, fig.height=3.8,out.extra='style="float:left"'}
+```{r cv, fig.retina=2, fig.width=3.4, fig.height=3.8,out.extra='style="float:left"'}
 cv <- read_delim("data/hpc/admixture/CV.txt", col_names = c("CV","value"),delim = " ")
 ggplot(cv,aes(x=CV,y=value)) + geom_line() + geom_point(shape=21,fill="white",alpha=1) +
   theme_bw() +
