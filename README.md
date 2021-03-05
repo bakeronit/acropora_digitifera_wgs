@@ -7,5 +7,5 @@
 
 ### Population genetics analyses
 
--[Population structure analysis](04.population_structure.md)
+- [Population structure analysis](04.population_structure.md)
 
