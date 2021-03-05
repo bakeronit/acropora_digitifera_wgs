@@ -9,6 +9,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 # loading required packages:
 library(tidyverse)
 library(stringi)
+source(file = "scripts/color_scheme.R")
 ```
 
 ### Sampling sites
@@ -50,7 +51,7 @@ source("scripts/utils.R")
 p1<- ggplot() + 
   geom_polygon(data=wa_coral,aes(x=long,y=lat,group=group), fill=mainland_color)+
   coord_equal(xlim = c(114,127.5),ylim = c(-22,-11)) + 
-  geom_point(data=Sites, aes(x=lon, y=lat,color=type), size=2.5) + scale_color_startrek() +
+  geom_point(data=Sites, aes(x=lon, y=lat,color=label), size=2.5) + scale_color_manual(values = my_color) +
   geom_text_repel(data = Sites, aes(x=lon, y=lat, label = label), size = 4,fontface="bold") +
   xlab("") + ylab("") + scale_x_continuous(breaks=seq(112,130, 4),labels = c(paste(seq(112,130,4),"°E",sep=""))) +
   scale_y_continuous(breaks=seq(-22.5,-12.5,2.5),labels=c(paste(seq(22.5,12.5, -2.5),"°S", sep=""))) + 
