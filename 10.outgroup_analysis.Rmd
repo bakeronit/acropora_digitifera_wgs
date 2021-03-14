@@ -1,0 +1,146 @@
+---
+title: "Placing Western Australian Acropora digitifera in context"
+output: 
+  github_document
+bibliography: bibliography.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+# loading required packages:
+library(tidyverse)
+library(ggpubr)
+```
+
+To understand the relationship between *A. digitifera* from WA and other populations from this species we combined our data with publicly available data from [@Shinzato2015-rz].  This combined dataset included all of our samples as well as 16 samples from the Ryukyu Islands in Japan, randomly chosen from the Shinzato et al dataset. Note that the Ryukyu Islands is also the region of origin for the A. digitifera reference genome. Japanese samples downloaded from NCBI and subjected to the same read quality checks and alignment process as we applied for our own samples.  The resulting bam files were as follows;
+
+SRA Ref | Mapping Rate | Coverage Depth
+------- | ------------ | -------------
+DRR099286 |
+DRR099287 |
+DRR099291 |
+DRR099303 |
+DRR099319 |
+DRR099320 |
+DRR099350 |
+DRR099351 |
+DRR099361 |
+DRR099370 |
+DRR099377 |
+DRR099383 |
+DRR099391 |
+DRR099398 |
+DRR099421 |
+DRR099428 |
+
+
+### SNP selection and genotype likelihood calculation
+
+As a precursor to running PCAngsd (see below) we first called SNPs, filtered sites for quality and calculated genotype likelihoods using angsd (v 0.933) with the command. 
+
+```bash
+angsd -b all_bam.txt -out all -GL 2 -nThreads 8 -doGlf 2 -SNP_pval 1e-6 -doMajorMinor 1 -doMaf 2 -doCounts 1 -minMaf 0.05 -minInd 82 -minMapQ 20 -minQ 20 -setMinDepth 910 -setMaxDepth 3000 -setMinDepthInd 3
+```
+
+The options used in this command were chosen to mimic GATK genotype calling and SNP filtering in our main analysis as closely as possible.  Specifically, `-GL 2` uses a GATK-like genotype likelihood calculation, `-minInd 82` selects only sites with data for at least 90% of individuals. 
+
+### PCAngsd
+
+We then used PCAngsd version 1.0 obtained from [github commit cd7feb5a8a76946acde8beaceb919e59dc8d0298](https://github.com/Rosemeis/pcangsd.git) to perform a PCA analysis.  Note that PCAngsd is designed to handle datasets with differing sequencing depths as is the case here. 
+
+```bash
+pcangsd.py -beagle all.beagle.gz -selection -snp_weights -pcadapt -admix -tree -maf_save -pi_save -dosage_save -sites_save -threads 32 -out jpwa
+```
+
+Using the covariance matrix resulting from the analysis we performed PCA and visualise the distribution of points according to location as shown below;
+
+```{r}
+samples <- read_tsv("data/hpc/pcangsd/samples.txt",col_names = c("sample_id","location","mapping_rate","mean_mapping_depth","genome_cov"))
+
+sample_table <- read_tsv("data/hpc/pcangsd/all_bam.txt",col_names = "filename") %>%
+  mutate(country=str_match(filename,pattern = "/fast/shared/Acropora_digitifera_wgs_bamfile/([A-Z]+)/")[,2]) %>% 
+  mutate(sample = str_match(filename,pattern = "/fast/shared/Acropora_digitifera_wgs_bamfile/[A-Z]+/(.*)_aligned")[,2]) %>% 
+  mutate(sample = str_replace(sample,"_merged","")) %>% 
+    mutate(sample_id = str_replace(sample,"_L004","")) %>% 
+    mutate(sample_id = str_replace(sample_id,"_S[0-9]+$","")) %>% 
+  left_join(samples) %>% 
+  mutate(location = ifelse(is.na(location),"Japan",location)) %>% 
+  rownames_to_column("number")
+```
+
+
+
+
+
+```{r}
+covmat <- read_table2("data/hpc/pcangsd/jpwa.cov",col_names = FALSE) %>% 
+  as.matrix()
+
+pop_eigen <- eigen(covmat)
+
+pop_pca <- data.frame(e1=pop_eigen$vectors[,1],e2=pop_eigen$vectors[,2],e3=pop_eigen$vectors[,3]) %>% cbind(sample_table)
+
+p1 <- ggplot(pop_pca ,aes(x=e1,y=e2)) + 
+  geom_point(aes(color=location),size=1) + 
+  theme_pubr() + xlab("PC1") + ylab("PC2")
+
+p2 <- ggplot(pop_pca ,aes(x=e2,y=e3)) + 
+  geom_point(aes(color=location),size=1) + 
+  theme_pubr() + xlab("PC2") + ylab("PC3")
+
+legend_b <- get_legend(
+  p1 + 
+    guides(color = guide_legend(nrow = 1)) +
+    theme(legend.position = "bottom")
+)
+
+library(cowplot)
+prow <- plot_grid(
+  p1 + theme(legend.position = "none"),
+  p2 + theme(legend.position = "none"))
+
+
+plot_grid(prow,legend_b,ncol=1,rel_heights = c(1, .1))
+```
+
+**Figure 1:** PCA showing variation between and within samples along PC1, PC2 and PC3. 
+
+From the PCA is is clear that Japanese samples are distinct from all three of the WA population groupings.  A crude phylogeny of these groups can be obtained simply by constructing a neighbour joining tree based on distances in PCA space. This is visualised below, with Japan placed as the root of the tree. 
+
+```{r}
+library(ggtree)
+library(treeio)
+library(ape)
+
+t <- read.tree("data/hpc/pcangsd/jpwa.tree")
+
+tr <- root(t,42)
+
+ggtree(tr) %<+% sample_table + geom_tippoint(aes(color=location))
+```
+
+
+### Phylogenetic Analysis based on UCE and Exon capture probesets
+
+Work in progress ... 
+
+```{r}
+ucetree <- read.iqtree("data/hpc/iqtree/partition.nex.best_scheme.nex.treefile")
+
+rucetree <- root(ucetree,node=34)
+
+ggtree(rucetree) +
+  geom_tiplab(align = T) +
+  geom_nodelab(aes(label=node)) +
+  xlim(NA,5)
+
+complex_mrca = 19
+robust_mrca = 25
+
+#ggsave(filename = "figures/tree.png")
+```
+
+
+
+
+
