@@ -1,0 +1,38 @@
+---
+title: "Demographic history - MSMC analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+We used SNPs from scaffolds with a length greater than 1Mbp which account for approximately 75% of genome size (N75=983,972, first 142 scaffolds).
+
+### Mutation rate estimate
+we recalculated the mutation rate with the updated divergence time in Shizato et al. 2020(25-50 million years).
+
+#### Option 1: Use the results of sequence divergence in Mao et al (2018) and update the divergence time in calculation.
+
+```bash
+# (79427941/(79427942+363368171)/(2 × 15.5)) x 5 × 10−6 = 2.89 × 10−8
+# calibrate divergence time to 37.5
+(79427941/(79427942+363368171)/(2 × 37.5)) x 5 × 10−6 = 1.20 x 10-8
+```
+
+#### Option 2: Map sequencing data of our A.digitifera to genome A.tenius.
+We used lastz (v1.02.00) to map sequencing data of one sample with the highest sequencing coverage (`BR_4_091`) to the Acropora tenius [genome fasta](http://aten.reefgenomics.org/download/) (Cooke et al., 2020)
+
+```bash
+interleave-fastq {r1.fq} {r2.fq} |\
+seqtk seq -A - |\
+lastz {chr}.fasta  --seed=12of19 --notransition --chain \
+--gapped --inner=2000 --ydrop=3400 --gappedthresh=6000 \
+--hspthresh=2200 --strand=plus --format=axt+ 
+```
+The sequence divergence was calculated by dividing the mismatched sequence with the total aligned length as Mao et al (2018) with the updated divergence time.For every `axt` format output, we extended overlapped alignments and calculated the length of aligned sequences and mismatch base except gaps and Ns.
+
+> under working. the results below are based on the mutation rate calculated as in Option 1.
+
+## Sequentially Markov Cross-colalescence analysis
+We restricted this analysis to high coverage (~20X) samples and used a maximum of eight haplotypes per population.

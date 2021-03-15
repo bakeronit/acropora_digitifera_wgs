@@ -92,6 +92,18 @@ p2 <- ggplot(df) + geom_col(aes(x=INDV,y=MEAN_DEPTH)) +
         axis.ticks.y = element_blank())
 p1 + p2
 ```
+
+**Figure:** The statistics of average coverage depth and percentage of missing genotypes in all samples.
+
+```{r,fig.align='center',fig.retina=2}
+snpden <- read_tsv("data/hpc/vcf_filtering/Adigi.v2.filtered.snpden") %>% filter(SNP_COUNT>10) 
+ggplot(snpden) + geom_histogram(aes(x=SNP_COUNT,y=..density..),binwidth = 20,color="black",fill="darkblue") +
+  stat_function(fun = dnorm, colour="red",args = list(mean=mean(snpden$SNP_COUNT,na.rm=TRUE),sd=sd(snpden$SNP_COUNT,na.rm = TRUE))) + labs(x="SNP count per 10kb",y="Density")
+```
+
+**Figure:** SNP distribution for all samples, the stardard normal distribution and the real distribution are shown in the red line and blue vertical bars, respectively.
+
+### Note
 The samples with low coverage depth contain more missing genotypes, this makes sense because we filtered genotypes with very few reads covered. There was no sample with very high missingness, although sample `RS3_S_250` had almost 30% genotype missingness. We decided to keep it in population structure analysis but to remove it from phasing (haplotype-based) analyses.
 
 ## Prepare data for population structure analysis
