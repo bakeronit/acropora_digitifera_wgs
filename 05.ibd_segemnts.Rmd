@@ -6,17 +6,6 @@ output: github_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE,warning = FALSE, message = FALSE)
 library(tidyverse)
-library(htmltools)
-knitr::opts_chunk$set(
-  fig.align = "center"
-)
-knitr::knit_hooks$set(imgcenter = function(before, options, envir){
-  if (before) {
-    HTML("<p align='center'>")
-  } else {
-    HTML("</p>")
-  }
-})
 ```
 
 Any two samples in a population can be traced back to their most recent common ancestor by sharing identity-by-descent haplotypes. Although we don't have a chromosome-level reference genome, the version two of A.digitifera display significant improvement in N50 size, thus it is worth investigating the haplotype sharing patterns in population.

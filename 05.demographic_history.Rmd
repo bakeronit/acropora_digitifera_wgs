@@ -4,6 +4,7 @@ output:
   github_document:
     toc: TRUE
     toc_depth: 3
+bibliography: bibliography.bib
 ---
 
 ```{r setup, include=FALSE}
@@ -15,7 +16,7 @@ library(ggsci)
 We used SNPs from scaffolds with a length greater than 1Mbp which account for approximately 75% of genome size (N75=983,972, first 142 scaffolds).
 
 ## Mutation rate calibration
-The mutation rate of *A.digitifera* was 2.89e-8 in Mao et al 2018 which was estimated with a divergence time of 15.5 Million years. We recalculated the mutation rate with the updated divergence time in Shizato et al.,2020(25-50 million years) and the results of sequence divergence in Mao et al (2018). This gave us a smaller estimated mutation rate of 1.2e-8.
+The mutation rate of *A.digitifera* was 2.89e-8 in [@10.1016/j.cub.2018.08.061] which was estimated with a divergence time of 15.5 Million years. We recalculated the mutation rate with the updated divergence time in [@10.1093/molbev/msaa216] which is 25-50 million years and the results of sequence divergence in Mao et al . This gave us a smaller estimated mutation rate of 1.2e-8.
 
 ```bash
 # (79427941/(79427942+363368171)/(2 × 15.5)) x 5 × 10−6 = 2.89 × 10−8

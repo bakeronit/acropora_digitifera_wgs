@@ -132,17 +132,6 @@ plink --vcf Adigi.v2.filtered.vcf.gz \
 ```
 
 ```{r ld-decay, fig.align='center',fig.retina=2,cache=TRUE,fig.width=5.2, fig.height=4.6}
-library(htmltools)
-knitr::opts_chunk$set(
-  fig.align = "center"
-)
-knitr::knit_hooks$set(imgcenter = function(before, options, envir){
-  if (before) {
-    HTML("<p align='center'>")
-  } else {
-    HTML("</p>")
-  }
-})
 
 summarise_ld <- function(filename) {
   df <- read_table2(filename) %>% select(-X8) %>% as_tibble %>% 
