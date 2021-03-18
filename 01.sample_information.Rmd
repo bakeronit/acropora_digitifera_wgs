@@ -93,6 +93,8 @@ Raw data was sequenced and demultiplexed by California Institute for Quantitativ
 
 We applied [GATK4 best practices](https://gatk.broadinstitute.org/hc/en-us/sections/360007226651-Best-Practices-Workflows) for germline short variant discovery workflow using a reproducible and scalable pipeline written with [snakemake](https://github.com/bakeronit/snakemake-gatk4-non-model). Fastq files were mapped to *Acropora gitifiera* genome ([GCA_014634065.1_Adig_2.0](https://www.ncbi.nlm.nih.gov/assembly/GCA_014634065.1)) using bwa. The average mapping rate is over 96.97% and most regions of the genome is covered by at least one read. The mean mapping depth is 19.52X and several samples are sequenced at high depth. In average, approximately 80% (79.86%) of genome regions were coverd by at least one read.
 
+**Table: A summary of mapping results per sample**
+
 ```{r mapping-results}
 #fix the select function
 detach("package:raster", unload=TRUE)
@@ -122,7 +124,7 @@ map_df(genoCov_files, read_coverage) %>% group_by(id) %>%   summarise(genome_cov
     TRUE ~stri_reverse(id) %>% str_split("_",3) %>% map(last) %>% unlist %>% stri_reverse)) %>% 
   select(id,location,mapping_rate,mean_mapping_depth,genome_coverage) %>% 
   rename("Sample ID"=id,"Location"=location, "Mapping rate (%)"=mapping_rate,"Mean mapping depth (X)"=mean_mapping_depth, "Genome coverage (%)"=genome_coverage)  %>% 
-  knitr::kable(escape = F,caption = "Summary of mapping results") 
+  knitr::kable(escape = F) 
 ```
 
 

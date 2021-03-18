@@ -4,8 +4,19 @@ output: github_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE,warning = FALSE, message = FALSE)
 library(tidyverse)
+library(htmltools)
+knitr::opts_chunk$set(
+  fig.align = "center"
+)
+knitr::knit_hooks$set(imgcenter = function(before, options, envir){
+  if (before) {
+    HTML("<p align='center'>")
+  } else {
+    HTML("</p>")
+  }
+})
 ```
 
 Any two samples in a population can be traced back to their most recent common ancestor by sharing identity-by-descent haplotypes. Although we don't have a chromosome-level reference genome, the version two of A.digitifera display significant improvement in N50 size, thus it is worth investigating the haplotype sharing patterns in population.
@@ -25,7 +36,7 @@ zcat {scaffold}.ibd.gz | java -jar merge-ibd-segments.17Jan20.102.jar \
 {scaffold}.vcf map.txt 0.01 2 > {scaffold}.merged.ibd
 ```
 ### Calculate the relatedness
-The pairwise relatedness can be calculated using a python script [relatedness_v1.py](http://faculty.washington.edu/sguy/ibd_relatedness.html) in which the relatedness was calculated as the proportion of shared haplotype length divided by the total chromsome length*2.
+The pairwise relatedness can be calculated using a python script [relatedness_v1.py](http://faculty.washington.edu/sguy/ibd_relatedness.html) in which the relatedness was calculated as the proportion of shared haplotype length divided by the total chromosome length*2.
 ```bash
 cat *.merged.ibd | python2 relatedness_v1.py map.txt 0 > Adigi_ind74.ibd_relatedness.txt
 ```

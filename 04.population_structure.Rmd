@@ -115,7 +115,7 @@ done
 ```
 The cross-validation error suggests the lowest cross-validation error is with K=1 which is a common situation when population differentiation is subtle. We then check results for K=2,3.
 
-```{r admixture, fig.width=5.6, fig.height=3.8,fig.retina=2,out.extra='style="float:left"'}
+```{r admixture, fig.width=5.2, fig.height=3.8,fig.retina=2,out.extra='style="float:left"'}
 samples <- scan("data/hpc/admixture/sample_order.txt", character())
 read_Q <- function(filename) {
   tb <- read_table(filename,col_names = FALSE) %>% 
