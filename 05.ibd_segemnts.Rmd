@@ -37,8 +37,6 @@ column_to_rownames(relatedness,"ID") %>% as.matrix() %>% log()%>% heatmap(scale 
 
 ```
 
-
 **Figure:** A heatmap shows the pairwise relatedness based on shared haplotypes. A darker color means a higher relatedness.
-
 
 

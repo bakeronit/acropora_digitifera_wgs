@@ -29,7 +29,7 @@ Download additional data not hosted on github due to size constraints
 
 ```bash
 cd acropora_digitifera_wgs
-wget https://cloudstor.aarnet.edu.au/plus/s/j9hwbpnYKbNUWTL/download -O data.tgz
+wget https://cloudstor.aarnet.edu.au/plus/s/TrPAofzBcVVv3i7 -O data.tgz
 tar -zxvf data.tgz 
 ```
 
