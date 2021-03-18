@@ -54,7 +54,7 @@ xlabels[xbreaks%in%c(1e+3,1e+4,1e+5,1e+6,1e+7)] <-c("1kya","10kya","100kya","1my
 dtime = data.frame(name=c("LGM","Holocene"),start=c(1.2e+4,0),end=c(1.1e+5,1.2e+4))
 ```
 
-```{r smc-plot, fig.align='center',fig.width=7,fig.height=5}
+```{r smc-plot, fig.align='center',fig.width=7,fig.height=5, fig.cap="The effective population size estimate using SMC++ approach. The red, blue, and green lines represent the results of inshore, offshore north, and offshore south respectively."}
 smc <- read_csv("data/hpc/demography/estimate.csv")
 
 ybreaks <- c(1e+3*2:9 , 1e+4*1:9 , 1e+5*1:9 , 1e+6*1:2)
@@ -73,8 +73,6 @@ ggplot(smc) + geom_line(aes(x=x,y=y,color=label),size=0.8,show.legend = FALSE) +
   y=expression(paste("Effective Population Size ",N[e]," (x", 10^4 ,")"))) +
   ggtitle("Historial effective population size estimated by SMC++")
 ```
-
-**Figure:** The effective population size estimate using SMC++ approach. The red, blue, and green lines represent the results of inshore, offshore north, and offshore south respectively.
 
 
 ### The separation time between populations.
@@ -176,3 +174,4 @@ ggplot(df_8hap)+
   theme_test() + theme(legend.title = element_blank(), legend.position = c(0.85,0.8))
 ```
 
+**Figure:** The effective population size estimate MSMC.
