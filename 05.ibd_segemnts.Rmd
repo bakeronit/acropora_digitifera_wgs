@@ -4,14 +4,14 @@ output: github_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE,warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE,warning = FALSE, message = FALSE,fig.retina = 2)
 library(tidyverse)
 ```
 
 Any two samples in a population can be traced back to their most recent common ancestor by sharing identity-by-descent haplotypes. Although we don't have a chromosome-level reference genome, the version two of A.digitifera display significant improvement in N50 size, thus it is worth investigating the haplotype sharing patterns in population.
 
 ### Infer identity-by-descent segemnts
-We used `refined-ibd` (v17Jan20)[https://faculty.washington.edu/browning/refined-ibd.html] to detect IBD segments in phased genotype data. The map file was generated as in [selection analysis](06.selection_analysis.md).
+We used `refined-ibd` [v17Jan20](https://faculty.washington.edu/browning/refined-ibd.html) to detect IBD segments in phased genotype data. The map file was generated as in [selection analysis](06.selection_analysis.md).
 
 ```bash
 java -jar refined-ibd.17Jan20.102.jar nthreads=10 \
@@ -30,7 +30,7 @@ The pairwise relatedness can be calculated using a python script [relatedness_v1
 cat *.merged.ibd | python2 relatedness_v1.py map.txt 0 > Adigi_ind74.ibd_relatedness.txt
 ```
 
-```{r,fig.align='center',fig.retina=2}
+```{r}
 
 relatedness <- read_tsv("data/hpc/ibd/Adigi_ind74.ibd_relatedness.txt")  
 column_to_rownames(relatedness,"ID") %>% as.matrix() %>% log()%>% heatmap(scale = "none")
