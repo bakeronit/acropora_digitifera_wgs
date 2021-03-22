@@ -1,0 +1,70 @@
+---
+title: "Resolving haplotypes"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(tidyverse)
+```
+
+We used SHAPEIT2 to do phasing for SNPs across the genome. Firstly, we removed samples with more than 20% missing in genotypes. So we left 74 samples. Next, a bam file contains three columns including sample id, the path to bamfile for this sample, and scaffold id was created for each scaffold. `extractPIRs` was then used to extract phase informative reads from BAM files.
+
+```bash
+extractPIRs --bam ${scaffold}.bamlist \
+      --vcf ${scaffold}.vcf.gz \
+      --out ${scaffold}.PIRsList \
+      --base-quality 20 \
+      --read-quality 20
+```
+Read aware model `assemble` was used to phase the genotype data
+
+```bash
+shapeit -assemble \
+  --input-vcf  ${scaffold}.vcf.gz \
+  --input-pir  ${scaffold}.PIRsList \
+  -O ${scaffold}
+  --force
+  --thread 2
+
+shapeit -convert \
+  --input-haps ${scaffold} \
+  --output-vcf ${scaffold}_phased.vcf
+```
+
+Eventually, vcf files of all scaffolds were concatenated together.
+
+```bash
+bcftools concat -Oz -o Adigi.v2.indv74_phased.vcf.gz $(ls *_phased.vcf)
+```
+
+We obtained **7,747,949** phased SNP sites in 74 samples.
+
+### Imputation check
+
+To get an idea of the performance of the imputation step, we did a "masked analysis" with fully genotyped dataset.We used script [prune_vcf.py](scripts/prune_vcf.py) to prune genotypes randomly and do phasing again. After phasing, we compared the imputed genotypes and real genotypes then computed the accuracy using script [compare_vcf.py](scripts/compare_vcf.py).
+
+```{r, fig.align='center',fig.retina=2}
+ic <- read_tsv("data/hpc/phasing/imputation_check.txt") %>% 
+  pivot_longer(cols =c( homo, het), names_to = "type", values_to = "accuary") 
+ic$n_pruned <- ic$n_pruned %>% as.factor()
+ggplot(ic,aes(x=n_pruned,y=accuary,group=type)) + geom_line(aes(color=type)) + geom_point(shape=21) + 
+  scale_color_discrete(name = "", 
+                       labels = c("Heterozygous", "Homozygous")) +
+    theme_classic() + labs(x="Number of genotypes pruned",y="Accuracy") +
+    theme(legend.title = element_blank(),
+          legend.position = "top")
+
+```
+
+**Figure:** The imputation accuary at homo/heterozygous sites
+
+```{r, fig.align='center',fig.retina=2}
+ic_af <- read_tsv("data/hpc/phasing/compare_imputation_with_af.txt",col_names = c("site_id","imputed","real","ref","alt","af")) %>% mutate(code1=imputed %>% strsplit("|") %>% map(first) %>% unlist %>% as.numeric + imputed %>% strsplit("|") %>% map(last) %>% unlist %>% as.numeric, code2=real %>% strsplit("\\||\\/") %>% map(first) %>% unlist %>% as.numeric + real %>% strsplit("\\||\\/") %>% map(last) %>% unlist %>% as.numeric) %>% select(site_id,code1,code2,af)
+
+ic_af %>% mutate(correct=code1==code2) %>% 
+  group_by(group=cut(af,breaks=seq(0,max(af),length.out=10))) %>% summarise(accuracy=sum(correct)/n()) %>% ggplot(aes(x=group,y=accuracy,group=group)) + geom_point() + labs(x="Minor allele frequency",y="Accuracy")
+
+```
+
+**Figure:** The imputation accuary summarised by MAF.
