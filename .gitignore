@@ -3,6 +3,6 @@
 .RData
 .Ruserdata
 .DS_Store
-
+*.tgz
 01.sample_information_cache/
 data/
