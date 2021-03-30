@@ -12,26 +12,24 @@ library(tidyverse)
 library(ggpubr)
 ```
 
-To understand the relationship between *A. digitifera* from WA and other populations from this species we combined our data with publicly available data from [@Shinzato2015-rz].  This combined dataset included all of our samples as well as 16 samples from the Ryukyu Islands in Japan, randomly chosen from the Shinzato et al dataset. Note that the Ryukyu Islands is also the region of origin for the A. digitifera reference genome. Japanese samples downloaded from NCBI and subjected to the same read quality checks and alignment process as we applied for our own samples.  The resulting bam files were as follows;
+To understand the relationship between *A. digitifera* from WA and a population in Japan we combined our data with publicly available data from [@Shinzato2015-rz].  This combined dataset included all of our samples as well as 16 samples from the Ryukyu Islands in Japan, randomly chosen from the Shinzato et al dataset. Note that the Ryukyu Islands is also the region of origin for the A. digitifera reference genome. Japanese samples downloaded from NCBI and subjected to the same read quality checks and alignment process as we applied for our own samples.  The resulting bam files had variable coverage (9x - 32x) roughly in the same range as those of our Western Australian samples.
 
-SRA Ref | Mapping Rate | Coverage Depth
-------- | ------------ | -------------
-DRR099286 |
-DRR099287 |
-DRR099291 |
-DRR099303 |
-DRR099319 |
-DRR099320 |
-DRR099350 |
-DRR099351 |
-DRR099361 |
-DRR099370 |
-DRR099377 |
-DRR099383 |
-DRR099391 |
-DRR099398 |
-DRR099421 |
-DRR099428 |
+```{r}
+# Read sample information and construct a sample table
+
+samples <- read_tsv("data/hpc/pcangsd/samples.txt",col_names = c("sample_id","location","mapping_rate","mean_mapping_depth","genome_cov"))
+
+sample_table <- read_tsv("data/hpc/pcangsd/all_bam.txt",col_names = "filename") %>%
+  mutate(country=str_match(filename,pattern = "/fast/shared/Acropora_digitifera_wgs_bamfile/([A-Z]+)/")[,2]) %>% 
+  mutate(sample = str_match(filename,pattern = "/fast/shared/Acropora_digitifera_wgs_bamfile/[A-Z]+/(.*)_aligned")[,2]) %>% 
+  mutate(sample = str_replace(sample,"_merged","")) %>% 
+    mutate(sample_id = str_replace(sample,"_L004","")) %>% 
+    mutate(sample_id = str_replace(sample_id,"_S[0-9]+$","")) %>% 
+  left_join(samples) %>% 
+  mutate(location = ifelse(is.na(location),"Japan",location)) %>% 
+  rownames_to_column("number")
+```
+
 
 
 ### SNP selection and genotype likelihood calculation
@@ -52,25 +50,7 @@ We then used PCAngsd version 1.0 obtained from [github commit cd7feb5a8a76946acd
 pcangsd.py -beagle all.beagle.gz -selection -snp_weights -pcadapt -admix -tree -maf_save -pi_save -dosage_save -sites_save -threads 32 -out jpwa
 ```
 
-Using the covariance matrix resulting from the analysis we performed PCA and visualise the distribution of points according to location as shown below;
-
-```{r}
-samples <- read_tsv("data/hpc/pcangsd/samples.txt",col_names = c("sample_id","location","mapping_rate","mean_mapping_depth","genome_cov"))
-
-sample_table <- read_tsv("data/hpc/pcangsd/all_bam.txt",col_names = "filename") %>%
-  mutate(country=str_match(filename,pattern = "/fast/shared/Acropora_digitifera_wgs_bamfile/([A-Z]+)/")[,2]) %>% 
-  mutate(sample = str_match(filename,pattern = "/fast/shared/Acropora_digitifera_wgs_bamfile/[A-Z]+/(.*)_aligned")[,2]) %>% 
-  mutate(sample = str_replace(sample,"_merged","")) %>% 
-    mutate(sample_id = str_replace(sample,"_L004","")) %>% 
-    mutate(sample_id = str_replace(sample_id,"_S[0-9]+$","")) %>% 
-  left_join(samples) %>% 
-  mutate(location = ifelse(is.na(location),"Japan",location)) %>% 
-  rownames_to_column("number")
-```
-
-
-
-
+Using the resulting covariance matrix we visualise population structure using a PCA as follows
 
 ```{r}
 covmat <- read_table2("data/hpc/pcangsd/jpwa.cov",col_names = FALSE) %>% 
@@ -78,20 +58,26 @@ covmat <- read_table2("data/hpc/pcangsd/jpwa.cov",col_names = FALSE) %>%
 
 pop_eigen <- eigen(covmat)
 
+eigenvalues <- round(pop_eigen$values,1)
+
 pop_pca <- data.frame(e1=pop_eigen$vectors[,1],e2=pop_eigen$vectors[,2],e3=pop_eigen$vectors[,3]) %>% cbind(sample_table)
+
+pclabel <- function(pcnum,eigenvalues){
+  paste("PC",pcnum," (",eigenvalues[pcnum],"%)",sep = "")
+}
 
 p1 <- ggplot(pop_pca ,aes(x=e1,y=e2)) + 
   geom_point(aes(color=location),size=1) + 
-  theme_pubr() + xlab("PC1") + ylab("PC2")
+  theme_pubr() + xlab(pclabel(1,eigenvalues)) + ylab(pclabel(2,eigenvalues))
 
 p2 <- ggplot(pop_pca ,aes(x=e2,y=e3)) + 
   geom_point(aes(color=location),size=1) + 
-  theme_pubr() + xlab("PC2") + ylab("PC3")
+  theme_pubr() + xlab(pclabel(2,eigenvalues)) + ylab(pclabel(3,eigenvalues))
 
 legend_b <- get_legend(
   p1 + 
     guides(color = guide_legend(nrow = 1)) +
-    theme(legend.position = "bottom")
+    theme(legend.position = "bottom", legend.title = element_blank())
 )
 
 library(cowplot)
@@ -103,9 +89,9 @@ prow <- plot_grid(
 plot_grid(prow,legend_b,ncol=1,rel_heights = c(1, .1))
 ```
 
-**Figure 1:** PCA showing variation between and within samples along PC1, PC2 and PC3. 
+**Figure 1:** PCA showing population structure for Japanese and Western Australian A. digitifera samples. 
 
-From the PCA is is clear that Japanese samples are distinct from all three of the WA population groupings.  A crude phylogeny of these groups can be obtained simply by constructing a neighbour joining tree based on distances in PCA space. This is visualised below, with Japan placed as the root of the tree. 
+The PCA clearly shows that WA offshore populations are more similar to each other than to the other samples.  The plot also suggests that WA inshore samples are intermediate between WA offshore and Japanese samples.  With this in mind we construct a neighbour joining tree based on distances in PCA space using Japan as the root of the tree. 
 
 ```{r}
 library(ggtree)
@@ -116,30 +102,42 @@ t <- read.tree("data/hpc/pcangsd/jpwa.tree")
 
 tr <- root(t,42)
 
-ggtree(tr) %<+% sample_table + geom_tippoint(aes(color=location))
+ggtree(tr) %<+% sample_table + geom_tippoint(aes(color=location)) + theme(legend.title = element_blank())
 ```
 
+**Figure 2:** Neighbour joining tree based on distances inferred by PCAngsd and placing Japan at the root. 
 
 ### Phylogenetic Analysis based on UCE and Exon capture probesets
 
-Work in progress ... 
+While the analysis above provides information on relative differentiation between populations of A. digitifera it is useful to consider the distances between these populations in the context of broader phylogenetic differences between species within the Acroporidae. To do this we make use of methodology developed by [@Cowman2020-mo] to examine phylogenetic relationships based on UCE and Exon sequences. Steps in this process include;
+
+1. [Map](data/hpc/iqtree/02_map_probes.sh) the hexa-v2 probeset to genomes of all species (A. digitifera, A. millepora and A. tenuis) and filter mapping using samclip.
+2. [Create a bed](data/hpc/iqtree/03_sam2bed.sh) file representing an approximately 1000bp region around each mapped probe
+3. [Merge overlapping regions](data/hpc/iqtree/04_extract_bams.sh) resulting from closely spaced probes and extract these from bams (in the case of A. digitifera)
+4. [Call consensus sequences](data/hpc/iqtree/05_call_consensus.sh) from bamfiles
+5. [Extract fasta files](data/hpc/iqtree/06_extract_uces.sh) corresponding to merged regions
+6. [Gather and align homologous sequences](data/hpc/iqtree/07_gather_uces.sh) 
+7. [Create a partition file for phylogenomic analysis](data/hpc/iqtree/08_make_partitions.sh)
+8. [Run iqtree to find the best models and generate a tree](data/hpc/iqtree/09_iqtree.sh)
+
+The resulting tree (rooted at Acropora tenuis) recovers the expected relative divergences between species (Aten vs Amil > Amil vs Adi).  These divergences (Adi vs Amil ~ 25Mya) are clearly much larger than between population samples of Acropora digitifera, which agrees with our assessment that these are recently diverged.  Notably, samples from Japan, Inshore and Offshore locations do not follow the population structure observed in PCA-based methods which may reflect poor resolution of UCEs at this level. 
 
 ```{r}
 ucetree <- read.iqtree("data/hpc/iqtree/partition.nex.best_scheme.nex.treefile")
 
-rucetree <- root(ucetree,node=34)
+rucetree <- root(ucetree,node=33)
 
+#ptree <- drop.tip(as.phylo(ucetree),c("amil"))
+#ptree <- ucetree
 ggtree(rucetree) +
-  geom_tiplab(align = T) +
-  geom_nodelab(aes(label=node)) +
-  xlim(NA,5)
+  geom_tiplab(align = F) +
+  xlim(NA,0.3)
 
-complex_mrca = 19
-robust_mrca = 25
 
 #ggsave(filename = "figures/tree.png")
 ```
 
+**Figure 3:** Phylogenetic tree based on 1023 UCE and 658 Exon loci from the Hexa-v2 probeset. Tree is a consensus tree generated by iqtree based on a partitioned analysis in which each locus was allowed a different model. 
 
 
 
