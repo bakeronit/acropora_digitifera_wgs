@@ -7,3 +7,10 @@ data/hpc/pcangsd/samples.txt
 data/hpc/pcangsd/all_bam.txt
 data/hpc/pcangsd/jpwa.cov
 data/hpc/pcangsd/jpwa.tree
+
+data/hpc/pcangsd/wa.pcadapt.zscores.npy
+data/hpc/pcangsd/wa.selection.npy
+data/hpc/pcangsd/wa.sites
+data/hpc/pcangsd/wa.cov
+data/hpc/pcangsd/wa_bam.txt
+data/hpc/pcangsd/wa.positions.txt
