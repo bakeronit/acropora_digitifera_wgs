@@ -6,9 +6,11 @@ output: github_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE,warning = FALSE, message = FALSE,fig.retina = 2)
 library(tidyverse)
+library(wesanderson)
+library(ComplexHeatmap)
 ```
 
-Any two samples in a population can be traced back to their most recent common ancestor by sharing identity-by-descent haplotypes. Although we don't have a chromosome-level reference genome, the version two of A.digitifera display significant improvement in N50 size, thus it is worth investigating the haplotype sharing patterns in population.
+Any two samples in a population can be traced back to their most recent common ancestor by sharing identity-by-descent haplotypes. Although we don't have a chromosome-level reference genome, the version two of *A.digitifera* display significant improvement in N50 size, thus it is worth investigating the haplotype segments sharing pattern in population.
 
 ### Infer identity-by-descent segemnts
 We used `refined-ibd` [v17Jan20](https://faculty.washington.edu/browning/refined-ibd.html) to detect IBD segments in phased genotype data. The map file was generated as in [selection analysis](06.selection_analysis.md).
@@ -30,10 +32,34 @@ The pairwise relatedness can be calculated using a python script [relatedness_v1
 cat *.merged.ibd | python2 relatedness_v1.py map.txt 0 > Adigi_ind74.ibd_relatedness.txt
 ```
 
-```{r}
+```{r ibd-relatedness-plot, fig.width= 6, fig.height=5}
+relatedness <- read_tsv("data/hpc/ibd/Adigi_ind74.ibd_relatedness.txt") %>% column_to_rownames("ID") %>% as.matrix()
 
-relatedness <- read_tsv("data/hpc/ibd/Adigi_ind74.ibd_relatedness.txt")  
-column_to_rownames(relatedness,"ID") %>% as.matrix() %>% log()%>% heatmap(scale = "none")
+shortid <- rownames(relatedness) %>% str_split("_") %>% 
+  map(~.x[1:3]) %>% map(paste,collapse="_" ) %>% 
+  unlist
+names(shortid) <- rownames(relatedness)
+
+ids<-rownames(relatedness) 
+population<-case_when(substr(ids,1,2)=="AR" ~ "NO",
+          substr(ids,1,2)=="AI" ~"IN",
+          substr(ids,1,2)=="BR" ~"IN",
+          substr(ids,1,2)=="RS" ~"SO")
+
+ha=HeatmapAnnotation(bar = population,
+                     show_legend = FALSE,show_annotation_name = FALSE,
+    col = list(bar = c("IN" = "#CC0C00", "NO" = "#5C88DA", "SO" = "#84BD00")))
+
+pal <- wes_palette("Zissou1", 500, type = "continuous")
+Heatmap(log(relatedness), column_labels = shortid,
+        clustering_distance_columns="euclidean",
+        show_column_dend = FALSE,
+        show_column_names = FALSE,
+        row_labels = shortid[rownames(relatedness)],
+        row_names_gp = gpar(fontsize = 6,fontface="bold"),
+        name="relatedness",top_annotation = ha,
+        show_heatmap_legend = FALSE,
+        col = pal)
 
 ```
 
