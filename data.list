@@ -20,7 +20,7 @@ data/hpc/ragtag/ragtag_output/ragtag.scaffolds.agp
 
 # Thetastat
 
-data/hpc/thetastat/inshore.pestPG        
-data/hpc/thetastat/north_offshore.pestPG 
+data/hpc/thetastat/inshore.pestPG
+data/hpc/thetastat/north_offshore.pestPG
 data/hpc/thetastat/south_offshore.pestPG
 data/hpc/thetastat/fst.slidingwindow.tsv
