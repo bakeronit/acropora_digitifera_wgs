@@ -29,8 +29,12 @@ Download additional data not hosted on github due to size constraints
 
 ```bash
 cd acropora_digitifera_wgs
-wget https://cloudstor.aarnet.edu.au/plus/s/TrPAofzBcVVv3i7 -O data.tgz
+wget 'https://cloudstor.aarnet.edu.au/plus/s/BKYCAsujh2sjLdz/download' -O data.tgz
 tar -zxvf data.tgz 
+
+# Optional download (large files)
+wget 'https://cloudstor.aarnet.edu.au/plus/s/Y9Vjkmz3BLL5ogd/download' -O data_large.tgz
+tar -zxvf data_large.tgz 
 ```
 
 Open the project file in RStudio and open the desired file. After installing any required R packages the code should run and produce plots and tables identical to those shown in the web links above.

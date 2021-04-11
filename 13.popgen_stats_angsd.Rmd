@@ -1,0 +1,143 @@
+---
+title: "Genomic statistics based on genotype likelihoods (ANGSD)"
+output: 
+  github_document
+bibliography: bibliography.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(ggpubr)
+```
+
+To confirm that population genetic statistics calculated from genotypes are not affected by genotyping error we estimated Tajima's D, and pairwise Fst without calling genotypes. This was done using ANGSD.
+
+Detailed shell scripts required to run these analyses can be found in `data/hpc/thetastat`.  A summary of the process is as follows;
+
+1. Create a `sites.txt` file containing the coordinates of all high quality SNPs remaining in the final step of [02.quality_control.md](02.quality_control.md)
+```bash
+zcat Adigi.v2.filtered.vcf.gz | grep -v '^#' | awk 'BEGIN{OFS="\t"}{print $1,$2}' > sites.txt
+angsd sites index sites.txt
+```
+2. Calculate the SFS separately for each population (see [here](data/hpc/thetastat/02_allele_freqs.sh) and [here](data/hpc/thetastat/03_realsfs.sh))
+3. Export thetas (includes nucleotide diversity and Tajima\'s D) for each population in a sliding window
+4. Calculate 2D SFS for each pair of populations
+5. Export pairwise Fst for each pair of populations as well as the population branch statistic
+
+### Genome-wide Nucleotide diversity and Tajima\'s D
+
+The genome-wide distributions of both pairwise nucleotide diversity and Tajima's D are extremely similar to those estimated from genotypes. 
+
+```{r}
+# Read in all the sliding window data.
+#
+all_thetas <- list.files("data/hpc/thetastat/",pattern = ".pestPG",full.names = TRUE) %>% 
+  map_df(function(x){
+    pop=basename(x) %>% str_extract("([^\\.]+)")
+    read_tsv(x,col_types=cols()) %>% add_column(population=pop)
+    }) %>% 
+  rbind()
+```
+
+
+```{r}
+library(cowplot)
+
+pip <- ggplot(all_thetas,aes(x=population,y=tP/50000)) + 
+  geom_boxplot(aes(fill=population)) + 
+  xlab("") + ylab(expression(theta[pi]~"per bp")) + guides(fill=FALSE) + 
+  scale_x_discrete(labels=c("Inshore","Offshore North","Offshore South")) +
+  ggsci::scale_fill_startrek() + theme_classic() 
+
+tdp <- ggplot(all_thetas,aes(x=population,y=Tajima)) + 
+  geom_boxplot(aes(fill=population)) + 
+  scale_x_discrete(labels=c("Inshore","Offshore North","Offshore South")) +
+  xlab("") + ylab("Tajima's D") + guides(fill=FALSE) + ggsci::scale_fill_startrek() + theme_classic() 
+
+plot_grid(pip,tdp,nrow=1, labels = c("A","B"))
+```
+
+**Figure 1**: Genome-wide distribution of pairwise nucleotide diversity (A) and Tajima's D (B) by population. 
+
+### Genome-wide Fst
+
+Using ANGSD resulted in lower mean Fst values than when using genotypes which most likely reflects a difference in the estimator used and/or filtering.  Importantly though the same trends are observed, with much higher Fst between inshore vs offshore pairs than between the two offshore sites. 
+
+```{r}
+# In this data pops are coded
+# 0 : Inshore
+# 1 : North Offshore
+# 2 : South Offshore
+
+
+fstdata <- read_tsv("data/hpc/thetastat/fst.slidingwindow.tsv",col_types = cols()) %>% 
+  select(midPos,starts_with("Fst")) %>% 
+  pivot_longer(starts_with("Fst"),names_to = "pair",values_to="Fst")
+
+fstdata %>% group_by(pair) %>% 
+  summarise(stdev= sqrt(var(Fst)),Fst=mean(Fst))
+```
+
+
+```{r}
+ggplot(fstdata, aes(x=pair,y=Fst)) + 
+  geom_violin(aes(fill=pair)) +
+  scale_x_discrete(labels=c("Fst01"="Inshore vs North Offshore","Fst02"="Inshore vs South Offshore","Fst12"="North Offshore vs South Offshore")) +
+  theme_classic() + theme(legend.title = element_blank()) + ggsci::scale_fill_startrek() + guides(fill=FALSE) + xlab("") + ylim(0,0.2) + coord_flip() 
+```
+
+**Figure 2**: Genome-wide distribution of Fst for all three pairs of populations
+
+
+### Population Branch Statistics
+
+The population branch statistic is designed to measure [@Yi2010-br] the degree to which allele frequencies at a specific locus in one population have differentiated from other populations.  Using ANGSD we calculate this statistic in 50kb wide sliding windows and report it for each focal population 
+
+```{r}
+pbsdata <- read_tsv("data/hpc/thetastat/fst.slidingwindow.tsv",col_types = cols()) %>% 
+  select(chr,midPos,Nsites,starts_with("PBS")) %>% 
+  pivot_longer(starts_with("PBS"),names_to = "population",values_to="PBS")
+```
+
+To plot these values as a Manhattan plot we first convert coordinates into chromosomes
+
+```bash
+cd data/hpc/ragtag
+./translate_coords.py <(cut -f2,3 ../thetastat/fst.slidingwindow.tsv | grep -v 'midPos') ragtag_output/ragtag.scaffolds.agp > ../thetastat/fst.slidingwindow.scafpos.tsv --keep
+```
+
+```{r}
+chr_positions <- read_tsv("data/hpc/thetastat/fst.slidingwindow.scafpos.tsv", col_types = cols(),
+                          col_names = c("scaffold","scaffold_pos","chr","chr_pos")) %>% 
+  unite("old_pos",scaffold,scaffold_pos,sep=":") %>% 
+  unite("new_pos",chr,chr_pos,sep=":")
+
+pbsdata_chr <- pbsdata %>% 
+  unite("old_pos",chr,midPos,sep=":") %>% 
+  left_join(chr_positions,by="old_pos") %>% 
+  separate(new_pos, into=c("scaffold","position"), sep = ":",convert=TRUE)
+
+
+
+
+lengths <- read_tsv("data/hpc/pcangsd/all.lengths.scaf.txt",col_names = c("scaffold","length"))
+offsets <- lengths %>% arrange(desc(length)) %>% mutate(offset=cumsum(length)-length) %>% 
+  mutate(scaffold_num = row_number())
+
+manhattan_data <- pbsdata_chr %>% 
+  left_join(offsets,by="scaffold") %>% 
+  mutate(abs_pos = position+offset) 
+
+manhattan_data$population <- factor(manhattan_data$population,labels=c("PBS0"="Inshore","PBS1"="North Offshore","PBS2"="South Offshore"))
+
+manhattan_data %>% 
+  ggplot() + 
+  scale_x_discrete(labels=c("PBS0"="Inshore","PBS1"="North Offshore","PBS2"="South Offshore")) +
+  geom_point(aes(x=abs_pos/1e6,y=PBS,color=as.character(scaffold_num %% 2)),size=0.1) + 
+  ylab("Population Branch Statistic") + xlab("Genome Position / Mb") + 
+  theme_pubclean() + theme(legend.position = "None") + facet_wrap(~population,ncol = 1)
+
+```
+
+**Figure 3:** Manhattan plots showing values of the population branch statistic for each focal population 
