@@ -6,3 +6,4 @@
 *.tgz
 *_cache/
 data/
+cache/

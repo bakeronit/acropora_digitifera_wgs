@@ -127,6 +127,8 @@ manhattan_data %>%
   geom_point(aes(x=abs_pos/1e6,y=pval,color=as.character(scaffold_num %% 2)),size=0.1) + ylab("-log10(p)") + xlab("Genome Position / Mb") + 
   geom_point(data = manhattan_data %>% filter(pval>200),aes(x=abs_pos/1e6,y=pval,color=as.character(scaffold_num %% 2)),size=2) + ylab("-log10(p)") + xlab("Genome Position / Mb") + 
     theme_pubclean() + theme(legend.position = "None")
+
+write_rds(manhattan_data,file="cache/pcadapt.rds")
 ```
 
 
