@@ -7,7 +7,7 @@
 
 ### Population genetics analyses
 - [Population genomics genetic statistics](03.popgen_stats.md)
-- [Population structure analysis](04.population_structure.md)
+- [Population structure analysis](04.population_structure.md) and [fineStructure analysis](fs.md)
 - [IBD segments](05.ibd_segments.md)
 - [Demographic history](05.demographic_history.md)
 - [Selection analysis](06.selection_analysis.md)
