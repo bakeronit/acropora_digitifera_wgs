@@ -1,0 +1,65 @@
+---
+title: "Comparison of Multiple Signatures of Selection"
+output: 
+  github_document
+bibliography: bibliography.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(ggpubr)
+```
+
+
+```{r}
+if ( !file.exists("cache/pbs.rds") || !file.exists("cache/pcadapt.rds")) {
+  stop("Unable to find cached results for PBS and PCAdapt statistics. Run 12.pcangsd_selection and 13.popgen_stats_angsd first")
+}
+pbs_data <- read_rds("cache/pbs.rds")
+pcadapt_data <- read_rds("cache/pcadapt.rds")
+```
+
+```{r}
+manhattan_data_combined <- pbs_data %>% 
+  select(scaffold,scaffold_num,abs_pos,PBS,population) %>% 
+  rename(stat_value=PBS) %>% 
+  add_column(stat="PBS") %>% 
+  unite("stat",population,stat) %>% 
+  rbind( 
+    pcadapt_data %>% select(scaffold,scaffold_num,abs_pos,pval) %>% 
+      filter(pval>10) %>% 
+      mutate(pval=pval/300) %>% 
+    rename(stat_value=pval) %>% 
+    add_column(stat="pcadapt")
+  )
+
+manhattan_data_combined$stat <- factor(manhattan_data_combined$stat,
+                                       labels=c("Inshore_PBS"="Inshore (PBS)",
+                                                "North Offshore_PBS"="North Offshore (PBS)",
+                                                "South Offshore_PBS"="South Offshore (PBS)",
+                                                "pcadapt"="PCAdapt log10(pval)"),
+                                       levels=c("Inshore_PBS","North Offshore_PBS","South Offshore_PBS","pcadapt"))
+
+manhattan_data_combined %>% 
+  ggplot() + 
+  geom_point(aes(x=abs_pos/1e6,y=stat_value,color=as.character(scaffold_num %% 2)),size=0.1) + 
+  ylab("Stat Value") + xlab("Genome Position / Mb") + 
+  theme_pubclean() + theme(legend.position = "None") + facet_wrap(~stat,ncol = 1)
+```
+
+Zooming onto an area where Inshore PBS and PCAdapt both have very strong signals
+
+```{r}
+manhattan_data_combined %>% 
+  filter(between(abs_pos,2.25e8,3e8)) %>% 
+  filter(!grepl(stat,pattern = "Offshore")) %>% 
+  ggplot() + 
+  geom_point(aes(x=abs_pos/1e6,y=stat_value,color=as.character(scaffold_num %% 2)),size=0.1) + 
+  ylab("Stat Value") + xlab("Genome Position / Mb") + 
+  theme_pubclean() + theme(legend.position = "None") + facet_wrap(~stat,ncol = 1)
+```
+
+
+
+
