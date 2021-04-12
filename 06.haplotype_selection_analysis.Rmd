@@ -33,7 +33,7 @@ XP-nSL scan was conducted in inshore population using both offshore south and no
 ```bash
 selscan --xpnsl --vcf inshore.{chr}.vcf.gz \
 --vcf-ref {pop}.{chr}.vcf.gz --pmap \
---threads 10 --out xpehh_out/{chr}
+--threads 10 --out xpnsl_out/{chr}
 ```
 
 The unstandardazed iHS and XP-EHH values were normalized in allele frequency bins (50 bins) across the genome. For iHS scan, we calculated the fraction of SNPs with extreme |iHS| value in each divided 50Kb genomic window, excluding regions with fewer than 10 SNPs using the the companion program `norm`. We did the same oHS scan for inshore and offshore 
@@ -42,28 +42,7 @@ populations and used offshore samples as reference population in XP-EHH scan.
 ```bash
 norm --ihs --files ihs_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 50000
 norm --xpehh --files xpehh_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 50000
-norm --xpnsl --files xpehh_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 50000
-```
-
-### Visualisation across the genome
-
-
-
-```bash
-cd data/hpc/ragtag
-./translate_coords.py <(cut -f1 ../ihs/inshore/all.ihs.out.norm | sed 's/:/\t/') ragtag_output/ragtag.scaffolds.agp --keep > ../ihs/inshore/all.ihs.scaf.coords.txt
-```
-
-```{r}
-library(tidyverse)
-
-ihsnorm <- list.files("data/hpc/ihs/","*.ihs.out.norm", recursive = TRUE, full.names = TRUE) %>%
-  map_dfr(function(x){
-    population=dirname(x) %>% basename()
-    read_tsv(x, col_names = c("locusid","position","freq","ihh1","ihh0","unstandardised_ihs")) %>%
-      add_column(population=population)
-  })
-
+norm --xpnsl --files xpnsl_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 50000
 ```
 
 
