@@ -8,4 +8,7 @@ data/hpc/pcangsd/wa.selection.npy
 data/hpc/pcangsd/wa.positions.txt
 data/hpc/pcangsd/wa.positions.scaf.txt
 
+# vcf_file
 
+data/hpc/vcf_file/Adigi.v2.indv74_phased.vcf.gz
+data/hpc/vcf_file/Adigi.v2.filtered.vcf.gz

@@ -55,8 +55,26 @@ norm --ihs --files ihs_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 5000
 norm --xpehh --files xpehh_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 50000
 ```
 
+### Visualisation across the genome
 
 
+
+```bash
+cd data/hpc/ragtag
+./translate_coords.py <(cut -f1 ../ihs/inshore/all.ihs.out.norm | sed 's/:/\t/') ragtag_output/ragtag.scaffolds.agp --keep > ../ihs/inshore/all.ihs.scaf.coords.txt
+```
+
+```{r}
+library(tidyverse)
+
+ihsnorm <- list.files("data/hpc/ihs/","*.ihs.out.norm", recursive = TRUE, full.names = TRUE) %>%
+  map_dfr(function(x){
+    population=dirname(x) %>% basename()
+    read_tsv(x, col_names = c("locusid","position","freq","ihh1","ihh0","unstandardised_ihs")) %>%
+      add_column(population=population)
+  })
+
+```
 
 
 
