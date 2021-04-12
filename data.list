@@ -1,9 +1,26 @@
-data/hpc/pcangsd/01_collect_data.sh
-data/hpc/pcangsd/02_angsd.sh
-data/hpc/pcangsd/03_pcangsd.sh
-data/hpc/pcangsd/04_angsd_nojp.sh
-data/hpc/pcangsd/05_pcangsd_nojp.sh
+# Data listing for medium sized (<50Mb) data files
+
+
+# PCAngsd Files
 data/hpc/pcangsd/samples.txt
 data/hpc/pcangsd/all_bam.txt
 data/hpc/pcangsd/jpwa.cov
 data/hpc/pcangsd/jpwa.tree
+
+data/hpc/pcangsd/wa.sites
+data/hpc/pcangsd/wa.cov
+data/hpc/pcangsd/wa_bam.txt
+data/hpc/pcangsd/all.lengths.scaf.txt
+
+
+# RagTag
+
+data/hpc/ragtag/ragtag_output/ragtag.scaffolds.agp
+
+
+# Thetastat
+
+data/hpc/thetastat/inshore.pestPG
+data/hpc/thetastat/north_offshore.pestPG
+data/hpc/thetastat/south_offshore.pestPG
+data/hpc/thetastat/fst.slidingwindow.tsv

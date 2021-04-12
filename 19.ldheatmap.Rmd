@@ -1,0 +1,48 @@
+---
+title: "LD Heatmap from ngsLD"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+inshore <- read_tsv("data/hpc/ngsLD/inshore.ld", col_names = c("pos1","pos2","dist","r2p","D","Dp","r2em")) %>% 
+  separate(pos1, into = c("scaffold","pos1"), sep = ":", convert = TRUE) %>% 
+  separate(pos2, into = c("tmp","pos2"), sep=":", convert = TRUE) %>% select(-tmp)
+```
+
+```{r}
+start=2.4e7
+end=2.6e7
+
+ic2 <- inshore %>% 
+  filter(scaffold=="chr2_RagTag") %>% 
+  mutate(r2p = ifelse(is.na(r2p),0,r2p)) %>% 
+  filter( (pos1 > start) & (pos2 > start) & (pos1 < end) & (pos2 < end)) %>% 
+  mutate(pos2o = pos2-pos1)
+
+ic2 %>% 
+  ggplot(aes(x=pos1,y=pos2)) + geom_contour_filled(aes(z=r2p))
+```
+
+
+```{r}
+inshore_r2p <- ic2 %>% 
+  select(pos1,pos2,r2p) %>% 
+  pivot_wider(names_from = pos2, values_from=r2p) %>% 
+  column_to_rownames(var = "pos1") %>% 
+  as.matrix()
+```
+
+```{r}
+library(LDheatmap)
+LDheatmap(inshore_r2p, genetic.distances = as.numeric(rownames(inshore_r2p)))
+```
+
+

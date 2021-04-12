@@ -57,3 +57,6 @@ norm --xpehh --files xpehh_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 
 
 
 
+
+
+
