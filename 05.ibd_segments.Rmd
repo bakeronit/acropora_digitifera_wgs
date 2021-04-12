@@ -56,7 +56,7 @@ Heatmap(log(relatedness), column_labels = shortid,
         show_column_dend = FALSE,
         show_column_names = FALSE,
         row_labels = shortid[rownames(relatedness)],
-        row_names_gp = gpar(fontsize = 6,fontface="bold"),
+        row_names_gp = gpar(fontsize = 5),
         name="relatedness",top_annotation = ha,
         show_heatmap_legend = FALSE,
         col = pal)
