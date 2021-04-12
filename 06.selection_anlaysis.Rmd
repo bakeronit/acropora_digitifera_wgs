@@ -1,49 +1,38 @@
 ---
-title: "Selection analysis"
+title: "Selection analysis using haplotype information"
 output: github_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
 ```
 
-We applied iHS and XP-EHH scan on scaffolds with more than 10 phased SNPs (464 scaffolds).
+We applied iHS, XP-nSL, and XP-EHH scan on scaffolds with more than 10 phased SNPs (464 scaffolds).The newer version of selscan can use physical distance instead of genetic distance in scan.
 
-**Recombination rate estimate**
-Based on the genetic genome length of A.millepora value, ~1,500 cM in Wang et al., 2009, we calculated the average recombination rate using the genome size of A.digitifera (411Mbp) and get a value of ~3.6 cM/Mb.
-
-We applied extended haplotype homozygosity (EHH) based methods to detect the genomic regions under recent positive selection. The tool selscan was used to implement both iHS and XP-EHH scans. The VCF files which were phased by SHAPEIT were used in selscan run, we extracted samples from each location in VCF file.
+We applied extended haplotype homozygosity (EHH) based methods to detect the genomic regions under recent positive selection. The tool [selscan](https://github.com/szpiech/selscan) was used to implement iHS scan for each population, XPnSL, XPEHH scans both between every pairs of populations and between inshore and offshore. The VCF files which were phased by SHAPEIT were used in selscan run, we extracted samples from each location from phased VCF file.
 
 ```bash
-bcftools view -S {pop} -r {chr} Adigi.v2.filtered.vcf.gz |gzip > {pop}.{chr}.vcf.gz
+bcftools view -S {pop} -r {chr} Adigi.v2.filtered.vcf.gz |bgzip > {pop}.{chr}.vcf.gz
 ```
 
-iHS test and XP-EHH need a genetic map file to run. We assumed a constant recombination rate across the genome and generate the map file.
-
-```python
-import gzip
-cM = 3.6
-out = open('{chr}.map.txt','w')
-with gzip.open("Adigi.v2.filtered.vcf.gz","rt") as fh:
-    for line in fh:
-        if line.startswith("#"):
-            continue
-        sid, pos = line.strip().split()[:2]
-        gpos = cM/1000000*int(pos)
-        print(f'{sid}\t{sid}:{pos}\t{gpos}\t{pos}', file=out)
-```
-
-The iHS test was applied to every population separately.
+Next, the iHS test was applied to every population separately.
 
 ```bash
-selscan --ihs --vcf {pop}.{chr}.vcf.gz --map {chr}.map.txt \
+selscan --ihs --vcf {pop}.{chr}.vcf.gz --pmap \
   --threads 10 --out ihs_out/{pop}/{chr}
 ```
 
 XP-EHH scan was conducted in inshore population using both offshore south and north samples as reference group.
 ```bash
 selscan --xpehh --vcf inshore.{chr}.vcf.gz \
---vcf-ref {pop}.{chr}.vcf.gz --map {chr}.map.txt \
+--vcf-ref {pop}.{chr}.vcf.gz --pmap \
+--threads 10 --out xpehh_out/{chr}
+```
+
+XP-nSL scan was conducted in inshore population using both offshore south and north samples as reference group.
+```bash
+selscan --xpnsl --vcf inshore.{chr}.vcf.gz \
+--vcf-ref {pop}.{chr}.vcf.gz --pmap \
 --threads 10 --out xpehh_out/{chr}
 ```
 
@@ -53,6 +42,7 @@ populations and used offshore samples as reference population in XP-EHH scan.
 ```bash
 norm --ihs --files ihs_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 50000
 norm --xpehh --files xpehh_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 50000
+norm --xpnsl --files xpehh_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 50000
 ```
 
 
