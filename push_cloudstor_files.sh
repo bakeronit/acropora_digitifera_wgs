@@ -13,9 +13,8 @@
 # The rclone parts of this require some setup before they will work
 # See https://support.aarnet.edu.au/hc/en-us/articles/115007168507 for details
 # 
-# You will also need to ensure that the path Shared/wa_digitifera exists
 #
 
 
-rclone copy --delete-after -cu -P --files-from data.list . CloudStor:/Shared/wa_digitifera
-rclone copy --delete-after -cu -P --files-from data_large.list . CloudStor:/Shared/wa_digitifera
+rclone copy -cu -P --files-from data.list . CloudStor:/Shared/data_github
+rclone copy -cu -P --files-from data_large.list . CloudStor:/Shared/data_github
