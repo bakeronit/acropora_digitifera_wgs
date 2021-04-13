@@ -5,6 +5,8 @@ output: github_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
+library(tidyverse)
+library(ggpubr)
 ```
 
 We applied iHS, XP-nSL, and XP-EHH scan on scaffolds with more than 10 phased SNPs (464 scaffolds).The newer version of selscan can use physical distance instead of genetic distance in scan.
@@ -30,14 +32,14 @@ selscan --xpehh --vcf inshore.{chr}.vcf.gz \
 ```
 
 XP-nSL scan was conducted in inshore population using both offshore south and north samples as reference group.
+
 ```bash
 selscan --xpnsl --vcf inshore.{chr}.vcf.gz \
---vcf-ref {pop}.{chr}.vcf.gz --pmap \
+--vcf-ref {pop}.{chr}.vcf.gz \
 --threads 10 --out xpnsl_out/{chr}
 ```
 
-The unstandardazed iHS and XP-EHH values were normalized in allele frequency bins (50 bins) across the genome. For iHS scan, we calculated the fraction of SNPs with extreme |iHS| value in each divided 50Kb genomic window, excluding regions with fewer than 10 SNPs using the the companion program `norm`. We did the same oHS scan for inshore and offshore 
-populations and used offshore samples as reference population in XP-EHH scan.
+The unstandardazed iHS and XP-EHH values were normalized in allele frequency bins (50 bins) across the genome using `norm`.
 
 ```bash
 norm --ihs --files ihs_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 50000
@@ -45,5 +47,36 @@ norm --xpehh --files xpehh_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 
 norm --xpnsl --files xpnsl_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 50000
 ```
 
+```{r ihs-manhattan-plot, cache=TRUE, fig.align='center'}
+offsets <- read_tsv("data/hpc/ragtag/all.lengths.scaf.txt", col_names = c("chr","length"))%>% 
+  arrange(desc(length)) %>%
+  mutate(offset=lag(cumsum(length),default=0)) %>% 
+  mutate(scaffold_num=row_number())
 
+make_manhattan_ihs <- function(pop) {
+  ihs <- read_tsv(paste0("data/hpc/selection/ihs/",pop,".ihs.50bins.norm"), 
+                  col_names = c("scaf","scaf_pos","norm_ihs")) %>% 
+          mutate(pval=2*pnorm(-abs(norm_ihs)))
+  chr_positions <- read_tsv(paste0("data/hpc/selection/ihs/", pop, ".ihs.50bins.norm.scafpos.txt"), 
+                            col_types = cols(),
+                            col_names = c("scaf","scaf_pos","chr","chr_pos"))
+  manhattan_data <- ihs %>% left_join(chr_positions, by=c("scaf","scaf_pos")) %>% 
+                    left_join(offsets,by=c("chr")) %>% mutate(abs_pos=chr_pos + offset)
+  
+  manhattan_data
+}
+
+inshore_manhattan_data <- make_manhattan_ihs("inshore") %>% add_column(pop="Inshore")
+northoffshore_manhattan_data <- make_manhattan_ihs("northoffshore") %>% add_column(pop="North Offshore")
+southoffshore_manhattan_data <- make_manhattan_ihs("southoffshore") %>% add_column(pop="South Offshore")
+
+ggplot(rbind(inshore_manhattan_data,northoffshore_manhattan_data,southoffshore_manhattan_data)) +
+  geom_point(aes(x=abs_pos/1e6, y=-log10(pval),color=as.character(scaffold_num %% 2)), size=0.2) + 
+  labs(x="Genome Position / Mb", y="-log10(p)") + theme_pubclean() + theme(legend.position = "None") +
+  facet_wrap(~pop, ncol=1) 
+```
+
+**Figure 1: Manhattan plot of -log10(pval) of standard |iHS| across the genome in three population**
+
+For iHS scan, we calculated the fraction of SNPs with extreme |iHS| value in each divided 50Kb genomic window, excluding regions with fewer than 10 SNPs. We did the same iHS scan for inshore and offshore populations and used offshore samples as reference population in XP-EHH and XP-nSL scan.
 

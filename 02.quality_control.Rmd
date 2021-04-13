@@ -103,7 +103,7 @@ ggplot(snpden) + geom_histogram(aes(x=SNP_COUNT,y=..density..),binwidth = 20,col
 
 **Figure:** SNP distribution for all samples, the stardard normal distribution and the real distribution are shown in the red line and blue vertical bars, respectively.
 
-### Note
+### Notes
 The samples with low coverage depth contain more missing genotypes, this makes sense because we filtered genotypes with very few reads covered. There was no sample with very high missingness, although sample `RS3_S_250` had almost 30% genotype missingness. We decided to keep it in population structure analysis but to remove it from phasing (haplotype-based) analyses.
 
 
