@@ -12,52 +12,60 @@ library(ggpubr)
 ```
 
 
-```{r}
-if ( !file.exists("cache/pbs.rds") || !file.exists("cache/pcadapt.rds")) {
-  stop("Unable to find cached results for PBS and PCAdapt statistics. Run 12.pcangsd_selection and 13.popgen_stats_angsd first")
+```{r load cache and clean}
+if ( !file.exists("cache/pbs.rds") || !file.exists("cache/pcadapt.rds") || !file.exists("cache/ihs.rds")) {
+  stop("Unable to find cached results for PBS and PCAdapt statistics. Run 06.haplotype_selection_analysis 12.pcangsd_selection and 13.popgen_stats_angsd first")
 }
-pbs_data <- read_rds("cache/pbs.rds")
-pcadapt_data <- read_rds("cache/pcadapt.rds")
+
+pbs_data <- read_rds("cache/pbs.rds") %>% 
+  select(scaffold_num,abs_pos,PBS,population) %>% 
+  rename("pop"=population,"stat_value"=PBS) %>%
+  add_column(stat="PBS") %>% unite("stat", pop, stat)
+
+pcadapt_data <- read_rds("cache/pcadapt.rds") %>% 
+  select(scaffold_num, abs_pos, pval) %>% 
+  filter(pval>10) %>% mutate(pval=pval/300) %>% 
+  rename("stat_value"=pval) %>%  add_column(stat="pcadapt")
+
+ihs_data <- read_rds("cache/ihs.rds") %>% 
+  select(scaffold_num,abs_pos,pval,pop) %>% mutate(pval=-log10(pval)) %>% 
+  rename("stat_value"=pval) %>% add_column(stat="iHS") %>% 
+  unite("stat",pop,stat)
 ```
 
-```{r}
-manhattan_data_combined <- pbs_data %>% 
-  select(scaffold,scaffold_num,abs_pos,PBS,population) %>% 
-  rename(stat_value=PBS) %>% 
-  add_column(stat="PBS") %>% 
-  unite("stat",population,stat) %>% 
-  rbind( 
-    pcadapt_data %>% select(scaffold,scaffold_num,abs_pos,pval) %>% 
-      filter(pval>10) %>% 
-      mutate(pval=pval/300) %>% 
-    rename(stat_value=pval) %>% 
-    add_column(stat="pcadapt")
-  )
-
-manhattan_data_combined$stat <- factor(manhattan_data_combined$stat,
+```{r prepare-plot-data}
+combined_manhattan_data <- rbind(pbs_data,pcadapt_data,ihs_data)
+combined_manhattan_data$stat <- factor(combined_manhattan_data$stat,
                                        labels=c("Inshore_PBS"="Inshore (PBS)",
                                                 "North Offshore_PBS"="North Offshore (PBS)",
                                                 "South Offshore_PBS"="South Offshore (PBS)",
-                                                "pcadapt"="PCAdapt log10(pval)"),
-                                       levels=c("Inshore_PBS","North Offshore_PBS","South Offshore_PBS","pcadapt"))
+                                                "pcadapt"="PCAdapt log10(pval)",
+                                                "Inshore_iHS"="Inshore (iHS)",
+                                                "North Offshore_iHS"="North Offshore (iHS)",
+                                                "South Offshore_iHS"="South Offshore (iHS)"),
+                                       levels=c("Inshore_PBS","North Offshore_PBS","South Offshore_PBS",
+                                                "pcadapt",
+                                                "Inshore_iHS","North Offshore_iHS","South Offshore_iHS"))
+```
 
-manhattan_data_combined %>% 
-  ggplot() + 
+
+```{r combined-manhattan-plot, cache=TRUE,fig.height=10}
+ggplot(combined_manhattan_data) + 
   geom_point(aes(x=abs_pos/1e6,y=stat_value,color=as.character(scaffold_num %% 2)),size=0.1) + 
   ylab("Stat Value") + xlab("Genome Position / Mb") + 
-  theme_pubclean() + theme(legend.position = "None") + facet_wrap(~stat,ncol = 1)
+  theme_pubclean() + theme(legend.position = "None") + facet_wrap(~stat,ncol = 1,scales = "free_y")
 ```
 
 Zooming onto an area where Inshore PBS and PCAdapt both have very strong signals
 
-```{r}
-manhattan_data_combined %>% 
+```{r combined-manhattan-plot-zoom-in}
+combined_manhattan_data %>% 
   filter(between(abs_pos,2.25e8,3e8)) %>% 
   filter(!grepl(stat,pattern = "Offshore")) %>% 
   ggplot() + 
   geom_point(aes(x=abs_pos/1e6,y=stat_value,color=as.character(scaffold_num %% 2)),size=0.1) + 
   ylab("Stat Value") + xlab("Genome Position / Mb") + 
-  theme_pubclean() + theme(legend.position = "None") + facet_wrap(~stat,ncol = 1)
+  theme_pubclean() + theme(legend.position = "None") + facet_wrap(~stat,ncol = 1,scales = "free_y")
 ```
 
 

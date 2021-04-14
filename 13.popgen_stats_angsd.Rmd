@@ -134,7 +134,7 @@ manhattan_data %>%
   theme_pubclean() + theme(legend.position = "None") + facet_wrap(~population,ncol = 1)
 
 
-#write_rds(manhattan_data,file="cache/pbs.rds") #use rmarkdown cache
+write_rds(manhattan_data,file="cache/pbs.rds")
 ```
 
 **Figure 3:** Manhattan plots showing values of the population branch statistic for each focal population 

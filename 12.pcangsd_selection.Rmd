@@ -6,7 +6,7 @@ bibliography: bibliography.bib
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
 library(tidyverse)
 library(ggpubr)
 ```
@@ -108,7 +108,7 @@ For the pcadapt statistic we create a Manhattan plot to view sites under selecti
 ./translate_coords.py ../pcangsd/wa.positions.txt ragtag_output/ragtag.scaffolds.agp > ../pcangsd/wa.positions.scaf.txt
 ```
 
-```{r}
+```{r pcadapt-manhattan-plot}
 coordinates <- read_tsv("data/hpc/pcangsd/wa.positions.scaf.txt",col_names = c("scaffold","pos"))
 coordinates_included <- coordinates[sites_binary$included==1,] %>% mutate(p=row_number())
 
