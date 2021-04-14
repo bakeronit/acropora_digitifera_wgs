@@ -6,7 +6,7 @@ bibliography: bibliography.bib
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
 library(tidyverse)
 library(ggpubr)
 ```
@@ -41,7 +41,7 @@ all_thetas <- list.files("data/hpc/thetastat/",pattern = ".pestPG",full.names = 
 ```
 
 
-```{r}
+```{r td-pi-boxplot}
 library(cowplot)
 
 pip <- ggplot(all_thetas,aes(x=population,y=tP/50000)) + 
@@ -69,8 +69,6 @@ Using ANGSD resulted in lower mean Fst values than when using genotypes which mo
 # 0 : Inshore
 # 1 : North Offshore
 # 2 : South Offshore
-
-
 fstdata <- read_tsv("data/hpc/thetastat/fst.slidingwindow.tsv",col_types = cols()) %>% 
   select(midPos,starts_with("Fst")) %>% 
   pivot_longer(starts_with("Fst"),names_to = "pair",values_to="Fst")
@@ -80,7 +78,7 @@ fstdata %>% group_by(pair) %>%
 ```
 
 
-```{r}
+```{r fst-violin-plot}
 ggplot(fstdata, aes(x=pair,y=Fst)) + 
   geom_violin(aes(fill=pair)) +
   scale_x_discrete(labels=c("Fst01"="Inshore vs North Offshore","Fst02"="Inshore vs South Offshore","Fst12"="North Offshore vs South Offshore")) +
@@ -107,7 +105,7 @@ cd data/hpc/ragtag
 ./translate_coords.py <(cut -f2,3 ../thetastat/fst.slidingwindow.tsv | grep -v 'midPos') ragtag_output/ragtag.scaffolds.agp > ../thetastat/fst.slidingwindow.scafpos.tsv --keep
 ```
 
-```{r}
+```{r pbs-manhattan-plot, cache=TRUE}
 chr_positions <- read_tsv("data/hpc/thetastat/fst.slidingwindow.scafpos.tsv", col_types = cols(),
                           col_names = c("scaffold","scaffold_pos","chr","chr_pos")) %>% 
   unite("old_pos",scaffold,scaffold_pos,sep=":") %>% 
@@ -117,9 +115,6 @@ pbsdata_chr <- pbsdata %>%
   unite("old_pos",chr,midPos,sep=":") %>% 
   left_join(chr_positions,by="old_pos") %>% 
   separate(new_pos, into=c("scaffold","position"), sep = ":",convert=TRUE)
-
-
-
 
 lengths <- read_tsv("data/hpc/pcangsd/all.lengths.scaf.txt",col_names = c("scaffold","length"))
 offsets <- lengths %>% arrange(desc(length)) %>% mutate(offset=cumsum(length)-length) %>% 
@@ -139,7 +134,7 @@ manhattan_data %>%
   theme_pubclean() + theme(legend.position = "None") + facet_wrap(~population,ncol = 1)
 
 
-write_rds(manhattan_data,file="cache/pbs.rds")
+#write_rds(manhattan_data,file="cache/pbs.rds") #use rmarkdown cache
 ```
 
 **Figure 3:** Manhattan plots showing values of the population branch statistic for each focal population 
