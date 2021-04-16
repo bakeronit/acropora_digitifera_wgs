@@ -102,7 +102,10 @@ t <- read.tree("data/hpc/pcangsd/jpwa.tree")
 
 tr <- root(t,42)
 
-ggtree(tr) %<+% sample_table + geom_tippoint(aes(color=location)) + theme(legend.title = element_blank())
+ggtree(tr) %<+% sample_table + 
+  geom_tippoint(aes(color=location)) +
+  geom_tiplab(aes(label=sample)) +
+  theme(legend.title = element_blank())
 ```
 
 **Figure 2:** Neighbour joining tree based on distances inferred by PCAngsd and placing Japan at the root. 
