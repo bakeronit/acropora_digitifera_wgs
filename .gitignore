@@ -7,3 +7,4 @@
 *_cache/
 data/
 cache/
+scripts/__pycache__/

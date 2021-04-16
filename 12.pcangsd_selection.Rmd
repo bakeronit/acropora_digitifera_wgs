@@ -6,14 +6,14 @@ bibliography: bibliography.bib
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
 library(tidyverse)
 library(ggpubr)
 ```
 
 For the Western Australian data we found that PCA analysis with PCAngsd separates the three populations based on two PC axes.  PC1 predominantly separates inshore from offshore samples whereas PC2 separates the two offshore locations from each other. 
 
-```{r}
+```{r make table}
 # Read sample information and construct a sample table
 
 samples <- read_tsv("data/hpc/pcangsd/samples.txt",col_names = c("sample_id","location","mapping_rate","mean_mapping_depth","genome_cov"))
@@ -27,7 +27,7 @@ sample_table_wa <- read_tsv("data/hpc/pcangsd/wa_bam.txt",col_names = "filename"
   rownames_to_column("number")
 ```
 
-```{r}
+```{r pcangsd-wa-pca}
 covmat_wa <- read_table2("data/hpc/pcangsd/wa.cov",col_names = FALSE) %>% 
   as.matrix()
 
@@ -88,7 +88,7 @@ pvals <- pchisq(d2,df=K,lower.tail = F)
 
 For the first statistic (FastPCA / Galinsky statistic) we have one value for each of the PCs, whereas for pcadapt a single statistic based on robust Mahalanobis distance is used to summarise both PCs.  Examination of the distribution of p-values genome-wide in this case suggests that pcadapt is able to detect many significant loci under selection, whereas the Galinsky statistics are not.
 
-```{r}
+```{r pca-score-histo}
 score_data <- data.frame(galinsky,pcadapt_pval = pvals) %>% 
   mutate(galinsky_pc1 = pchisq(X1,df=1,lower.tail = F)) %>% 
   mutate(galinsky_pc2 = pchisq(X2,df=1,lower.tail = F)) %>% 
@@ -108,7 +108,7 @@ For the pcadapt statistic we create a Manhattan plot to view sites under selecti
 ./translate_coords.py ../pcangsd/wa.positions.txt ragtag_output/ragtag.scaffolds.agp > ../pcangsd/wa.positions.scaf.txt
 ```
 
-```{r}
+```{r pcadapt-manhattan-plot}
 coordinates <- read_tsv("data/hpc/pcangsd/wa.positions.scaf.txt",col_names = c("scaffold","pos"))
 coordinates_included <- coordinates[sites_binary$included==1,] %>% mutate(p=row_number())
 

@@ -4,14 +4,16 @@
 - [Sampling sites and sequencing data](01.sample_information.md)
 - [Variant Calling and quality control](02.quality_control.md)
 - [Phasing haplotypes](03.phasing.md)
+- [Building pseudo-chromosomes](11.ragtag_scaffolding.md)
 
 ### Population genetics analyses
 - [Population genomics genetic statistics](03.popgen_stats.md)
 - [Population structure analysis](04.population_structure.md) and [fineStructure analysis](fs.md)
 - [IBD segments](05.ibd_segments.md)
 - [Demographic history](05.demographic_history.md)
-- [Selection analysis](06.selection_analysis.md)
 - [Outgroup analysis](10.outgroup_analysis.md)
+- Selection analysis based on [LD](06.haplotype_selection_analysis.md) and [allele frequency](12.pcangsd_selection.md)
+- [Signatures of selection comparison](14.selection_combined.md)
 
 ### Parallelisation
 Some codes provided markdown chunks show how to run command for a single scaffold or a single sample. Most jobs that require to run in HPC were performed using `snakemake` or `parallel` to achieve parallelisation. The actually scripts can be found in [smk](scripts/smk) or [bash](scripts/bash).
@@ -39,5 +41,5 @@ tar -zxvf data_large.tgz
 
 Open the project file in RStudio and open the desired file. After installing any required R packages the code should run and produce plots and tables identical to those shown in the web links above.
 
-### Special note
+### Special notes
 Sometimes, jobs will fail in `snakemake` pipeline, this is common in `shapeit` or `selscan` when there is no SNPs in certain scaffold left after the filtering step and it will raise an error. You can `----keep-going` or `-k` in `snakemake` command line to keep independent jobs going and simply ignore the failed results.
