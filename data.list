@@ -1,5 +1,8 @@
 # Data listing for medium sized (<50Mb) data files
 
+# IQTree
+data/hpc/iqtree/partition.nex.best_scheme.nex.treefile
+
 
 # PCAngsd Files
 data/hpc/pcangsd/samples.txt
@@ -24,6 +27,7 @@ data/hpc/thetastat/inshore.pestPG
 data/hpc/thetastat/north_offshore.pestPG
 data/hpc/thetastat/south_offshore.pestPG
 data/hpc/thetastat/fst.slidingwindow.tsvAI_1_001_S102_L004_bamtools.stats
+data/hpc/thetastat/fst.slidingwindow.tsv
 
 # Bamstats
 
