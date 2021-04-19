@@ -244,24 +244,12 @@ data/hpc/popgen/southoffshore.filtered_windowed.pi
 data/hpc/vcf_filtering/Adigi.v2.filtered.snpden
 data/hpc/vcf_filtering/Adigi.v2.filtered.idepth
 data/hpc/vcf_filtering/Adigi.v2.filtered.imiss
-data/hpc/selection/
-data/hpc/selection//ihs
-data/hpc/selection//ihs/northoffshore
-data/hpc/selection//ihs/northoffshore/all.ihs.out
-data/hpc/selection//ihs/northoffshore/all.ihs.out.norm
-data/hpc/selection//ihs/inshore
-data/hpc/selection//ihs/inshore/all.ihs.out
-data/hpc/selection//ihs/inshore/all.ihs.out.norm
-data/hpc/selection//ihs/southoffshore
-data/hpc/selection//ihs/southoffshore/all.ihs.out
-data/hpc/selection//ihs/southoffshore/all.ihs.out.norm
-
 
 # selection
 
-data/hpc/selection//ihs/northoffshore/all.ihs.out
-data/hpc/selection//ihs/northoffshore/all.ihs.out.norm
-data/hpc/selection//ihs/inshore/all.ihs.out
-data/hpc/selection//ihs/inshore/all.ihs.out.norm
-data/hpc/selection//ihs/southoffshore/all.ihs.out
-data/hpc/selection//ihs/southoffshore/all.ihs.out.norm
+data/hpc/selection/ihs/northoffshore/all.ihs.out
+data/hpc/selection/ihs/northoffshore/all.ihs.out.norm
+data/hpc/selection/ihs/inshore/all.ihs.out
+data/hpc/selection/ihs/inshore/all.ihs.out.norm
+data/hpc/selection/ihs/southoffshore/all.ihs.out
+data/hpc/selection/ihs/southoffshore/all.ihs.out.norm
