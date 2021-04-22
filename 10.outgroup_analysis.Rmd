@@ -30,8 +30,6 @@ sample_table <- read_tsv("data/hpc/pcangsd/all_bam.txt",col_names = "filename") 
   rownames_to_column("number")
 ```
 
-
-
 ### SNP selection and genotype likelihood calculation
 
 As a precursor to running PCAngsd (see below) we first called SNPs, filtered sites for quality and calculated genotype likelihoods using angsd (v 0.933) with the command. 
@@ -52,7 +50,7 @@ pcangsd.py -beagle all.beagle.gz -selection -snp_weights -pcadapt -admix -tree -
 
 Using the resulting covariance matrix we visualise population structure using a PCA as follows
 
-```{r}
+```{r pcangsd-pca-2}
 covmat <- read_table2("data/hpc/pcangsd/jpwa.cov",col_names = FALSE) %>% 
   as.matrix()
 
@@ -93,7 +91,7 @@ plot_grid(prow,legend_b,ncol=1,rel_heights = c(1, .1))
 
 The PCA clearly shows that WA offshore populations are more similar to each other than to the other samples.  The plot also suggests that WA inshore samples are intermediate between WA offshore and Japanese samples.  With this in mind we construct a neighbour joining tree based on distances in PCA space using Japan as the root of the tree. 
 
-```{r}
+```{r pcangsd-nj-tree}
 library(ggtree)
 library(treeio)
 library(ape)
@@ -111,14 +109,14 @@ ggtree(tr) %<+% sample_table + geom_tippoint(aes(color=location)) + theme(legend
 
 While the analysis above provides information on relative differentiation between populations of A. digitifera it is useful to consider the distances between these populations in the context of broader phylogenetic differences between species within the Acroporidae. To do this we make use of methodology developed by [@Cowman2020-mo] to examine phylogenetic relationships based on UCE and Exon sequences. Steps in this process include;
 
-1. [Map](data/hpc/iqtree/02_map_probes.sh) the hexa-v2 probeset to genomes of all species (A. digitifera, A. millepora and A. tenuis) and filter mapping using samclip.
-2. [Create a bed](data/hpc/iqtree/03_sam2bed.sh) file representing an approximately 1000bp region around each mapped probe
-3. [Merge overlapping regions](data/hpc/iqtree/04_extract_bams.sh) resulting from closely spaced probes and extract these from bams (in the case of A. digitifera)
-4. [Call consensus sequences](data/hpc/iqtree/05_call_consensus.sh) from bamfiles
-5. [Extract fasta files](data/hpc/iqtree/06_extract_uces.sh) corresponding to merged regions
-6. [Gather and align homologous sequences](data/hpc/iqtree/07_gather_uces.sh) 
-7. [Create a partition file for phylogenomic analysis](data/hpc/iqtree/08_make_partitions.sh)
-8. [Run iqtree to find the best models and generate a tree](data/hpc/iqtree/09_iqtree.sh)
+1. [Map](scripts/bash/iqtree/02_map_probes.sh) the hexa-v2 probeset to genomes of all species (A. digitifera, A. millepora and A. tenuis) and filter mapping using samclip.
+2. [Create a bed](scripts/bash/iqtree/03_sam2bed.sh) file representing an approximately 1000bp region around each mapped probe
+3. [Merge overlapping regions](scripts/bash/iqtree/04_extract_bams.sh) resulting from closely spaced probes and extract these from bams (in the case of A. digitifera)
+4. [Call consensus sequences](scripts/bash/iqtree/05_call_consensus.sh) from bamfiles
+5. [Extract fasta files](scripts/bash/iqtree/06_extract_uces.sh) corresponding to merged regions
+6. [Gather and align homologous sequences](scripts/bash/iqtree/07_gather_uces.sh) 
+7. [Create a partition file for phylogenomic analysis](scripts/bash/iqtree/08_make_partitions.sh)
+8. [Run iqtree to find the best models and generate a tree](scripts/bash/iqtree/09_iqtree.sh)
 
 The resulting tree (rooted at Acropora tenuis) recovers the expected relative divergences between species (Aten vs Amil > Amil vs Adi).  These divergences (Adi vs Amil ~ 25Mya) are clearly much larger than between population samples of Acropora digitifera, which agrees with our assessment that these are recently diverged.  Notably, samples from Japan, Inshore and Offshore locations do not follow the population structure observed in PCA-based methods which may reflect poor resolution of UCEs at this level. 
 
