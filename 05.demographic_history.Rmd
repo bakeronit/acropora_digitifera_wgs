@@ -13,55 +13,65 @@ library(tidyverse)
 library(ggsci)
 ```
 
-We used SNPs from scaffolds with a length greater than 1Mbp which account for approximately 75% of genome size (N75=983,972, first 142 scaffolds).
+For both SMC++ and MSMC, we used SNPs from scaffolds with a length greater than 1Mbp which account for approximately 75% of genome size (N75=983,972, first 142 scaffolds).
 
-## Mutation rate calibration
-The mutation rate of *A.digitifera* was 2.89e-8 in [@10.1016/j.cub.2018.08.061] which was estimated with a divergence time of 15.5 Million years. We recalculated the mutation rate with the updated divergence time in [@10.1093/molbev/msaa216] which is 25-50 million years and the results of sequence divergence in Mao et al . This gave us a smaller estimated mutation rate of 1.2e-8.
+## Mutation rate
+The per generation mutation rate of *A.digitifera* estimated based on a divergence time of 15.5 Millions years is 2.89e-8 in [@Mao2018]. However, the divergence time in [@Shinzato2020] is 25-50 million years which give us a much smaller per generation mutation rate of 1.2e-8.
 
 ```bash
-# (79427941/(79427942+363368171)/(2 × 15.5)) x 5 × 10−6 = 2.89 × 10−8
-# calibrate divergence time to 37.5
+#(79427941/(79427942+363368171)/(2 × 15.5)) x 5 × 10−6 = 2.89 × 10−8
+#calibrate divergence time to 37.5
 (79427941/(79427942+363368171)/(2 × 37.5)) x 5 × 10−6 = 1.20 x 10-8
 ```
 
 ## SMC++ analysis
 We used all 75 samples in smc++ analysis. 
 Firstly, a single vcf was extracted for every scaffold and indexed.
+
 ```bash
 bcftools view -r {chr} -Oz -o {chr}.vcf.gz Adigi.v2.filtered.vcf.gz 
 tabix {chr}.vcf.gz
 ```
+To distinguish invariant positions with missing data, we mask genome regions a) with low or super high coverage across all samples (less than three reads covered or greater than 3000) b) We generated the genome mask files created using Heng Li's SNPable tools and extracted the ambigous positions (c=="0" or c=="1").
 
-Next, vcf files were converted into a smc format file using `vcf2smc` in which we send a vcf file of one scaffold and specify a list samples in the population.
 ```bash
-smc++ vcf2smc {chr}.vcf.gz {pop}.{chr}.smc.gz {chr} POP:{sampleid},..
+samtools depth -r {chr} -aa -f bamfiles.txt | \
+awk '{sum=0; for(i=3; i<=NF; i++) {sum+=$i}; print $1"\t"$2"\t"sum }' | \
+awk '{if($3<3 || $3>3000) print $1"\t"$2"\t"$2}' | \
+bedtools merge -i stdin | bgzip > {chr}.low_masked.bed.gz
+
+zcat {chr}.low_masked.bed.gz Adigi_{chr}.mask.bed.gz | bedtools sort | bedtools merge |bgzip > {chr}.masked.bed.gz
 ```
-smc++ `estimate` model was run to fit population size history to data for each population.
+Mask files of all scaffolds were concatenated together and we keep blocks with a length greater than 2kb. Next, vcf files were converted into a smc format file using `vcf2smc` in which we send a vcf file of one scaffold and specify a list samples in the population.
 
 ```bash
-smc++ estimate --cores 30 -o estimate --base {pop} \
- --timepoints 200 200000 --em-iterations 50 --thinning 2000 --knots 40 1.2e-8 {pop}.*.smc.gz
+smc++ vcf2smc --mask all.masked.bed.gz {chr}.vcf.gz {pop}.{chr}.smc.gz {chr} POP:{sampleid},..
+```
+smc++ `estimate` mode was run to fit population size history to data for each population.
+
+```bash
+smc++ estimate --cores 30 -o estimate --base {pop} --spline cubic \
+ --timepoints 20 200000 --em-iterations 50 --thinning 3000 --knots 10 1.2e-8 {pop}.*.smc.gz
 ```
 
 ```{r plot-seting}
 mu <- 1.2e-8 
 gen <- 5
-xbreaks <- c(1e+2*1:9,1e+3*1:9 , 1e+4*1:9 , 1e+5*1:9 , 1e+6*1:9 ,1e+7)
+dtime = data.frame(name=c("LGM","Holocene"), start=c(1.2e+4,0), end=c(1.1e+5,1.2e+4))
+smc <- read_csv("data/hpc/demography/estimate_em50_cubic_k10/em50_cubic_k10.csv")
+
+xbreaks <- c(1e+2*1:9, 1e+3*1:9 , 1e+4*1:9 , 1e+5*1:9 , 1e+6*1:9 , 1e+7)
 xlabels <- as.character(xbreaks)
 xlabels[!(xbreaks%in%c(1e+3,1e+4,1e+5,1e+6,1e+7))] <- ''
 xlabels[xbreaks%in%c(1e+3,1e+4,1e+5,1e+6,1e+7)] <-c("1kya","10kya","100kya","1mya","10mya")
-
-dtime = data.frame(name=c("LGM","Holocene"),start=c(1.2e+4,0),end=c(1.1e+5,1.2e+4))
-```
-
-```{r smc-plot, fig.align='center',fig.width=7,fig.height=5, fig.cap="The effective population size estimate using SMC++ approach. The red, blue, and green lines represent the results of inshore, offshore north, and offshore south respectively."}
-smc <- read_csv("data/hpc/demography/estimate.csv")
 
 ybreaks <- c(1e+3*2:9 , 1e+4*1:9 , 1e+5*1:9 , 1e+6*1:2)
 ylabels <- as.character(ybreaks)
 ylabels[!(ybreaks%in%c(1e+4,1e+5,1e+6))] <- ''
 ylabels[ybreaks%in%c(1e+4,1e+5,1e+6)] <- c("1","10","100")
+```
 
+```{r smc-plot, fig.align='center',fig.width=7,fig.height=5, fig.cap="The effective population size estimate using SMC++ approach. The red, blue, and green lines represent the results of inshore, offshore north, and offshore south respectively."}
 ggplot(smc) + geom_line(aes(x=x,y=y,color=label),size=0.8,show.legend = FALSE) +
   geom_rect(data=dtime,aes(xmin=start,xmax=end,fill=name),ymin=-Inf, ymax=Inf,alpha=0.2,show.legend = FALSE) + 
   scale_fill_manual(values = c("yellow","grey")) +
@@ -74,104 +84,58 @@ ggplot(smc) + geom_line(aes(x=x,y=y,color=label),size=0.8,show.legend = FALSE) +
   ggtitle("Historial effective population size estimated by SMC++")
 ```
 
-
 ### The separation time between populations.
 
-The smc++ can estimate joint demography and speculate the spliting time between pair of populations. First, we create a joint frequency spectrum for every pair of populations using `vcf2smc`.
+The smc++ can estimate joint demography and speculate the splitting time between pair of populations. First, we create a joint frequency spectrum for every pair of populations using `vcf2smc`.
 
 ```bash
 smc++ vcf2smc {chr}.vcf.gz {pop1}_{pop2}.smc.gz {chr} POP1:{sampleid},..  POP2:{sampleid},..
 ```
+
 Next,we ran smc++ `split` with same parameters we used in `estimate`.
 
 ```bash
 smc++ split -o split --base {pop1}_{pop2} \
---timepoints 200 200000 --em-iterations 50 --thinning 2000 \
+--timepoints 20 200000 --em-iterations 50 --thinning 3000 \
 {pop1}.final.json {pop2}.final.json {pop1}_{pop2}.smc.gz
 ```
 
-```{r split,fig.show="hold", out.width="33%"}
+```{r split, fig.show="hold", out.width="33%"}
 library(png)
 library(knitr)
-split_plot <- list.files(path = "figures",pattern = "split" ,full.names = TRUE)
+split_plot <- list.files(path = "data/hpc/demography/split_em50_cubic_k10",pattern = "*.split.png" ,full.names = TRUE)
 include_graphics(split_plot)
 ```
 
 **Figure:** Three figures above show the joint demography between any two population  (IN: inshore, NO:northoffshore, SO:southoffshore) and the estimated spliting time (blue vertical line).
 
 
-## MSMC analysis
-For MSMC analysis, we restricted this analysis to high coverage (~20X) samples and used the maximum number of haplotypes (eight haplotypes) per population. To obtain more accurate phase information, all samples were used in initial variant calling using `bcftools` and conducting read aware phasing using `SHAPEIT2`.
+### Bootstrap results 
+We perform 20 bootstrap in SMC++
+```{r}
+smc_main <- read_csv("data/hpc/demography/estimate_em50_k40/em50_k40.csv") %>% select(label,x,y) %>% add_column(type="main")
+read_bootstrap <- function(pop, n) {
+  read_csv(paste0("data/hpc/demography/smc_bootstrap/",pop,"_",n,".csv" )) %>% select(label,x,y) %>% add_column(n=paste0("bs",n))
+}
 
-```bash
-bcftools mpileup -q 30 -Q 30 -C 50 -Oz -r $scaffold -f $reference.fa $(cat bamfile.txt | tr '\n' ' ') | \
-bcftools call -c -V indels | bcftools view -M 2 -Oz > all.${scaffold}.vcf.gz
+smc_bs <- rbind(map_df(1:20, ~read_bootstrap(pop="inshore",n=.x)),
+                map_df(1:20, ~read_bootstrap(pop="northoffshore",n=.x)),
+                map_df(1:20, ~read_bootstrap(pop="southoffshore",n=.x)))
 
-extractPIRs --bam ${scaffold}.bamlist --vcf all.${scaffold}.vcf.gz \
-  --out ${scaffold}.PIRsList --base-quality 20 --read-quality 20
-
-shapeit -assemble --input-vcf all.${scaffold}.vcf.gz --input-pir ${scaffold}.PIRsList -O $scaffold
-
-shapeit -convert --input-haps $scaffold --output-vcf ${scaffold}.phased.vcf.gz
-
-bcftools merge --force-samples all.${scaffold}.vcf.gz ${scaffold}.phased.vcf.gz |
-awk 'BEGIN {{OFS="\t"}}
-        $0 ~/^##/ {{print $0}}
-$0 ~/^#CHROM/ {{for(i=1;i<84;i++) printf "%s"OFS, $i; print $84}}
-$0 !~/^#/ {{ for(x=10;x<=84;x++) $x=$(x+75); for(j=1;j<84;j++) printf "%s"OFS, $j; print $84 }}' | \
-bcftools view -Oz > final.${scaffold}.vcf.gz
 ```
 
-For every sample, bamCaller.py was used to generate VCF file and mask file in bed format. `generate_multihetsep.py` was used to generate multihetsep files for every scaffold using all samples. A mappability mask file of the Acropora digitifera reference genome was generated following Heng Li’s [SNPable](http://lh3lh3.users.sourceforge.net/snpable.shtml).
-
-```bash
-$mean_cov=$(samtools depth -r $scaffold ${sample}.bam|awk '{sum += $3} END {print sum/NR}')
-
-bcftools view -s $sample final.${scaffold}.vcf.gz |\
-bamCaller.py $mean_cov ${sample}_${scaffold}_mask.bed.gz |gzip -c > ${sample}_${scaffold}.vcf.gz
-
-generate_multihetsep.py --chr $scaffold --mask ${sample}_${scaffold}_mask.bed.gz \ 
---mask mappability/Adigi_${scaffold}.mask.bed.gz ${sample}_${scaffold}.vcf.gz > multihetsep_${scaffold}.txt
+```{r bootstrap-plot}
+ggplot() + geom_line(data=smc_main,aes(x=x,y=y,color=label),size=1,show.legend = FALSE) +
+  geom_line(data = smc_bs, aes(x=x,y=y,color=label,group=interaction(label,n)),alpha=0.1,show.legend = FALSE)+
+  scale_x_log10(breaks=xbreaks, labels=xlabels)+
+  scale_y_log10(breaks=ybreaks,labels=ylabels,limits=c(2e+3,2e+6)) + 
+  scale_color_startrek() + theme_test() + 
+  labs(x=expression(paste("Years Ago (g=5, ",mu, "=1.20e-8)")),
+  y=expression(paste("Effective Population Size ",N[e]," (x", 10^4 ,")"))) +
+  ggtitle("Historial effective population size estimated by SMC++ with 20 bootstraps")
 ```
 
-MSMC2 was firstly run for haplotypes from each population separately and calculate the cross-coalescence rate for each pair of two populations.To conduct bootstrap estimation, script multihetsep_bootstrap.py from msmc-tools was used to generate 100 sets of fragmented and resampled scaffolds by taking 20 random chunks per scaffold of size 500kb and assembling them into 20 “chromosomes”. Next, we conducted 100 bootstrap estimates for each population with 100 bootstrap data sets using the same options as before.
 
-```bash
-msmc2 -t 12 -s -I 0,1,2,3,4,5,6,7 -o inshore_8hap multihetsep_*.txt
-msmc2 -t 12 -s -I 8,9,10,11,12,13,14,15 -o northoffshore_8hap multihetsep_*.txt
-msmc2 -t 12 -s -I 16,17,18,19,20,21,22,23 -o southoffshore_8hap multihetsep_*.txt
 
-multihetsep_bootstrap.py -n 100 -s 500000 —chunks_per_chromosome 20 \
- -nr_chromosomes 20 bootstrap *.multihetsep_*.txt
 
-msmc2 -t 12 -s -I 0,1,2,3,4,5,6,7 -o bootstrap_results/inshore bootstrap_${n}/*.txt
-msmc2 -t 12 -s -I 8,9,10,11,12,13,14,15 -o bootstrap_results/northoffshore bootstrap_${n}/*.txt
-msmc2 -t 12 -s -I 16,17,18,19,20,21,22,23 -o bootstrap_results/southoffshore bootstrap_${n}/*.txt
-```
 
-```{r msmc}
-mu <- 2.89e-8 
-inshore_8hap <- read.table("../../Chapter I/demographic/msmc/final/inshore_8hap.final.txt", header=TRUE) %>% add_column(pop="inshore")
-noffshore_8hap <-read.table("../../Chapter I/demographic/msmc/final/noffshore_8hap.final.txt", header=TRUE) %>% add_column(pop="noffshore")
-soffshore_8hap <-read.table("../../Chapter I/demographic/msmc/final/soffshore_8hap.final.txt", header=TRUE) %>% add_column(pop="soffshore")
-df_8hap <- rbind(inshore_8hap,noffshore_8hap,soffshore_8hap)
-
-ybreaks2 <- 2e+4*seq(1,5,by=0.1)
-ylabels2 <- as.character(ybreaks2)
-ylabels2[!(ybreaks2%in%c(2e+4,4e+4,6e+4,8e+4,1e+5))] <- ''
-ylabels2[ybreaks2%in%c(2e+4,4e+4,6e+4,8e+4,1e+5)] <- c("2","4","6","8","10")
-ggplot(df_8hap)+ 
-  scale_x_log10(breaks=xbreaks, labels=xlabels,limits=c(1e+3,1e+6)) + 
-  geom_rect(data=dtime,aes(xmin=start,xmax=end,fill=name),ymin=-Inf, ymax=Inf,alpha=0.2,show.legend = FALSE) +
-  scale_fill_manual(values = c("yellow","grey")) +
-  geom_text(data=dtime, aes(x=(end-start)/4, label=name),y=1e+5, size=4,fontface="bold") +
-  scale_y_continuous(breaks=ybreaks2,labels = ylabels2,limits = c(2e+4,1e+5)) +
-  geom_step(aes(x=left_time_boundary/mu*gen,y=(1/lambda)/2/mu,color=pop),size=0.8) + 
-  scale_color_startrek(labels=c("Inshore","North Offshore","South Offshore")) +
-  #geom_step(data=bs_data_gbr_av, size=1,aes(color=pop)) +
-  xlab(expression(paste("Years Ago (g=5, ",mu, "=2.89e-8)"))) + 
-  ylab(expression(paste("Effective Population Size ",N[e]," (x", 10^4 ,")")))  + 
-  theme_test() + theme(legend.title = element_blank(), legend.position = c(0.85,0.8))
-```
-
-**Figure:** The effective population size estimate MSMC.
