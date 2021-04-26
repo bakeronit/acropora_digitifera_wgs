@@ -13,13 +13,12 @@ data/hpc/pcangsd/jpwa.tree
 data/hpc/pcangsd/wa.sites
 data/hpc/pcangsd/wa.cov
 data/hpc/pcangsd/wa_bam.txt
-data/hpc/pcangsd/all.lengths.scaf.txt
 
 
 # RagTag
 
 data/hpc/ragtag/ragtag_output/ragtag.scaffolds.agp
-
+data/hpc/ragtag/all.lengths.scaf.txt
 
 # Thetastat
 

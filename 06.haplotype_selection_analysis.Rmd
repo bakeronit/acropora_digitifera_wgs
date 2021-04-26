@@ -7,11 +7,14 @@ output: github_document
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
 library(tidyverse)
 library(ggpubr)
+library(cowplot)
 ```
 
 We applied iHS, XP-nSL, and XP-EHH scan on scaffolds with more than 10 phased SNPs (464 scaffolds).The newer version of selscan can use physical distance instead of genetic distance in scan.
 
-We applied extended haplotype homozygosity (EHH) based methods to detect the genomic regions under recent positive selection. The tool [selscan](https://github.com/szpiech/selscan) was used to implement iHS scan for each population, XPnSL, XPEHH scans both between every pairs of populations and between inshore and offshore. The VCF files which were phased by SHAPEIT were used in selscan run, we extracted samples from each location from phased VCF file.
+We applied extended haplotype homozygosity (EHH) based methods to detect the genomic regions under recent positive selection. The tool [selscan](https://github.com/szpiech/selscan) was used to implement iHS scan for each population, XPnSL, XPEHH scans both between every pair of populations and between inshore and offshore. The VCF files which were phased by SHAPEIT were used in selscan run
+
+We extracted samples from each location from phased VCF file as follows:
 
 ```bash
 bcftools view -S {pop} -r {chr} Adigi.v2.filtered.vcf.gz |bgzip > {pop}.{chr}.vcf.gz
@@ -39,49 +42,216 @@ selscan --xpnsl --vcf inshore.{chr}.vcf.gz \
 --threads 10 --out xpnsl_out/{chr}
 ```
 
-The unstandardised iHS and XP-EHH values were normalized in allele frequency bins (50 bins) across the genome using `norm`.
+The unstandardised iHS values were normalized in allele frequency bins (50 bins) across the genome whereas for `XP-EHH` and `XP-nSL` normalisation was performed without this binning.  The resulting value in all cases is a z-score. It represents the number of standard deviations from the mean (in frequency bins for iHS). In addition, the number of extreme values was calculated within windows of fixed size, 50kb across the genome. 
 
 ```bash
 norm --ihs --files ihs_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 50000
 norm --xpehh --files xpehh_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 50000
 norm --xpnsl --files xpnsl_out/*.out --bins 50 --bp-win --min-snps 10 --winsize 50000
 ```
-We plotted the standardised iHS score across the genome using the psedu-chromosome level coordinates.
+
+Scores for all EHH based scans can be calculated across the genome using the pseudo-chromosome level coordinates.
 
 ```bash
 cat ihs_out/{pop}/*.norm |cut -f1,2,7 > {pop}.ihs.50bins.norm
 python translate_coords.py {pop}.ihs.50bins.norm ragtag.scaffolds.agp > {pop}.ihs.50bins.norm.ragtag.txt 
 ```
 
-```{r ihs-manhattan-plot, cache=TRUE, fig.align='center'}
+```{r, cache=TRUE, fig.align='center'}
 offsets <- read_tsv("data/hpc/ragtag/all.lengths.scaf.txt", col_names = c("chr","length"))%>% 
   arrange(desc(length)) %>%
   mutate(offset=lag(cumsum(length),default=0)) %>% 
   mutate(scaffold_num=row_number())
-
-make_manhattan_ihs <- function(pop) {
-  manhattan_data <- read_tsv(paste0("data/hpc/selection/ihs/",pop,".ihs.50bins.norm.ragtag.txt"), col_names = c("chr","chr_pos","norm_ihs")) %>% 
-          mutate(pval=2*pnorm(-abs(norm_ihs))) %>% 
-          left_join(offsets) %>% mutate(abs_pos=chr_pos + offset)
-  manhattan_data
-}
-
-manhattan_ihs <- rbind(make_manhattan_ihs("inshore") %>% add_column(pop="Inshore"),
-                       make_manhattan_ihs("northoffshore") %>% add_column(pop="North Offshore"),
-                       make_manhattan_ihs("southoffshore") %>% add_column(pop="South Offshore"))   
-
-ggplot(manhattan_ihs) +
-  geom_point(aes(x=abs_pos/1e6, y=-log10(pval),color=as.character(scaffold_num %% 2)), size=0.2) + 
-  labs(x="Genome Position / Mb", y="-log10(p)") + theme_pubclean() + theme(legend.position = "None") +
-  facet_wrap(~pop, ncol=1)
-
-write_rds(manhattan_ihs,file = "cache/ihs.rds")
 ```
 
-**Figure 1: Manhattan plot of -log10(pval) of standard |iHS| across the genome in three population**
+
+```{r}
+parse_path_info <- function(path){
+  if ( grepl("ihs",path)){
+    stat_name="ihs"
+    scan_name <- path %>% basename() %>% str_match("[a-z]+")
+  } else {
+    scan_name <- path %>% basename() %>% str_match("[a-z]+_vs_[a-z]+")
+    stat_name <- path %>% basename() %>% str_extract("xp[a-z]{3}")
+  }
+  c(scan_name,stat_name)
+}
+
+read_ehh_stat <- function(path){
+  info <- parse_path_info(path)
+  read_tsv(path,col_names = c("chr","chr_pos","norm_value")) %>% 
+    mutate(pval = pnorm(abs(norm_value))) %>% 
+    add_column(stat=info[2]) %>% 
+    add_column(pop=info[1])
+}
+
+if ( file.exists("cache/ehh.rds")){
+  ehh_stats <- read_rds("cache/ehh.rds")
+} else {
+# Collects all the ehh based statistics together. This allows more flexible mix and match of plots
+#
+  ehh_stats <- list.files("data/hpc/selection",pattern = "*norm.ragtag.txt",recursive = TRUE,full.names = TRUE) %>% 
+    map_dfr(read_ehh_stat) %>% 
+    left_join(offsets) %>% 
+    mutate(abs_pos=chr_pos + offset)
+
+  write_rds(ehh_stats,file = "cache/ehh.rds")
+}
+```
+
+
+```{r, include=FALSE}
+ehh_stats %>% group_by(pop,stat) %>% 
+  summarise(mean=mean(norm_value),sd=sqrt(var(norm_value)))
+```
+
+### iHS scores
+
+```{r, cache=TRUE, fig.align='center'}
+top_ihs <- ehh_stats %>% filter(abs(norm_value)>5) %>% filter(stat=="ihs")
+
+ehh_stats %>% 
+  filter(abs(norm_value)>3) %>% 
+  filter(stat=="ihs") %>% 
+  ggplot() +
+  geom_point(aes(x=abs_pos/1e6, y=abs(norm_value),color=as.character(scaffold_num %% 2)), size=0.1) + 
+  geom_point(data=top_ihs,aes(x=abs_pos/1e6, y=abs(norm_value),color=as.character(scaffold_num %% 2)), size=1) + 
+      labs(x="Genome Position / Mb", y="|iHS|") + theme_pubclean() + theme(legend.position = "None") +
+  geom_hline(aes(yintercept=5)) +
+  facet_wrap(~pop, ncol=1)
+
+```
+
+**Figure 1: Manhattan plot of standardised |iHS| across the genome in three populations. Extreme values (|iHS|>5) are highlighted**
 
 For iHS scan, we calculated the fraction of SNPs with extreme |iHS| value in each divided 50Kb genomic window, excluding regions with fewer than 10 SNPs. We did the same iHS scan for inshore and offshore populations and used offshore samples as reference population in XP-EHH and XP-nSL scan.
 
-The XP-EHH results
+
+## XP-EHH and XP-nSL statistics
+
+Although the iHS statistic is sensitive to recent positive selection while accounting for local variation in recombination rate it loses power for sweeps that have resulted in fixation or near fixation of the selected allele. XP-EHH and XP-nSL statistics address this issue by comparing long haplotypes in one population with alleles in a related population.  Our three Acropora digitifera populations in WA are ideal for this because they diverged only recently and have similar demographic histories. 
+
+The following plots consider each focal population separately.  
+
+First we examine the inshore population, plotting all available EHH statistics.  Although there are clearly a small number of loci that show strong signals in all three of these stats the complementary nature of the stats is also clear.  Many of the strongest signals in XP-EHH are not found via XP-nSL.  XP-nSL has greater power to detect soft sweeps than XP-EHH. For the inshore population very few strong sweeps can be identified with iHS.
+
+```{r, fig.align='center', fig.height=10}
+inshore_ehh_stats <- ehh_stats %>% filter(pop %in% c("inshore","inshore_vs_northoffshore","inshore_vs_southoffshore"))
+
+inshore_xpehh <- inshore_ehh_stats %>% 
+  filter(stat=="xpehh") %>% 
+  filter(norm_value>5) %>% 
+  ggplot() +
+  geom_point(aes(x=abs_pos/1e6, y=norm_value,color=as.character(scaffold_num %% 2)), size=0.01) + 
+    labs(x="Genome Position / Mb", y="XP-EHH") + 
+  theme_pubclean() + 
+  theme(legend.position = "None") +
+  facet_wrap(~pop,ncol=1)
+
+inshore_xpnsl <- inshore_ehh_stats %>% 
+  filter(stat=="xpnsl") %>% 
+  filter(norm_value>5) %>% 
+  ggplot() +
+  geom_point(aes(x=abs_pos/1e6, y=norm_value,color=as.character(scaffold_num %% 2)), size=0.01) + 
+    labs(x="Genome Position / Mb", y="XP-nSL") + 
+  theme_pubclean() + 
+  theme(legend.position = "None") +
+  facet_wrap(~pop,ncol=1)
+  
+inshore_ihs <- inshore_ehh_stats %>% 
+  filter(stat=="ihs") %>% 
+  filter(abs(norm_value)>5) %>% 
+  ggplot() +
+  geom_point(aes(x=abs_pos/1e6, y=abs(norm_value),color=as.character(scaffold_num %% 2)), size=0.01) + 
+    labs(x="Genome Position / Mb", y="|iHS|") + 
+  theme_pubclean() + 
+  theme(legend.position = "None") +
+  facet_wrap(~pop,ncol=1)
+
+plot_grid(inshore_xpehh,inshore_xpnsl,inshore_ihs,ncol = 1, rel_heights = c(0.4,0.4,0.2))
+  
+```
 
 
+**Figure 2: Manhattan plot of EHH based statistics (XP-EHH, XP-nSL, iHS) where the focal population is inshore. **
+
+For the South Offshore population we also see many strong sweeps including two very strong signals from the iHS statistic. 
+
+```{r, fig.align='center', fig.height=10}
+southoffshore_ehh_stats <- ehh_stats %>% filter(pop %in% c("southoffshore","northoffshore_vs_southoffshore","inshore_vs_southoffshore"))
+
+so_xpehh <- southoffshore_ehh_stats %>% 
+  filter(stat=="xpehh") %>% 
+  filter(norm_value < -5) %>% 
+  ggplot() +
+  geom_point(aes(x=abs_pos/1e6, y=-norm_value,color=as.character(scaffold_num %% 2)), size=0.01) + 
+    labs(x="Genome Position / Mb", y="XP-EHH") + 
+  theme_pubclean() + 
+  theme(legend.position = "None") +
+  facet_wrap(~pop,ncol=1)
+
+so_xpnsl <- southoffshore_ehh_stats %>% 
+  filter(stat=="xpnsl") %>% 
+  filter(norm_value < -5) %>% 
+  ggplot() +
+  geom_point(aes(x=abs_pos/1e6, y=-norm_value,color=as.character(scaffold_num %% 2)), size=0.01) + 
+    labs(x="Genome Position / Mb", y="XP-nSL") + 
+  theme_pubclean() + 
+  theme(legend.position = "None") +
+  facet_wrap(~pop,ncol=1)
+  
+so_ihs <- southoffshore_ehh_stats %>% 
+  filter(stat=="ihs") %>% 
+  filter(abs(norm_value)>5) %>% 
+  ggplot() +
+  geom_point(aes(x=abs_pos/1e6, y=abs(norm_value),color=as.character(scaffold_num %% 2)), size=0.05) + 
+    labs(x="Genome Position / Mb", y="|iHS|") + 
+  theme_pubclean() + 
+  theme(legend.position = "None") +
+  facet_wrap(~pop,ncol=1)
+
+plot_grid(so_xpehh,so_xpnsl,so_ihs,ncol = 1, rel_heights = c(0.4,0.4,0.2))
+  
+```
+
+
+**Figure 3: Manhattan plot of EHH based statistics (XP-EHH, XP-nSL, iHS) where the focal population is south offshore **
+
+```{r, fig.align='center', fig.height=10}
+southoffshore_ehh_stats <- ehh_stats %>% filter(pop %in% c("northoffshore","northoffshore_vs_southoffshore","inshore_vs_southoffshore"))
+
+so_xpehh <- southoffshore_ehh_stats %>% 
+  filter(stat=="xpehh") %>% 
+  filter(norm_value>5) %>% 
+  ggplot() +
+  geom_point(aes(x=abs_pos/1e6, y=norm_value,color=as.character(scaffold_num %% 2)), size=0.01) + 
+    labs(x="Genome Position / Mb", y="XP-EHH") + 
+  theme_pubclean() + 
+  theme(legend.position = "None") +
+  facet_wrap(~pop,ncol=1)
+
+so_xpnsl <- southoffshore_ehh_stats %>% 
+  filter(stat=="xpnsl") %>% 
+  filter(norm_value>5) %>% 
+  ggplot() +
+  geom_point(aes(x=abs_pos/1e6, y=norm_value,color=as.character(scaffold_num %% 2)), size=0.01) + 
+    labs(x="Genome Position / Mb", y="XP-nSL") + 
+  theme_pubclean() + 
+  theme(legend.position = "None") +
+  facet_wrap(~pop,ncol=1)
+  
+so_ihs <- southoffshore_ehh_stats %>% 
+  filter(stat=="ihs") %>% 
+  filter(abs(norm_value)>5) %>% 
+  ggplot() +
+  geom_point(aes(x=abs_pos/1e6, y=abs(norm_value),color=as.character(scaffold_num %% 2)), size=0.05) + 
+    labs(x="Genome Position / Mb", y="|iHS|") + 
+  theme_pubclean() + 
+  theme(legend.position = "None") +
+  facet_wrap(~pop,ncol=1)
+
+plot_grid(so_xpehh,so_xpnsl,so_ihs,ncol = 1, rel_heights = c(0.4,0.4,0.2))
+  
+```
+
+**Figure 4: Manhattan plot of EHH based statistics (XP-EHH, XP-nSL, iHS) where the focal population is north offshore **
