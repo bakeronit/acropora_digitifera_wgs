@@ -1,0 +1,106 @@
+---
+title: "Functional enrichment analysis"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(topGO)
+library(clusterProfiler)
+library(GO.db)
+```
+
+We merged gene candidates from iHS, XP-EHH, and XP-nSL scans and performed GO enrichment analysis. In total, we had 635 genes as the target, and we used all annotated genes as background to do a Fisher's exact test based on weighted gene counts using clusterProfiler and topGO R packages.
+
+```{r def-clusterprofiler}
+go_enrich_cp <- function(targets=targets, 
+                         universe = universe,
+                         term2gene=term2gene, 
+                         term2name=term2name) {
+  x <- enricher(gene = targets, universe = universe,
+            TERM2GENE = term2gene,
+            TERM2NAME = term2name,
+            pvalueCutoff = 0.01,
+            pAdjustMethod = "none",
+            qvalueCutoff = 1)
+  as.data.frame(x) %>% knitr::kable(row.names = F)
+}
+
+```
+
+```{r def-topgo}
+go_enrich_topgo <- function(gene2go=gene2go,targets=targets,onto) {
+    genenames <- names(gene2go)
+    genelist <- factor(as.integer(genenames %in% targets))
+    names(genelist) <- genenames
+
+    GOdat <- new("topGOdata",allGenes = genelist,
+                    annot=annFUN.gene2GO,gene2GO=gene2go,
+                    ontology=onto,nodeSize=5)
+    
+    resultFisher <- runTest(GOdat, 
+                        algorithm = "weight01",
+                        statistic = "fisher")
+
+    GenTable(GOdat, 
+             weight01_Fisher=resultFisher) %>%    
+      filter(weight01_Fisher<=0.01) %>% knitr::kable()
+}
+```
+
+
+
+```{r}
+#setting background in clusterprofiler
+term2gene <- readRDS("cache/interpro_go.rds") %>% na.omit() %>% separate_rows(go,sep=",") %>% select(go,adi_id)
+universe <- readRDS("cache/interpro_go.rds") %>% select(adi_id)
+term2name <- Term(GOTERM[term2gene$go %>% unlist]) %>% stack %>% 
+  select(ind,values)
+
+#setting background in topGO
+gene2go <- readMappings("data/hpc/annotation/gene-to-go_topgo.tsv")
+```
+
+```{r}
+inshore_all <- read_tsv("data/hpc/selection/results/inshore.multiIntersect.genes.bed",
+                        col_names = c("scaff","start","end","geneid")) %>% 
+  dplyr::select(geneid) %>% unique %>% unlist
+
+```
+
+### GO term enriched in gene set identified in inshore
+```{r}
+go_enrich_cp(targets = inshore_all,universe = universe,
+                term2gene =term2gene,term2name = term2name)
+
+go_enrich_topgo(gene2go = gene2go, 
+                  targets = inshore_all,"MF")
+
+
+```
+### GO enrichment in North offshore
+```{r}
+northoffshore_all <- read_tsv("data/hpc/selection/results/northoffshore.multiIntersect.genes.bed",
+                              col_names = c("scaff","start","end","geneid")) %>% 
+  dplyr::select(geneid) %>% unique %>% unlist
+
+go_enrich_cp(targets = northoffshore_all,universe = universe,
+                term2gene =term2gene,term2name = term2name)
+
+go_enrich_topgo(gene2go = gene2go, 
+                  targets = northoffshore_all,"MF")
+```
+### GO enrichemnt in South offshore
+```{r}
+southoffshore_all <- read_tsv("data/hpc/selection/results/southoffshore.multiIntersect.genes.bed",
+                              col_names = c("scaff","start","end","geneid")) %>% 
+  dplyr::select(geneid) %>% unique %>% unlist
+
+go_enrich_cp(targets = southoffshore_all,universe = universe,
+                term2gene =term2gene,term2name = term2name)
+
+go_enrich_topgo(gene2go = gene2go, 
+                  targets = southoffshore_all,"MF")
+```
+

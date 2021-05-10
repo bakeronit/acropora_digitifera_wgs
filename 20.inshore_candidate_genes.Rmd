@@ -1,0 +1,127 @@
+---
+title: "Genes under selection in inshore reefs"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(ggrepel)
+```
+
+To perform functional enrichment analysis using the gene models of version 2 genome, we did functional analysis of all protein-coding genes using [InterProScan5](https://www.ebi.ac.uk/seqdb/confluence/display/JDSAT/InterProScan+5+Help+and+Documentation#InterProScan5HelpandDocumentation-RESTAPI) REST API.
+
+We extracted the longest isoform per gene model with gff file and genome fasta file
+```bash
+cgat gff2gff --filter=longest-gene -I annotation_from_chuya/adig-v2.gff -S annotation_longest_gene.gff
+
+gffread -g reference_entryname.fa -y protein.fa annotation_longest_gene.gff
+gffread -g reference_entryname.fa -x CDS.fa annotation_longest_gene.gff
+```
+```bash
+python iprscan5.py --multifasta protein.fa \
+--maxJobs 29 --useSeqId --email email@address.com \
+--outformat tsv
+```
+We extract GO term assignments from Interproscan results.
+```{r}
+interpro <- read_tsv("data/hpc/annotation/adig_iprscan_withgo.tsv", guess_max = 10000, 
+                     col_names = c("adi_id","md5","seqlen","analysis","signature_acc","signature_desc","start","stop","score","status","date","ipr_acc","ipr_ann","ipr_go", "pathways")) %>% select(adi_id,ipr_go)
+
+interpro_go <- interpro %>% separate_rows(ipr_go,sep="\\|") %>% mutate(adi_id=str_remove(adi_id,"\\.t\\d")) %>% unique %>% group_by(adi_id) %>% summarise(go=paste(ipr_go,collapse = ",")) 
+
+all <- read_tsv("data/hpc/annotation/allgenes_ids_extracted_from_gff.txt",col_names = "adi_id")
+
+interpro_go <- all %>% left_join(interpro_go)
+
+
+#saveRDS(interpro_go,"cache/interpro_go.rds")
+#write_tsv(interpro_go,"data/hpc/annotation/gene-to-go_topgo.tsv",col_names = F)
+```
+
+In the meantime, we also blast all A. digitifera genes against uniprot database using blastx/p. From the blast results (evalue <1e-5), we could assign gene models putative gene names based on their orthologs.
+
+```{r uniprot-table}
+bl6_cols <- c("qaccver","saccver","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore")
+blastp <- read_tsv("data/hpc/annotation/Adigitifera_uniprot_blastp.outfmt6", col_names = bl6_cols) %>% 
+  select(adi_id=qaccver, uniprot_id=saccver) %>% add_column(method="blastp") %>% mutate(geneid=str_remove(adi_id,'\\.t\\d'))
+
+blastx <- read_tsv("data/hpc/annotation/Adigitifera_uniprot_blastx.outfmt6", col_names = bl6_cols) %>% 
+  select(adi_id=qaccver, uniprot_id=saccver) %>% add_column(method="blastx") %>% mutate(geneid=str_remove(adi_id,'\\.t\\d'))
+
+
+uniprot_id_genename_tab <- read_tsv("data/hpc/annotation/uniprot_id_gene_name.tab", col_names = c("uniprot_id","genename"))
+
+blastp <- blastp %>% left_join(uniprot_id_genename_tab)
+blastx <- blastx %>% left_join(uniprot_id_genename_tab)
+
+adi_id_genename <- rbind(blastp,blastx) %>% group_by(geneid) %>% summarise(genename=paste(unique(genename),collapse = "|"))
+```
+
+```{r annotation-res-stats-table}
+annot_2col <- interpro_go %>% left_join(adi_id_genename,by=c("adi_id"="geneid"))
+annot_stats <- colSums(!is.na(annot_2col)) %>% as.data.frame()
+rownames(annot_stats) <- c("Total", "Interpro","Uniprot")
+colnames(annot_stats) <- c("Number")
+annot_stats$Proportion <- annot_stats[,1]/annot_stats[1,1]
+
+knitr::kable(annot_stats)
+```
+
+
+### Gene candidates
+Combine all the significant regions in iHS, XP-EHH, and XP-nSL scans. There are 9 windows (including 33 genes) identified as under selection in all 5 comparisons in inshore reefs (iHS, XP-EHH and XP-nSL against north offshore and south offshore reefs).
+```{r}
+
+genes_in_windows <- read_tsv("data/hpc/selection/results/inshore.multiIntersect.genes.bed",
+                        col_names = c("chrom","start","end","adi_id")) %>% 
+                    left_join(adi_id_genename,by=c("adi_id"="geneid")) %>% mutate(genename=case_when(!is.na(genename) ~ genename, is.na(genename) ~ adi_id)) %>% 
+                    group_by(chrom,start,end) %>% summarise(genes=paste(genename %>% unique,collapse = ",")) 
+
+windows_to_genes_tbl<- read_tsv("data/hpc/selection/results/inshore.multiIntersect.bed") %>% mutate(chrom=str_remove(chrom,"\\.1")) %>% select(chrom,start,end,num) %>% left_join(genes_in_windows,by=c("chrom","start","end")) %>% 
+  mutate(genes=ifelse(is.na(genes),"no gene in this window",genes)) %>% 
+  arrange(desc(num)) %>% 
+  rename(Scaffold_ID=chrom, Start=start, End=end, "Significant in #"=num, "Genes in this window"=genes)
+
+knitr::kable(windows_to_genes_tbl)
+
+```
+We then extracted the norm values 
+```{r plot-windows,fig.height=9,fig.width=15}
+all_genes <- read_tsv("data/hpc/selection/windows/intersect_genes.bed",col_names = c("scaff","start","end","scaff1","gene_start","gene_end","geneid")) %>% select(-scaff1) %>%  left_join(adi_id_genename) %>% mutate(genename=ifelse(is.na(genename),geneid,genename)) %>% 
+  mutate(location=paste(scaff,paste(start,end,sep="-"),sep = ":")) %>% 
+  select(location,genename,gene_start,gene_end)
+
+bed <- read_tsv("data/hpc/selection/windows/intersect.bed",col_names = c("scaff","start","end"))
+
+
+ihs <- read_tsv("data/hpc/selection/windows/intersect_windows.ihs.norm",col_names = F) %>% select(X1,X2,X7) %>% 
+  rename("scaff"=X1, "pos"=X2,"value"=X7) %>% add_column(type="ihs")
+
+xpehh_no <- read_tsv("data/hpc/selection/windows/intersect_windows.xpehh_no.norm",col_names = F) %>% select(X1,X2,X9) %>% 
+  rename("scaff"=X1, "pos"=X2,"value"=X9) %>% add_column(type="xpehh_no")
+
+xpehh_so <- read_tsv("data/hpc/selection/windows/intersect_windows.xpehh_so.norm",col_names = F) %>% select(X1,X2,X9) %>% 
+  rename("scaff"=X1, "pos"=X2,"value"=X9) %>% add_column(type="xpehh_so")
+
+xpnsl_no <- read_tsv("data/hpc/selection/windows/intersect_windows.xpnsl_no.norm",col_names = F) %>% select(X1,X2,X9) %>% 
+  rename("scaff"=X1, "pos"=X2,"value"=X9) %>% add_column(type="xpnsl_no")
+
+xpnsl_so <- read_tsv("data/hpc/selection/windows/intersect_windows.xpnsl_so.norm",col_names = F) %>% select(X1,X2,X9) %>% 
+  rename("scaff"=X1, "pos"=X2,"value"=X9) %>% add_column(type="xpnsl_so")
+
+rbind(ihs,xpehh_no,xpehh_so,xpnsl_no,xpnsl_so) %>% left_join(bed) %>% filter(pos>=start & pos<=end) %>% mutate(location=paste(scaff,paste(start,end,sep="-"),sep = ":")) %>% select(location, pos, value, type) %>% 
+  ggplot(aes(x=pos/1000,y=value)) + geom_point(size=1) +  
+  geom_segment(data=all_genes %>% add_column(type="xpnsl_so"),aes(x=gene_start/1000,xend=gene_end/1000,y=-2.5,yend=-2.5))+ 
+  geom_text_repel(data=all_genes %>% add_column(type="xpnsl_so"),aes(x=(gene_start+gene_end)/2000,y=-2,label=genename),size=2.5)+
+  facet_grid(type~location, scales = "free")  + theme_classic()
+  
+
+```
+
+This plot is very difficult to see. We will plot the combined signals for each window:
+```{r}
+all_selscan <- rbind(ihs,xpehh_no,xpehh_so,xpnsl_no,xpnsl_so) 
+
+
+```
