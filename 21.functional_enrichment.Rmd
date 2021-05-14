@@ -55,7 +55,7 @@ uniprot_gene_annot <- rbind(blastp,blastx) %>% group_by(geneid) %>% dplyr::top_n
   left_join(uniprotkb_tab,by=c("uniprot_id"="Entry")) %>%
   ungroup %>% 
   select(geneid,uniprot_id,entryname="Entry name",
-         genename="Gene names",go="Gene ontology IDs",kegg="Cross-reference (KEGG)") %>% mutate(genename=ifelse(is.na(genename),entryname,genename))
+         genename="Gene names",go="Gene ontology IDs",kegg="Cross-reference (KEGG)",protein="Protein names") %>% mutate(genename=ifelse(is.na(genename),entryname,genename))
 ```
 
 ```{r annotation-res-stats-table}
@@ -211,8 +211,8 @@ genes_in_enrichedGO <- function(bp,mf,cc,target) {
     na.omit() %>% filter(geneid %in% target)
 
   rbind(bp_genes,mf_genes,cc_genes) %>% left_join(uniprot_gene_annot %>%
-                                                select(geneid,uniprot_id,genename)) %>%
-    group_by(go) %>% summarise(genename=paste(genename %>% unique,collapse = "; "))
+                                                select(geneid,uniprot_id)) %>%
+    group_by(go) %>% summarise(uniprot_id=paste(uniprot_id,collapse = "; "))
   
 }
 
@@ -271,12 +271,13 @@ southoffshore_topgo <- rbind(southoffshore_topgo_bp$table %>% mutate(classic=as.
 southoffshore_topgo_bp$table %>% left_join(genes_in_enrichedGO(southoffshore_topgo_bp,southoffshore_topgo_mf,southoffshore_topgo_cc,target = southoffshore_target),by=c("GO.ID"="go"))%>% knitr::kable()
 ```
 
-We can see that the genes that are under selection in inshore and offshore and enriched in different functional categories. Interestingly, genes uniquely under selection in inshore population have an enriched GO term: `response to heat` which including 7 known genes：
+We can see that the genes that are under selection in inshore and offshore and enriched in different functional categories. Interestingly, genes uniquely under selection in inshore population have an enriched GO term: `GO:0009408 response to heat` which including 11 genes (7 unique annotations)：
 
-- CPB2 (Tafi)
-- DNAJA1 
-- ANO1 (DOG1, ORAOV2, TAOS2, TMEM16A)
-- DAXX 
-- TRPA1 (Anktm1)
-- TRPA1 (Anktm1, CG5751)
-- HSP-16.2 (hsp-16, hsp16-2, Y46H3A.3)
+```{r}
+genesInTerm(inshore_topgo_bp$godata,"GO:0009408") %>% 
+  as.data.frame %>% filter(GO.0009408%in% inshore_target) %>% 
+  rename("geneid"="GO.0009408") %>% 
+  left_join(uniprot_gene_annot) %>% select(geneid,entryname,protein) %>% knitr::kable()
+  
+```
+
