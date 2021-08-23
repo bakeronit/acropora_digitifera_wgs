@@ -1,0 +1,126 @@
+---
+title: "Identify outlying regions in selection analysis"
+output: github_document
+bibliography: bibliography.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
+require(tidyverse)
+```
+
+### Windowed iHS test
+We applied the selective scans for all three populations separately and investigated the [genome-wide distribution of per site scores](08.ehh_stats.md). To reduce the false positive rate, we calculated the fraction of SNPs in each non-overlapping 50kb window that has outlying iHS scores(|iHS|>2) as [@Voight2006] and selscan suggested. In addition, we used `--min-snps=10` to exclude windows with less than 10 SNPs. The regions with high proportion (1st percentile) of extreme iHS scores were picked as candidate selective regions. note that, while picked windows with high proportion of extreme iHS scores, the number of SNPs in each window was also took into consideration to avoid bias towards windows with less SNPs. The windows been picked as candidate of iHS scan were shown in red points in three population:
+
+```{r windowed-ihs}
+read_windowed_ihs <- function(path) {
+  pop <- path %>% basename() %>% str_match("[a-z]+shore") %>% as.character()
+  read_tsv(path, col_names = c("chr","start","end","nsnp","frac","percentile","sd")) %>% 
+    mutate(pval = pnorm(frac)) %>% add_column(pop=pop)
+}
+
+windowed_ihs <- list.files(path = "data/hpc/selection2/ihs", pattern = "windows", full.names = TRUE) %>% 
+  map_dfr(read_windowed_ihs)
+
+windowed_ihs %>% ggplot(aes(x=nsnp,y=frac)) + geom_point() + 
+  geom_point(data=windowed_ihs %>% filter( percentile==1), aes(x=nsnp,y=frac), color="red")  + 
+  labs(x="Number of sites in window", y= "Proportion of |iHS| scores > 2 in window") + facet_wrap(~pop,nrow=1)
+```
+
+**Figure: Plots display the number of site in window and the proportion of extreme iHS scores in window. The red dots depict the windows as the 1st percentile with SNP density in each window been controlled**
+
+```{r tables, echo=FALSE, message=FALSE, warnings=FALSE,results='asis'}
+in_table <- " # Threshold for each bin in inshore 
+
+| Bin boundary| Number of windows in this bin| 1st percentile threshold|
+|-------------|:----------------------------:|------------------------:|
+| [10-66]     | 569                          | 0.557778                |
+| (66-148]    | 565                          | 0.610089                |
+| (148-243]   | 558                          | 0.369494                |
+| (243-345]   | 561                          | 0.45035                 |
+| (345-433]   | 563                          | 0.390665                |
+| (433-515]   | 564                          | 0.332247                |
+| (515-587]   | 559                          | 0.396992                |
+| (587-660]   | 562                          | 0.352843                |
+| (660-763]   | 566                          | 0.343013                |
+| (763-1870]  | 555                          | 0.328067                |
+"
+cat(in_table)
+
+no_table <- " # Threshold for each bin in northoffshore
+
+| Bin boundary| Number of windows in this bin|1st percentile threshold|
+|------------:|:----------------------------:|:----------------------:|
+| [10-62]     | 577                          | 0.315789               |
+| (62-132]    | 572                          | 0.384005               |
+| (132-218]   | 574                          | 0.410328               |
+| (218-304]   | 570                          | 0.287487               |
+| (304-378]   | 571                          | 0.362154               |
+| (378-444]   | 576                          | 0.271412               |
+| (444-507]   | 573                          | 0.257785               |
+| (507-573]   | 571                          | 0.335927               |
+| (573-657]   | 578                          | 0.358238               |
+| (657-1519]  | 566                          | 0.290571               |
+"
+cat(no_table)
+
+so_table <- " # Threshold for each bin in southoffshore
+
+| Bin boundary| Number of windows in this bin| 1st percentile threshold|
+|-------------|:----------------------------:|------------------------:|
+| [10-62]     | 577                          | 0.375811                |
+| (62-137]    | 576                          | 0.396966                |
+| (137-231]   | 572                          | 0.392147                |
+| (231-324]   | 574                          | 0.379755                |
+| (324-405]   | 567                          | 0.299749                |
+| (405-478]   | 584                          | 0.238272                |
+| (478-546]   | 568                          | 0.361146                |
+| (546-613]   | 568                          | 0.466281                |
+| (613-706]   | 572                          | 0.344451                |
+| (706-1624]  | 574                          | 0.233307                |
+"
+cat(so_table)
+```
+Next, genes that are overlapped with these windows are extracted so we can investigate their potential function.
+
+### XP-EHH and XP-nSL methods
+We used XP-EHH and XP-nSL to detect nearly fixed or already fixed selection in populations, XP-EHH and XP-nSL are analogous to each other while XP-nSL has more power to detect soft sweep where the selection happened at loci with medium allele frequency[@Szpiech2021]. Both test scores are directional and usually you use one population A as a focal population and use another population B as a reference population. So high and positive values indicate the selective sweep in population A. Meanwhile, the vertical mirror of the manhattan plot reflects the selective sweep in population B.  The scores were also normalised such that the set of all such scores has zero mean and unit variance although in general, there was a small skew towards one population and we neglect this asymmetry when calculating significant scores. 
+
+```{r curve-distribution, fig.show="hold", out.width="50%"}
+ehh_stats <- read_rds("cache/ehh.rds")
+ehh_stats %>% filter(stat=="xpehh") %>% ggplot(aes(x=norm_value, fill=pop)) + 
+  geom_density(alpha=0.5,size=0.15) +
+  labs( y="Density", x="XP-EHH score") + theme(legend.position = "none")
+
+ehh_stats %>% filter(stat=="xpnsl") %>% ggplot(aes(x=norm_value, fill=pop)) + 
+  geom_density(alpha=0.5,size=0.15) +
+  labs(fill="Cross-population test", y="Density", x="XP-nSL score")
+```   
+
+
+To associate the regions with adaptive selection, again, we used `norm` with flag `--xpehh` and `--xpnsl` for XP-EHH and XP-nSL, respectively to compute both the maximum test score and the fraction of extreme scores in every 50kb windows with more than 10 SNPs.
+```{r}
+parse_path_info <- function(path){
+  scan_name <- path %>% basename() %>% str_match("[a-z]+_vs_[a-z]+")
+  stat_name <- path %>% basename() %>% str_extract("xp[a-z]{3}")
+  c(scan_name,stat_name)
+}
+
+read_ehh_stat <- function(path){
+  info <- parse_path_info(path)
+  read_tsv(path,col_names = c("chr","start","end","nsnp","fracA","fracB","percentileA","percentileB","max","min")) %>% 
+    mutate(pval = pnorm(abs(max))) %>% 
+    add_column(stat=info[2]) %>% 
+    add_column(pop=info[1])
+}
+
+xpstats <- list.files("data/hpc/selection2",pattern = ".xp[a-z]{3}.norm.50kb.windows",recursive = TRUE,full.names = TRUE,include.dirs = TRUE) %>% 
+    map_dfr(read_ehh_stat)
+
+#xpstats %>% filter(stat=="xpehh") %>% ggplot(aes(x=no))
+```
+
+
+
+
+

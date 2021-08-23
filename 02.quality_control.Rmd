@@ -101,15 +101,16 @@ ggplot(snpden) + geom_histogram(aes(x=SNP_COUNT,y=..density..),binwidth = 20,col
   stat_function(fun = dnorm, colour="red",args = list(mean=mean(snpden$SNP_COUNT,na.rm=TRUE),sd=sd(snpden$SNP_COUNT,na.rm = TRUE))) + labs(x="SNP count per 10kb",y="Density") + theme_classic()
 ```
 
-**Figure:** SNP distribution for all samples, the stardard normal distribution and the real distribution are shown in the red line and blue vertical bars, respectively.
+**Figure:** SNP distribution for all samples, the standard normal distribution and the real distribution are shown in the red line and blue vertical bars, respectively.
 
 ### Notes
-The samples with low coverage depth contain more missing genotypes, this makes sense because we filtered genotypes with very few reads covered. There was no sample with very high missingness, although sample `RS3_S_250` had almost 30% genotype missingness. We decided to keep it in population structure analysis but to remove it from phasing (haplotype-based) analyses.
+The samples with low coverage depth contain more missing genotypes, this makes sense because we filtered genotypes with very few reads covered to ensure the accuracy. There was no sample with very high missingness in genotype, although sample `RS3_S_250` had almost 30% genotype missingness. We decided to keep it in population structure analysis but to remove it from analysis based on phasing (haplotype based analysis). 
 
+We noticed one single sample `BR_5_121_S125_L004` from inshore were clustered with south offshore samples. This could be a first-generation migrate or a tag error. To avoid the confusion, we remove that sample in demographic history estimate and selection anlaysis.
 
 ## Prepare data for population structure analysis
 
-We perform further filtering steps for [population genetic analysis].
+We perform further filtering steps for [population genetic analysis](04.population_structure.md).
 
 1.To avoid potential errors from sequencing, we only included sites with minor allele count greater than or equal to two.
 
@@ -117,9 +118,11 @@ We perform further filtering steps for [population genetic analysis].
 
 3.To minimize the effect of SNPs in high likage disequilibrium (LD) region, we filtered out SNPs based on pairwise LD using PLINK v1.9 with the parameter '--indep-pairwise 50 10 0.1'.
 
-## SNPs data for Sequentially Markovian Coalescent (SMC) analyses
-We only used variations from scaffolds with a length greater than the N50 in [demography analyses], moreover, phased data in MSMC analysis. Specifically, we used:
+## SNP data for Sequentially Markovian Coalescent (SMC) analyses
+We only used variations from scaffolds with a length greater than the N50 in [demography analyses], moreover, phased data in MSMC analysis. 
+
+Specifically, we used:
 
 - three individuals from each location in **PSMC analysis**.
-- eight haplotypes from each reef in **MSMC**.
-- All samples (unphased) from each location in **SMC++**.
+- eight haplotypes (4 samples) from each reef in **MSMC**.
+- All samples (unphased) except the mis-located sample from each location in **SMC++**.

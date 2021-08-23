@@ -7,10 +7,10 @@
 - [Building pseudo-chromosomes](11.ragtag_scaffolding.md)
 
 ### Population genetics analyses
-- [Population genomics genetic statistics](03.popgen_stats.md)
-- [Population structure analysis](04.population_structure.md) and [fineStructure analysis](fs.md)
-- [IBD segments](05.ibd_segments.md)
-- [Demographic history](05.demographic_history.md)
+- [Population genomics genetic statistics](04.popgen_stats.md)
+- [Population structure analysis](05.population_structure.md)
+- [IBD segments and fineStructure analysis](06.ibd_finestructure.md)
+- [Demographic history](07.demographic_history.md)
 - [Outgroup analysis](10.outgroup_analysis.md)
 - Selection analysis based on [LD](06.haplotype_selection_analysis.md) and [allele frequency](12.pcangsd_selection.md)
 - [Signatures of selection comparison](14.selection_combined.md)
