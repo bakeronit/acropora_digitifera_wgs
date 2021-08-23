@@ -12,7 +12,7 @@ require(tidyverse)
 ### Windowed iHS test
 We applied the selective scans for all three populations separately and investigated the [genome-wide distribution of per site scores](08.ehh_stats.md). To reduce the false positive rate, we calculated the fraction of SNPs in each non-overlapping 50kb window that has outlying iHS scores(|iHS|>2) as [@Voight2006] and selscan suggested. In addition, we used `--min-snps=10` to exclude windows with less than 10 SNPs. The regions with high proportion (1st percentile) of extreme iHS scores were picked as candidate selective regions. note that, while picked windows with high proportion of extreme iHS scores, the number of SNPs in each window was also took into consideration to avoid bias towards windows with less SNPs. The windows been picked as candidate of iHS scan were shown in red points in three population:
 
-```{r windowed-ihs}
+```{r windowed-ihs, fig.width=12}
 read_windowed_ihs <- function(path) {
   pop <- path %>% basename() %>% str_match("[a-z]+shore") %>% as.character()
   read_tsv(path, col_names = c("chr","start","end","nsnp","frac","percentile","sd")) %>% 
