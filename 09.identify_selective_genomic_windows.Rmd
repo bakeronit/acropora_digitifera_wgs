@@ -33,7 +33,7 @@ windowed_ihs %>% ggplot(aes(x=nsnp,y=frac)) + geom_point() +
 in_table <- " # Threshold for each bin in inshore 
 
 | Bin boundary| Number of windows in this bin| 1st percentile threshold|
-|-------------|:----------------------------:|------------------------:|
+|------------:|:----------------------------:|:-----------------------:|
 | [10-66]     | 569                          | 0.557778                |
 | (66-148]    | 565                          | 0.610089                |
 | (148-243]   | 558                          | 0.369494                |
@@ -67,7 +67,7 @@ cat(no_table)
 so_table <- " # Threshold for each bin in southoffshore
 
 | Bin boundary| Number of windows in this bin| 1st percentile threshold|
-|-------------|:----------------------------:|------------------------:|
+|------------:|:----------------------------:|:-----------------------:|
 | [10-62]     | 577                          | 0.375811                |
 | (62-137]    | 576                          | 0.396966                |
 | (137-231]   | 572                          | 0.392147                |

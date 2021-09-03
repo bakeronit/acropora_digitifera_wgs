@@ -1,0 +1,13 @@
+---
+title: "Dating the selection"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
+```
+
+iHS and XP-EHH are designed to detect recent selective sweep based on long range haplotypes that lost diversity due to selection but had not been shift by recombination in short time period. We attemptted to estimate the time to when selection started at those beneficial allele in inshore population. Becasue of linkage disequilibrium, it is unlikely to know the exact causal allele in long range haplotypes. We chose to use the loci with peak values in iHS and XP-EHH test.
+
+
+
