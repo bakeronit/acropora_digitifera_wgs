@@ -1,22 +1,25 @@
 ---
 title: "Identify outlying regions in selection analysis"
-output: github_document
+output: 
+  github_document:
+    toc: true
+    toc_depth: 3
 bibliography: bibliography.bib
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
 require(tidyverse)
+require(bedr)
 ```
 
-### Windowed iHS test
+## Windowed iHS test
 We applied the selective scans for all three populations separately and investigated the [genome-wide distribution of per site scores](08.ehh_stats.md). To reduce the false positive rate, we calculated the fraction of SNPs in each non-overlapping 50kb window that has outlying iHS scores(|iHS|>2) as [@Voight2006] and selscan suggested. In addition, we used `--min-snps=10` to exclude windows with less than 10 SNPs. The regions with high proportion (1st percentile) of extreme iHS scores were picked as candidate selective regions. note that, while picked windows with high proportion of extreme iHS scores, the number of SNPs in each window was also took into consideration to avoid bias towards windows with less SNPs. The windows been picked as candidate of iHS scan were shown in red points in three population:
 
 ```{r windowed-ihs, fig.width=12}
 read_windowed_ihs <- function(path) {
   pop <- path %>% basename() %>% str_match("[a-z]+shore") %>% as.character()
-  read_tsv(path, col_names = c("chr","start","end","nsnp","frac","percentile","sd")) %>% 
-    mutate(pval = pnorm(frac)) %>% add_column(pop=pop)
+  read_tsv(path, col_names = c("chr","start","end","nsnp","frac","percentile","sd")) %>% add_column(pop=pop)
 }
 
 windowed_ihs <- list.files(path = "data/hpc/selection2/ihs", pattern = "windows", full.names = TRUE) %>% 
@@ -27,10 +30,12 @@ windowed_ihs %>% ggplot(aes(x=nsnp,y=frac)) + geom_point() +
   labs(x="Number of sites in window", y= "Proportion of |iHS| scores > 2 in window") + facet_wrap(~pop,nrow=1)
 ```
 
-**Figure: Plots display the number of site in window and the proportion of extreme iHS scores in window. The red dots depict the windows as the 1st percentile with SNP density in each window been controlled**
+**Figure 1: Plots display the number of site in window and the proportion of extreme iHS scores in window. The red dots depict the windows as the 1st percentile with SNP density in each window been controlled**
+
+**Table 1: The threshold for each bin with different SNP number in iHS scans of inshore, north offshore, and south offshore populations**
 
 ```{r tables, echo=FALSE, message=FALSE, warnings=FALSE,results='asis'}
-in_table <- " # Threshold for each bin in inshore 
+in_table <- " # Threshold for each bin in northoffshore
 
 | Bin boundary| Number of windows in this bin| 1st percentile threshold|
 |------------:|:----------------------------:|:-----------------------:|
@@ -81,32 +86,78 @@ so_table <- " # Threshold for each bin in southoffshore
 "
 cat(so_table)
 ```
-Next, genes that are overlapped with these windows are extracted so we can investigate their potential function.
 
-### XP-EHH and XP-nSL methods
-We used XP-EHH and XP-nSL to detect nearly fixed or already fixed selection in populations, XP-EHH and XP-nSL are analogous to each other while XP-nSL has more power to detect soft sweep where the selection happened at loci with medium allele frequency[@Szpiech2021]. Both test scores are directional and usually you use one population A as a focal population and use another population B as a reference population. So high and positive values indicate the selective sweep in population A. Meanwhile, the vertical mirror of the manhattan plot reflects the selective sweep in population B.  The scores were also normalised such that the set of all such scores has zero mean and unit variance although in general, there was a small skew towards one population and we neglect this asymmetry when calculating significant scores. 
+Next, for each population, we excluded regions where the iHS test was also significant at 1% level in other two populations. This exclusion step was to enrich for signals of local adaption in populations separately. After excluding the shared iHS significant signals, less than 1% of genomics regions were identified as candidate in three populations.
 
-```{r curve-distribution, fig.show="hold", out.width="50%"}
-ehh_stats <- read_rds("cache/ehh.rds")
-ehh_stats %>% filter(stat=="xpehh") %>% ggplot(aes(x=norm_value, fill=pop)) + 
-  geom_density(alpha=0.5,size=0.15) +
-  labs( y="Density", x="XP-EHH score") + theme(legend.position = "none")
+```{r bedtools-subtract, cache=TRUE,results='hide'}
 
-ehh_stats %>% filter(stat=="xpnsl") %>% ggplot(aes(x=norm_value, fill=pop)) + 
-  geom_density(alpha=0.5,size=0.15) +
-  labs(fill="Cross-population test", y="Density", x="XP-nSL score")
-```   
+inshore_bed <- windowed_ihs %>% filter(pop=="inshore" & percentile==1) %>% select(chr,start,end) %>% as.data.frame 
+northoffshore_bed <- windowed_ihs %>% filter(pop=="northoffshore" & percentile==1) %>% select(chr,start,end) %>% as.data.frame 
+southoffshore_bed <- windowed_ihs %>% filter(pop=="southoffshore" & percentile==1) %>% select(chr,start,end) %>% as.data.frame 
+
+inshore_unique <- bedr.subtract.region(inshore_bed, northoffshore_bed,check.chr = FALSE) %>% bedr.subtract.region(southoffshore_bed,check.chr=FALSE) %>% bedr.merge.region(check.chr = FALSE) %>% add_column(pop="inshore")
+northoffshore_unique <- bedr.subtract.region(northoffshore_bed,inshore_bed,check.chr = FALSE) %>% bedr.subtract.region(southoffshore_bed,check.chr=FALSE) %>% bedr.merge.region(check.chr = FALSE) %>% add_column(pop="northoffshore")
+southoffshore_unique <- bedr.subtract.region(southoffshore_bed,northoffshore_bed,check.chr = FALSE) %>% bedr.subtract.region(inshore_bed,check.chr=FALSE) %>% bedr.merge.region(check.chr = FALSE) %>% add_column(pop="southoffshore")
+```
+**Table 2: The proportion of genome regions that are uniquely under selective sweep in three populations**
+```{r ihs_genomics_region-table}
+rbind(inshore_unique,northoffshore_unique,southoffshore_unique) %>% 
+  mutate(pop=case_when(pop=="inshore"~"Inshore", pop=="northoffshore"~"North Offshore", pop=="southoffshore"~"South Offshore")) %>% 
+  mutate(length=end-start) %>% group_by(pop) %>% summarise(total=sum(length/1e6)) %>% 
+  mutate("Percentage of Total Genome (%)"=total/416*100) %>% 
+  rename("Population"=pop,"Total length (Mb) of genomic regions"=total) %>% knitr::kable(escape = F)
+```
+
+### Genes under selection in three population based on iHS scan
+
+```{r results='hide'}
+source("scripts/R/load_uniprot_annot.R")
+allgenes <- read_tsv("data/hpc/annotation/allgenes.bed",col_names = c("chr","start","end","geneid")) %>% as.data.frame %>% bedr.sort.region(check.chr = FALSE)
+
+inshore_ihs_genes <- inshore_unique %>% mutate(chr=str_remove(chr,"\\.1")) %>% bedr.join.region(allgenes, check.chr = FALSE) %>% filter(geneid!=".") %>% select(chr,start,end,pop,geneid) %>% right_join(inshore_unique%>% mutate(chr=str_remove(chr,"\\.1")))
+
+southoffshore_ihs_genes <- southoffshore_unique %>% mutate(chr=str_remove(chr,"\\.1")) %>% bedr.join.region(allgenes, check.chr = FALSE) %>% filter(geneid!=".") %>% select(chr,start,end,pop,geneid) %>% right_join(southoffshore_unique%>% mutate(chr=str_remove(chr,"\\.1")))
+
+northoffshore_ihs_genes <- northoffshore_unique %>% mutate(chr=str_remove(chr,"\\.1")) %>% bedr.join.region(allgenes, check.chr = FALSE) %>% filter(geneid!=".") %>% select(chr,start,end,pop,geneid) %>% right_join(northoffshore_unique%>% mutate(chr=str_remove(chr,"\\.1")))
+
+ihs_genes <- rbind(inshore_ihs_genes,northoffshore_ihs_genes,southoffshore_ihs_genes) %>%
+  left_join(uniprot_gene_annot) %>% 
+  mutate(uniprot_id=ifelse(is.na(uniprot_id),geneid,uniprot_id), entryname=ifelse(is.na(entryname),geneid,entryname), genename=ifelse(is.na(genename),geneid,genename)) %>% 
+  group_by(chr, start, end, pop) %>% summarise(genes=paste(entryname %>% unique,collapse = "; ")) %>% arrange(pop) %>% ungroup %>% 
+  left_join(windowed_ihs %>% mutate(chr=str_remove(chr,"\\.1")),by = c("chr" = "chr", "pop" = "pop")) %>% 
+  filter(start.y>=start.x & end.y<=end.x) %>% group_by(chr, start.x, end.x, pop) %>% mutate(snp_number=sum(nsnp), fraction=mean(frac),genes=ifelse(genes=="NA","no gene in this window",genes)) %>%
+  select(chr, start.x, end.x, pop, genes, snp_number, fraction) %>% arrange(pop,desc(fraction)) %>% unique
+```
+```{r ihs_genes_table}
+ihs_genes %>% mutate(pop=case_when(pop=="inshore"~"Inshore", pop=="northoffshore"~"North Offshore", pop=="southoffshore"~"South Offshore")) %>% 
+  rename("Start"=start.x, "End"=end.x,"Population"=pop,"SNP number"=snp_number,"Genes in this window"=genes,"Fraction of |iHS|>2"=fraction) %>% knitr::kable(escape = F) 
+```
 
 
-To associate the regions with adaptive selection, again, we used `norm` with flag `--xpehh` and `--xpnsl` for XP-EHH and XP-nSL, respectively to compute both the maximum test score and the fraction of extreme scores in every 50kb windows with more than 10 SNPs.
-```{r}
+## XP-EHH and XP-nSL methods
+We used XP-EHH and XP-nSL to detect nearly fixed or already fixed selection in populations, XP-EHH and XP-nSL are analogous to each other while XP-nSL has more power to detect soft sweep where the selection happened at loci with medium allele frequency[@Szpiech2021]. Both test scores are directional and usually you use one population A as a focal population and use another population B as a reference population. So a positive value indicates the a longer and higher frequency haplotypes in population A and verse vica the negative values for population B. The scores were also normalised such that the set of all such scores has zero mean and unit variance although in general, there was a small skew towards one population and we neglect this asymmetry when calculating significant scores. Respectively, we used three populations as target population, and samples from the other two population as reference. 
+
+```{r curve-distribution, cache=TRUE,fig.width=12}
+rbind(read_tsv("data/hpc/selection2/xpehh/inshore_vs_offshore.xpehh.norm", col_names = c("chr","pos","norm_xpehh")) %>% select(norm_xpehh) %>% add_column(pop="inshore"),
+      read_tsv("data/hpc/selection2/xpehh/northoffshore_vs_inshore_southoffshore.xpehh.norm", col_names = c("chr","pos","norm_xpehh")) %>% select(norm_xpehh) %>% add_column(pop="northoffshore"),
+      read_tsv("data/hpc/selection2/xpehh/southoffshore_vs_inshore_northoffshore.xpehh.norm", col_names = c("chr","pos","norm_xpehh")) %>% select(norm_xpehh) %>% add_column(pop="southoffshore")) %>% ggplot(aes(x=norm_xpehh)) + geom_histogram(binwidth = 0.05, color="darkblue") + facet_wrap(~pop, nrow=1) 
+
+rbind(read_tsv("data/hpc/selection2/xpnsl/inshore_vs_offshore.xpnsl.norm", col_names = c("chr","pos","norm_xpnsl")) %>% select(norm_xpnsl) %>% add_column(pop="inshore"),
+      read_tsv("data/hpc/selection2/xpnsl/northoffshore_vs_inshore_southoffshore.xpnsl.norm", col_names = c("chr","pos","norm_xpnsl")) %>% select(norm_xpnsl) %>% add_column(pop="northoffshore"),
+      read_tsv("data/hpc/selection2/xpnsl/southoffshore_vs_inshore_northoffshore.xpnsl.norm", col_names = c("chr","pos","norm_xpnsl")) %>% select(norm_xpnsl) %>% add_column(pop="southoffshore")) %>% ggplot(aes(x=norm_xpnsl)) + geom_histogram(binwidth = 0.05, color="darkblue") + facet_wrap(~pop, nrow=1) 
+```
+
+**Figure 2: The distribution of XP-EHH or XP-nSL scores for each population comparison. In XP-EHH method for inshore vs. offshore samples, a score of 3.83107 is in the 99.95 percentile. For north offshore vs inshore+ south offshore, a score of 2.79556 is in the 99.95 percentile. For south offshore vs inshore + north offshore, a score of 3.11493 is in the 99.95 percentile. In XP-nSL method for inshore vs. offshore samples, a score of 3.19748 is in the 99.95 percentile. For north offshore vs inshore+ south offshore, a score of 2.8621 is in the 99.95 percentile. For south offshore vs inshore + north offshore, a score of 3.05259 is in the 99.95 percentile.**
+
+To associate the regions with adaptive selection by clustering the signals, again, we used `norm` with flag `--xpehh` and `--xpnsl` for XP-EHH and XP-nSL, respectively to compute both the maximum test score and the fraction of extreme scores in every non-overlapping 50kb windows with more than 10 SNPs. The extreme score value in each test were decided as the 1st percentile of genome-wide scores value. The thresholds of extreme values were picked as the first percentile of all scores as we described before.
+```{r fig.width=12}
 parse_path_info <- function(path){
-  scan_name <- path %>% basename() %>% str_match("[a-z]+_vs_[a-z]+")
+  scan_name <- path %>% basename() %>% str_match("[a-z]+_vs_[a-z]+") %>% str_split("_vs_") %>% unlist %>% dplyr::first()
   stat_name <- path %>% basename() %>% str_extract("xp[a-z]{3}")
   c(scan_name,stat_name)
 }
 
-read_ehh_stat <- function(path){
+read_windowed_xpstats <- function(path){
   info <- parse_path_info(path)
   read_tsv(path,col_names = c("chr","start","end","nsnp","fracA","fracB","percentileA","percentileB","max","min")) %>% 
     mutate(pval = pnorm(abs(max))) %>% 
@@ -114,13 +165,71 @@ read_ehh_stat <- function(path){
     add_column(pop=info[1])
 }
 
-xpstats <- list.files("data/hpc/selection2",pattern = ".xp[a-z]{3}.norm.50kb.windows",recursive = TRUE,full.names = TRUE,include.dirs = TRUE) %>% 
-    map_dfr(read_ehh_stat)
+windowed_xpstats <- list.files("data/hpc/selection2",pattern = ".xp[a-z]{3}.norm.50kb.windows",recursive = TRUE,full.names = TRUE,include.dirs = TRUE) %>% 
+    map_dfr(read_windowed_xpstats)
 
-#xpstats %>% filter(stat=="xpehh") %>% ggplot(aes(x=no))
+windowed_xpstats %>% 
+  ggplot(aes(x=nsnp,y=fracA)) + geom_point() + 
+  geom_point(data=(windowed_xpstats %>% filter(percentileA==1)), aes(x=nsnp,y=fracA), color="red") +
+  labs(x="Number of sites in window", y= "Proportion of extreme scores in window") + facet_grid(stat~pop)
 ```
 
+**Figure 3: Plots display the number of site in window and the proportion of extreme XP-EHH or XP-nSL scores in window. The red dots depict the windows as the 1st percentile in each scan**
 
 
+```{r results='hide'}
+extract_xpstats_candidate_genes <- function(popname,xpstats="xpehh", xpstats_table=windowed_xpstats) {
+  pop_xpstats <- xpstats_table %>% filter(stat==xpstats & pop==popname & percentileA==1) %>% select(chr,start,end) %>% as.data.frame %>% 
+    bedr.merge.region(check.chr = FALSE) %>% add_column(pop=popname) 
+  
+  pop_xpstats_genes <- pop_xpstats %>% mutate(chr=str_remove(chr,"\\.1")) %>% 
+    bedr.join.region(allgenes, check.chr = FALSE) %>% filter(geneid!=".") %>% 
+    select(chr,start,end,pop,geneid) %>% right_join(pop_xpstats %>% mutate(chr=str_remove(chr,"\\.1")))
+  pop_xpstats_genes
+}
 
+temp_xpehh <- c("inshore","northoffshore","southoffshore") %>% map_dfr(extract_xpstats_candidate_genes) %>% 
+  group_by(geneid) %>% mutate(n=n()) %>% arrange(desc(n)) %>% filter(n!=2) %>% select(-n) %>% ungroup 
+xpehh_genes <- temp_xpehh %>% 
+  left_join(uniprot_gene_annot) %>% 
+  mutate(uniprot_id=ifelse(is.na(uniprot_id),geneid,uniprot_id), entryname=ifelse(is.na(entryname),geneid,entryname), genename=ifelse(is.na(genename),geneid,genename)) %>% 
+  group_by(chr, start, end, pop) %>% summarise(genes=paste(entryname %>% unique,collapse = "; ")) %>% arrange(pop) %>% ungroup %>% 
+  left_join(windowed_xpstats %>% filter(stat=="xpehh") %>% mutate(chr=str_remove(chr,"\\.1")),by = c("chr" = "chr", "pop" = "pop")) %>% 
+  filter(start.y>=start.x & end.y<=end.x) %>% group_by(chr, start.x, end.x, pop) %>% mutate(snp_number=sum(nsnp),max_value=max(max),genes=ifelse(genes=="NA","no gene in this window",genes)) %>%
+  select(chr, start.x, end.x, pop, genes, snp_number, max_value) %>% arrange(pop,desc(max_value)) %>% unique
 
+```
+### Genes under selection in three population based on XP-EHH scan
+```{r xpehh-genes-table}
+xpehh_genes %>% mutate(pop=case_when(pop=="inshore"~"Inshore", pop=="northoffshore"~"North Offshore", pop=="southoffshore"~"South Offshore")) %>% 
+  rename("Start"=start.x, "End"=end.x,"Population"=pop,"SNP number"=snp_number,"Genes in this window"=genes,"Maximum XP-EHH score"=max_value) %>%  knitr::kable(escape = F)
+```
+
+### Genes under selection in three population based on XP-nSL scan
+```{r results='hide'}
+temp_xpnsl<- c("inshore","northoffshore","southoffshore") %>% map_dfr(extract_xpstats_candidate_genes, xpstats="xpnsl") %>%
+  group_by(geneid) %>% mutate(n=n()) %>% arrange(desc(n)) %>% filter(n!=2 & n!=3) %>% select(-n) %>% ungroup
+
+xpnsl_genes <- temp_xpnsl %>%
+  left_join(uniprot_gene_annot) %>% 
+  mutate(uniprot_id=ifelse(is.na(uniprot_id),geneid,uniprot_id), entryname=ifelse(is.na(entryname),geneid,entryname), genename=ifelse(is.na(genename),geneid,genename)) %>% 
+  group_by(chr, start, end, pop) %>% summarise(genes=paste(entryname %>% unique,collapse = "; ")) %>% arrange(pop) %>% ungroup %>% 
+  left_join(windowed_xpstats %>% filter(stat=="xpnsl") %>% mutate(chr=str_remove(chr,"\\.1")),by = c("chr" = "chr", "pop" = "pop")) %>% 
+  filter(start.y>=start.x & end.y<=end.x) %>% group_by(chr, start.x, end.x, pop) %>% mutate(snp_number=sum(nsnp),max_value=max(max),genes=ifelse(genes=="NA","no gene in this window",genes)) %>%
+  select(chr, start.x, end.x, pop, genes, snp_number, max_value) %>% arrange(pop,desc(max_value)) %>% unique
+
+```
+
+```{r xpnsl-genes-table}
+xpnsl_genes %>% mutate(pop=case_when(pop=="inshore"~"Inshore", pop=="northoffshore"~"North Offshore", pop=="southoffshore"~"South Offshore")) %>% 
+  rename("Start"=start.x, "End"=end.x,"Population"=pop,"SNP number"=snp_number,"Genes in this window"=genes,"Maximum XP-nSL score"=max_value) %>% knitr::kable(escape = F)
+```
+
+Combined these three methods, genes that seat in the candidate windows are extracted so we can [investigate their function](10.GO_enrichement.md).
+
+```{r save-genes-table, results='hide'}
+temp_tbl <- rbind(rbind(inshore_ihs_genes,northoffshore_ihs_genes,southoffshore_ihs_genes) %>% select(pop,geneid) %>% add_column(stat="ihs"),
+temp_xpehh %>% select(pop,geneid) %>% add_column(stat="xpehh"),
+temp_xpnsl %>% select(pop,geneid) %>% add_column(stat="xpnsl")) %>% na.omit()
+saveRDS(temp_tbl,file = "cache/cadidate_genes.rds")
+```
