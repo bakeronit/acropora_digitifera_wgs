@@ -1,0 +1,69 @@
+---
+title: "ITS2"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+
+samples <- read_tsv("data/hpc/pcangsd/samples.txt",col_names = c("sample_id","location","mapping_rate","mean_mapping_depth","genome_cov"))
+
+sample_table_wa <- read_tsv("data/hpc/pcangsd/wa_bam.txt",col_names = "filename") %>%
+  mutate(sample = str_match(filename,pattern = "/fast/shared/Acropora_digitifera_wgs_bamfile/[A-Z]+/(.*)_aligned")[,2]) %>% 
+  mutate(sample = str_replace(sample,"_merged","")) %>% 
+    mutate(sample_id = str_replace(sample,"_L004","")) %>% 
+    mutate(sample_id = str_replace(sample_id,"_S[0-9]+$","")) %>% 
+  left_join(samples) %>% 
+  rownames_to_column("number") %>% 
+  select(sample_id,location)
+```
+
+```{r}
+library(cowplot)
+
+its <- read_tsv("data/hpc/its/sample_it2_div.txt") %>% 
+  mutate(sample = str_replace(sample,"_merged","")) %>% 
+    mutate(sample_id = str_replace(sample,"_L004","")) %>% 
+    mutate(sample_id = str_replace(sample_id,"_S[0-9]+$","")) %>% 
+  left_join(sample_table_wa,by="sample_id")
+
+its_matrix <- its %>% 
+  select(sample_id,prop,div) %>% 
+  pivot_wider(names_from = "div",values_from = prop,values_fill = 0) %>% 
+  column_to_rownames(var="sample_id") %>% as.matrix()
+
+keep_cols1 <- colSums(its_matrix) > 1.5
+
+keep_cols2 <-(its_matrix %>% apply(2,max))>0.2
+
+keep_cols <- keep_cols1 | keep_cols2
+
+library(ComplexHeatmap)
+
+locations <- its %>% select(sample_id,location) %>% distinct() %>% pull(location)
+names(locations) <- its %>% select(sample_id,location) %>% distinct() %>% pull(sample_id)
+
+
+
+ra <- rowAnnotation(location = locations[rownames(its_matrix)],
+                    col = list(location = c("Inshore" = "#CC0C00", "North Offshore" = "#5C88DA", "South Offshore" = "#84BD00")))
+
+hm <- Heatmap(its_matrix[,keep_cols],
+              right_annotation = ra,
+              show_row_names = TRUE, 
+              show_column_dend = FALSE,
+              heatmap_legend_param = list(title = "Proportion of Reads",title_gp = gpar(fontsize = 8)))
+
+
+
+hm_plot <- grid.grabExpr(draw(hm, padding = unit(c(2,2,2,20),"mm")))
+
+plot_grid(hm_plot)
+ggsave2("figures/its2.png", width = 16,height = 30, units = "cm", dpi = 300)
+
+```
+
