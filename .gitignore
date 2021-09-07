@@ -6,5 +6,6 @@
 *.tgz
 *_cache/
 data/
+bin/
 cache/
 scripts/__pycache__/

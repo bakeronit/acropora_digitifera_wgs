@@ -37,15 +37,17 @@ gather_uce(){
 
 }
 
+
 align_uce(){
 	cuce=$1
-	mafft --adjustdirection --localpair --maxiterate 1000 alignments/${cuce}.fasta | sed "s/>_R_/>/"> alignments/${cuce}_align.fasta
+	mafft --adjustdirection --localpair --maxiterate 1000 alignments_concat/${cuce}.fasta | sed "s/>_R_/>/"> alignments_concat/${cuce}_align.fasta
 }
 
 export -f gather_uce
 export -f align_uce
 
 parallel -J 40 gather_uce ::: $(cat common_uces.tsv | awk '{print $4}' | sort -u | tr '\n' ' ')
+
 
 parallel -J 40 align_uce ::: $(cat common_uces.tsv | awk '{print $4}' | sort -u | tr '\n' ' ')
 

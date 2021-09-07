@@ -1,5 +1,5 @@
 ---
-title: "Population Structure analyses"
+title: "Population Structure"
 output: github_document
 ---
 
@@ -14,7 +14,7 @@ library(PCAviz)
 source(file = "scripts/color_scheme.R")
 ```
 
-Starting with a fully filtered VCF, we then preformed linkage pruning and prepare data for PCA, ADMIXTURE analysis.
+Starting with a fully filtered VCF, we performed linkage pruning and prepared data for PCA, ADMIXTURE analysis.
 
 ### LD pruning
 
@@ -26,7 +26,7 @@ bcftools view -H Adigi.DPg90gdp3gq30.vcf.gz | \
   awk '{print $0"\t"$0 }' > Adigi.DPg90gdp3gq30.chrom-map.txt
 ```
 
-Next, we coverted our vcf file to plink format which included sites with a minor allele count greater than or equal to two and excluded sites with a p-value for exact test for Hardy-Weinberg Equilibrium below 1e-4. Eventually, we prune SNPs in highly LD regions.
+Next, we converted our vcf file to plink format which included sites with a minor allele count greater than or equal to two and excluded sites with a p-value for exact test for Hardy-Weinberg Equilibrium below 1e-4. Eventually, we pruned SNPs in highly linked regions.
 
 ```bash
 plink --vcf Adigi.v2.filtered.vcf.gz --out Adigitifera \
@@ -81,10 +81,10 @@ ggplot(pca %>% arrange(desc(location)), aes(PC2,PC3,color=location)) +
 ```
 
 
-Corals from different regions were well separated as inshore, offshore north, and offshore south, expect on sample from Beagle reef was clustered with offshore south. In the right plot, inshore samples were tightly congregated compared to two offshore groups. Therefore, our samples from six locations form three clusters which corresponding to three geographic regions we called inshore, offshore north, and offshore south.
+Corals from different regions were well separated as inshore, offshore north, and offshore south, except one sample from Beagle reef was clustered with offshore south. In the right plot, inshore samples were tightly congregated compared to two offshore groups. Therefore, our samples from six locations form three clusters which correspond to three geographic regions we called inshore, offshore north, and offshore south.
 
 ### PC loadings
-To make sure this PCA clustering was represented by the SNPs across the genome instead of regional variation, we inspect the PC laoding for the first two principle components.
+To check whether population structure evident in the PCA was driven by a small number of genomic regions (eg such as inversions) we inspected the PC loadings for the first two principle components.
 
 ```{r pc_loading,cache=TRUE,fig.retina=2,fig.show="hold", out.width="50%"}
 snpsigs <- read_table("data/hpc/pca/Adigitifera_smartpca.snpeigs",col_names = c("ID","chr","pos",paste0("PC",(1:20)))) 
@@ -96,7 +96,7 @@ pcaviz_loadingsplot(hgdp,pc.dim = "PC1",min.rank = 0.8,geom.point.params = list(
 pcaviz_loadingsplot(hgdp,pc.dim = "PC2",min.rank = 0.8,geom.point.params = list(size=0.5, color="grey36")) + labs(x="SNPs",y=paste0("PC",2)) 
 
 ```
-The SNPs the high PC loading seems to be spreading the genome, thus our data reveals a genomic population structure instead of a local population structure.
+At a high level this seems to suggest that population structure reflects variation across the entire genome rather and is not dominated by a small number of strongly differentiated regions.
 
 ### Admixture analysis
 

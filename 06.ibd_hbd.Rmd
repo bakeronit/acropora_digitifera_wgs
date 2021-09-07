@@ -1,0 +1,158 @@
+---
+title: "Population structure inferred by haplotype data"
+output: github_document
+bibliography: bibliography.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,warning = FALSE, message = FALSE,fig.retina = 2)
+library(tidyverse)
+library(wesanderson)
+library(cowplot)
+library(ComplexHeatmap)
+```
+
+Any two samples in a population can be traced back to their most recent common ancestor by sharing identity-by-descent haplotypes. In practice our ability to detect IBD haplotypes depends on the degree of relatedness between individuals (higher relatedness leading to longer and more IBD haplotypes).  To some extent it is also affected by the quality of the genome assembly, however, this is only an issue for long IBD segments (>1Mb). Although we don't have a chromosome-level reference genome, the version two of *A.digitifera* display significant improvement in N50 size, thus it is worth investigating the haplotype segments sharing pattern in population.
+
+### Detecting identity-by-descent segements
+We used `refined-ibd` [v17Jan20](https://faculty.washington.edu/browning/refined-ibd.html) to detect IBD segments in phased genotype data. The map file was generated as in [selection analysis](06.selection_analysis.md).
+
+```bash
+java -jar refined-ibd.17Jan20.102.jar nthreads=10 \
+gt=Adigi.v2.indv74_phased.vcf.gz map=map.txt chrom={scaffold} \
+length=0.15 trim=0.015 window=4 out={scaffold}
+```
+
+Next, we use `merge-ibd-segments` to remove any breaks and short gaps in IBD segments.
+```bash
+zcat {scaffold}.ibd.gz | java -jar merge-ibd-segments.17Jan20.102.jar \
+{scaffold}.vcf map.txt 0.01 2 > {scaffold}.merged.ibd
+```
+### Calculating the relatedness
+The pairwise relatedness can be calculated using a python script [relatedness_v1.py](http://faculty.washington.edu/sguy/ibd_relatedness.html) in which the relatedness was calculated as the proportion of shared haplotype length divided by the total chromosome length*2.
+```bash
+cat *.merged.ibd | python2 relatedness_v1.py map.txt 0 > Adigi_ind74.ibd_relatedness.txt
+```
+
+```{r ibd-relatedness-plot, fig.width= 6, fig.height=5}
+relatedness <- read_tsv("data/hpc/ibd/Adigi_ind74.ibd_relatedness.txt") %>% column_to_rownames("ID") %>% as.matrix()
+
+shortid <- rownames(relatedness) %>% str_split("_") %>% 
+  map(~.x[1:3]) %>% map(paste,collapse="_" ) %>% 
+  unlist
+names(shortid) <- rownames(relatedness)
+
+ids<-rownames(relatedness) 
+population<-case_when(substr(ids,1,2)=="AR" ~ "NO",
+          substr(ids,1,2)=="AI" ~"IN",
+          substr(ids,1,2)=="BR" ~"IN",
+          substr(ids,1,2)=="RS" ~"SO")
+
+ha=HeatmapAnnotation(bar = population,
+                     show_legend = TRUE,show_annotation_name = FALSE,
+    col = list(bar = c("IN" = "#CC0C00", "NO" = "#5C88DA", "SO" = "#84BD00")))
+
+pal <- wes_palette("Zissou1", 500, type = "continuous")
+hm <- Heatmap(log(relatedness), column_labels = shortid,
+        clustering_distance_columns="euclidean",
+        show_column_dend = FALSE,
+        show_column_names = FALSE,
+        row_labels = shortid[rownames(relatedness)],
+        row_names_gp = gpar(fontsize = 5),
+        name="relatedness",
+        heatmap_legend_param = list(title = "Log10\nRelatedness",title_gp = gpar(fontsize = 8)),
+        top_annotation = ha,
+        show_heatmap_legend = TRUE,
+        col = pal)
+
+hm_plot <- grid.grabExpr(draw(hm, padding = unit(c(2,2,2,20),"mm")))
+
+plot_grid(hm_plot)
+ggsave2("figures/ibd_relate.png", width = 16,height = 10, units = "cm", dpi = 300)
+```
+
+**Figure:** Heatmap showing Log10 of the pairwise relatedness based on shared IBD segments. Top bar indicates location of the samples
+
+
+```{r}
+samples <- read_tsv("data/hpc/pcangsd/samples.txt",col_names = c("sample_id","location","mapping_rate","mean_mapping_depth","genome_cov"))
+
+sample_table_wa <- read_tsv("data/hpc/pcangsd/wa_bam.txt",col_names = "filename") %>%
+  mutate(sample = str_match(filename,pattern = "/fast/shared/Acropora_digitifera_wgs_bamfile/[A-Z]+/(.*)_aligned")[,2]) %>% 
+  mutate(sample = str_replace(sample,"_merged","")) %>% 
+    mutate(sample_id = str_replace(sample,"_L004","")) %>% 
+    mutate(sample_id = str_replace(sample_id,"_S[0-9]+$","")) %>% 
+  left_join(samples) %>% 
+  rownames_to_column("number") %>% 
+  select(sample_id,sample,location)
+
+locations <- sample_table_wa$location
+names(locations) <- sample_table_wa$sample
+
+```
+
+# Runs of Homozygosity
+
+Long runs of homozygosity are expected under a range of demographic and/or non-random mating scenarios (nicely reviewed in [@Ceballos2018-sx]).  This is most obvious in cases of inbreeding, however, in human populations it has been shown that ROH are common in the general population simply due to a finite Ne.  Small effective population size and/or historical Ne (ie a bottleneck) can also give rise to long runs of homozygosity. ROH are also much more likely to occur in populations where there is limited admixture. 
+
+We used IBDSeq to identify segments of the genome thought to be homozygous by descent (hbd) within individuals as well as those thought to be ibd between individuals. 
+
+We did this for scaffolds longer than 1Mb based on the unphased genotype data as follows;
+```bash
+while read scaff;do
+	echo $scaff
+	java -Xmx2000m -jar ibdseq.r1206.jar gt=Adigi.v2.filtered.vcf.gz out=${scaff} nthreads=4 chrom=${scaff}
+done < 1M_scaffolds.txt
+```
+
+If we look at the length distribution of runs of homozygosity we find that the number of such runs is very slightly longer in inshore than in offshore but there is otherwise little difference. 
+
+```{r}
+hbd <- read_tsv("data/hpc/ibdseq/1M_scaffolds.hbd",col_names = c("s1","h1","s2","h2","chr","start","end","LOD")) %>% 
+  mutate(loc = locations[str_replace(s1,"_merged","")]) %>% 
+  mutate(roh_len = (end-start)/1e6)
+
+hbd %>% ggplot(aes(x=loc,y=roh_len)) + geom_violin(aes(fill=loc,color=loc))
+```
+
+However, if we take the total length of ROH segments in each individual we find that individuals from inshore tend to have a much higher proportion of ROH in their genomes. 
+
+```{r}
+hbd %>% 
+  group_by(s1,loc) %>% 
+  summarise(hbd_len = sum(roh_len)) %>% 
+  ggplot(aes(x=loc,y=hbd_len)) + 
+    geom_boxplot(aes(color=loc),alpha=0.5) +
+    geom_point(aes(x=loc,color=loc), position = position_jitter(w=0.1,h=0))
+```
+
+### Position of HBD segments
+
+We mapped the midpoints of each HBD segment to chromosome level coordinates using ragtag.  When viewed across the entire genome there did not appear to be biases in the position of HBD segments.  This however does not preclude the existence of localised hotspots.
+
+```{r, exec=FALSE}
+#Saving HPD positions for conversion with ragtag 
+#After running. Use the ragtag conversion script to generate all.lengths.scaf.txt (used in next code block)
+hbd %>% 
+  mutate(mp = as.integer((start+end)/2)) %>% 
+  select(chr,mp,s1) %>% 
+  write_tsv("data/hpc/ibdseq/hbd_midpoints.txt",col_names = FALSE)
+```
+
+```{r}
+lengths <- read_tsv("data/hpc/pcangsd/all.lengths.scaf.txt",col_names = c("scaffold","length"))
+offsets <- lengths %>% arrange(desc(length)) %>% mutate(offset=cumsum(length)-length) %>% 
+  mutate(scaffold_num = row_number())
+
+hbd_scaff <- read_tsv("data/hpc/ibdseq/hbd_midpoints.scaff.txt",col_names = c("scaffold","pos","indv")) %>% 
+  left_join(offsets,by="scaffold") %>% 
+  mutate(abs_pos = pos+offset) %>% 
+  mutate(loc = locations[str_replace(indv,"_merged","")])
+
+hbd_scaff %>% ggplot(aes(x=abs_pos)) + 
+  geom_point(aes(y=loc,color=loc), position = position_jitter(width=0,height = 0.4),size=0.2) +
+  ylab("") + xlab("Genomic Position of HBD segment midpoint") + theme(legend.title = element_blank())
+```
+
+
+
