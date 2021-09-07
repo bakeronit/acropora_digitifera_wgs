@@ -210,6 +210,11 @@ data/hpc/genomeCov/AR_125_385_S127_L004_coverage.txt
 
 data/hpc/ibd/Adigi.ibd.ne.ne
 data/hpc/ibd/Adigi_ind74.ibd_relatedness.txt
+data/hpc/ibdseq/1M_scaffolds.hbd
+data/hpc/ibdseq/hbd_midpoints.txt
+data/hpc/pcangsd/all.lengths.scaf.txt
+data/hpc/ibdseq/hbd_midpoints.scaff.txt
+
 
 # pca
 
@@ -252,3 +257,12 @@ data/hpc/selection/ihs/inshore/all.ihs.out
 data/hpc/selection/ihs/inshore/all.ihs.out.norm
 data/hpc/selection/ihs/southoffshore/all.ihs.out
 data/hpc/selection/ihs/southoffshore/all.ihs.out.norm
+
+# finestructure
+
+data/hpc/fineStructure/FinestructureRcode/FinestructureLibrary.R
+data/hpc/fineStructure/adigitifera_linked.chunkcounts.out
+data/hpc/fineStructure/adigitifera_linked_mcmc.xml
+data/hpc/fineStructure/adigitifera_linked_tree.xml
+
+

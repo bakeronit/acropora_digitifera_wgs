@@ -96,6 +96,14 @@ Long runs of homozygosity are expected under a range of demographic and/or non-r
 
 We used IBDSeq to identify segments of the genome thought to be homozygous by descent (hbd) within individuals as well as those thought to be ibd between individuals. 
 
+We did this for scaffolds longer than 1Mb based on the unphased genotype data as follows;
+```bash
+while read scaff;do
+	echo $scaff
+	java -Xmx2000m -jar ibdseq.r1206.jar gt=Adigi.v2.filtered.vcf.gz out=${scaff} nthreads=4 chrom=${scaff}
+done < 1M_scaffolds.txt
+```
+
 If we look at the length distribution of runs of homozygosity we find that the number of such runs is very slightly longer in inshore than in offshore but there is otherwise little difference. 
 
 ```{r}
@@ -116,7 +124,8 @@ hbd %>%
     geom_boxplot(aes(color=loc),alpha=0.5) +
     geom_point(aes(x=loc,color=loc), position = position_jitter(w=0.1,h=0))
 ```
-# Position of HBD segments
+
+### Position of HBD segments
 
 We mapped the midpoints of each HBD segment to chromosome level coordinates using ragtag.  When viewed across the entire genome there did not appear to be biases in the position of HBD segments.  This however does not preclude the existence of localised hotspots.
 
