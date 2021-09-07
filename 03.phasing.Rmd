@@ -8,7 +8,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(tidyverse)
 ```
 
-We used SHAPEIT2 to do phasing for SNPs across the genome. Firstly, we removed samples with more than 20% missing in genotypes. So we left 74 samples. Next, a bam file contains three columns including sample id, the path to bamfile for this sample, and scaffold id was created for each scaffold. `extractPIRs` was then used to extract phase informative reads from BAM files.
+We used SHAPEIT2 to phase SNPs across the genome. Firstly, we removed one sample with more than 20% missing genotypes, leaving 74 samples. Next, an input file was prepared for each scaffold with three columns including sample id, the path to bamfile for this sample, and scaffold id. `extractPIRs` was then used to extract phase informative reads from BAM files.
 
 ```bash
 extractPIRs --bam ${scaffold}.bamlist \
@@ -17,7 +17,8 @@ extractPIRs --bam ${scaffold}.bamlist \
       --base-quality 20 \
       --read-quality 20
 ```
-Read aware model `assemble` was used to phase the genotype data
+
+The read aware model `assemble` was then used to phase the genotype data
 
 ```bash
 shapeit -assemble \
@@ -42,7 +43,7 @@ We obtained **7,747,949** phased SNP sites in 74 samples.
 
 ### Imputation check
 
-To get an idea of the performance of the imputation step, we did a "masked analysis" with fully genotyped dataset.We used script [prune_vcf.py](scripts/prune_vcf.py) to prune genotypes randomly and do phasing again. After phasing, we compared the imputed genotypes and real genotypes then computed the accuracy using script [compare_vcf.py](scripts/compare_vcf.py).
+To get an idea of the performance of the imputation step, we did a "masked analysis" with fully genotyped dataset. We used the script [prune_vcf.py](scripts/prune_vcf.py) to prune genotypes randomly and do phasing again. After phasing, we compared the imputed genotypes and real genotypes then computed the accuracy using the script [compare_vcf.py](scripts/compare_vcf.py).
 
 ```{r, fig.align='center',fig.retina=2}
 ic <- read_tsv("data/hpc/phasing/imputation_check.txt") %>% 
@@ -63,7 +64,7 @@ ggplot(ic,aes(x=n_pruned,y=accuary,group=type)) + geom_line(aes(color=type)) + g
 ic_af <- read_tsv("data/hpc/phasing/compare_imputation_with_af.txt",col_names = c("site_id","imputed","real","ref","alt","af")) %>% mutate(code1=imputed %>% strsplit("|") %>% map(first) %>% unlist %>% as.numeric + imputed %>% strsplit("|") %>% map(last) %>% unlist %>% as.numeric, code2=real %>% strsplit("\\||\\/") %>% map(first) %>% unlist %>% as.numeric + real %>% strsplit("\\||\\/") %>% map(last) %>% unlist %>% as.numeric) %>% select(site_id,code1,code2,af)
 
 ic_af %>% mutate(correct=code1==code2) %>% 
-  group_by(group=cut(af,breaks=seq(0,max(af),length.out=10))) %>% summarise(accuracy=sum(correct)/n()) %>% ggplot(aes(x=group,y=accuracy,group=group)) + geom_point() + labs(x="Minor allele frequency",y="Accuracy")
+  group_by(group=cut(af,breaks=seq(0,max(af),length.out=10))) %>% summarise(accuracy=sum(correct)/n()) %>% ggplot(aes(x=group,y=accuracy,group=group)) + geom_point() + labs(x="Minor allele frequency",y="Accuracy") + theme(axis.text.x = element_text(angle=90))
 
 ```
 

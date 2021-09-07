@@ -1,5 +1,5 @@
 ---
-title: "Genomic genetic statistics"
+title: "Population genetic statistics"
 output: github_document
 ---
 
@@ -9,11 +9,12 @@ library(tidyverse)
 ```
 
 ### Number of unique SNPs in populations
-We counted the number of SNPs specifically in any population, which means we extracted variants that are only exists in one population and is homozygous in other samples.
+We counted the number of SNPs specific to each population. These are variants that are only exist in one population and are homozygous in other samples.
 
 ```bash
 bcftools view -S ^{pop}.txt Adigi.v2.filtered.vcf.gz | bcftools filter -i 'AC=0 || AC=AN'
 ```
+
 |Population    | Sample size | SNP count    |
 |--------------|-------------|--------------|
 |Inshore       |     30      |  1,289,789   |
@@ -47,12 +48,12 @@ cat(fst)
 
 ### Nucleotide diversity and Tajima's D in sliding windows
 
-Next, we computed some standard population genomic statistics in sliding windows (10kb window with 2k sliding window). For Fst calculation, only bi-allelc variant sites are needed, whereas for nucleotide diverisity(pi) and Tajima's D, the monomorphic sites are also used. To get a good estimate of missing genotyped sites in each window, we used `bedtools` to extract sites with called genotypes.
+Next, we computed some standard population genomic statistics in sliding windows (10kb window with 2k sliding window). For the Fst calculation, only bi-allelic variant sites are needed, whereas for nucleotide diversity (pi) and Tajima's D, the monomorphic sites are also used. To get a good estimate of missing genotyped sites in each window, we used `bedtools` to extract sites with called genotypes.
 
 **Calculate the number of effective sites in each window**
 
 ```bash
-#1. creage genome bed file
+#1. create genome bed file
 bioawk -c fastx '{print $name"\t1\t"length($seq)}' \
  reference.fa > reference.bed
  
@@ -72,7 +73,7 @@ bedtools  genomecov -ibam {sample}.bam -d | \
 
 **Nucleotide diversity $\theta_{\pi}$**
 
-vcftools was then used to calculate the nucleotide diversity in each population. Next, windows contains greater than 30% uncalled sites were discarded.
+vcftools was then used to calculate the nucleotide diversity in each population. Next, windows containing greater than 30% uncalled sites were discarded.
 
 ```bash
 vcftools --gzvcf Adigi.v2.filtered.vcf.gz --keep {pop} \
@@ -116,7 +117,7 @@ ggplot(rbind(read_td("inshore"),read_td("northoffshore"),read_td("southoffshore"
   theme(legend.position = "none") + labs(x="",y="Tajima's D") + scale_x_discrete(labels=c("Inshore","Offshore North","Offshore South"))
 ```
 
-**Figure:** The left boxplot shows the values of $\theta_{\pi}$ and the right plot displays the tajima'D values in three populations.
+**Figure:** The left boxplot shows the values of $\theta_{\pi}$ and the right plot displays the Tajima's D values in three populations.
 
 ### Linkage disequilibrium decay distribution
 We used plink to calculated the $r^2$ of every pairs of SNPs in inshore, offshore north, offshore south. Because of unequal sample sizes in three populations, we randomly sample down to 20 individuals in inshore and offshore south.
