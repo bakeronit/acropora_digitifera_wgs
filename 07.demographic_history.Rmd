@@ -1,5 +1,5 @@
 ---
-title: "Demographic history - Sequentially Markov Cross-colalescence analysis"
+title: "Demographic history - Sequentially Markov Cross-coalescence analysis"
 output: 
   github_document:
     toc: TRUE

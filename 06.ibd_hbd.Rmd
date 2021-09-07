@@ -1,6 +1,7 @@
 ---
 title: "Population structure inferred by haplotype data"
 output: github_document
+bibliography: bibliography.bib
 ---
 
 ```{r setup, include=FALSE}
