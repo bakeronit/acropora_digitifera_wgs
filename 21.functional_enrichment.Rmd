@@ -16,57 +16,6 @@ library(VennDiagram)
 library(ggsci)
 ```
 
-To perform functional enrichment analysis using the gene models of version 2 genome, we did functional analysis of all protein-coding genes using [InterProScan5](https://www.ebi.ac.uk/seqdb/confluence/display/JDSAT/InterProScan+5+Help+and+Documentation#InterProScan5HelpandDocumentation-RESTAPI) REST API.
-
-We extracted the longest isoform per gene model with gff file and genome fasta file
-```bash
-cgat gff2gff --filter=longest-gene -I annotation_from_chuya/adig-v2.gff -S annotation_longest_gene.gff
-
-gffread -g reference_entryname.fa -y protein.fa annotation_longest_gene.gff
-gffread -g reference_entryname.fa -x CDS.fa annotation_longest_gene.gff
-```
-```bash
-python iprscan5.py --multifasta protein.fa \
---maxJobs 29 --useSeqId --email email@address.com \
---outformat tsv
-```
-We extract GO term assignments from Interproscan results.
-```{r}
-interpro <- read_tsv("data/hpc/annotation/adig_iprscan_withgo.tsv", guess_max = 10000, 
-                     col_names = c("adi_id","md5","seqlen","analysis","signature_acc","signature_desc","start","stop","score","status","date","ipr_acc","ipr_ann","ipr_go", "pathways")) %>% select(adi_id,ipr_go)
-
-interpro_go <- interpro %>% separate_rows(ipr_go,sep="\\|") %>% mutate(geneid=str_remove(adi_id,"\\.t\\d")) %>% unique %>% group_by(geneid) %>% summarise(go=paste(ipr_go,collapse = "; ")) 
-
-```
-
-In the meantime, we also blast all A. digitifera genes against uniprot database using blastx/p. From the blast results (evalue <1e-5), we could assign gene models putative gene names, GO id, and Kegg information from [Uniprot ID mapping](https://www.uniprot.org/uploadlists/) from UniprotKB AC/ID to UniprotKB.
-
-
-```{r generate_annot_table}
-bl6_cols <- c("qaccver","saccver","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore")
-blastp <- read_tsv("data/hpc/annotation/Adigitifera_uniprot_blastp.outfmt6", col_names = bl6_cols) %>% 
-  select(adi_id=qaccver, uniprot_id=saccver,evalue) %>% add_column(method="blastp") %>% mutate(geneid=str_remove(adi_id,'\\.t\\d'))
-
-blastx <- read_tsv("data/hpc/annotation/Adigitifera_uniprot_blastx.outfmt6", col_names = bl6_cols) %>% 
-  select(adi_id=qaccver, uniprot_id=saccver,evalue) %>% add_column(method="blastx") %>% mutate(geneid=str_remove(adi_id,'\\.t\\d'))
-
-uniprotkb_tab <- read_tsv("data/hpc/annotation/uniprot-yourlist.tab") %>% select(-Status)
-
-uniprot_gene_annot <- rbind(blastp,blastx) %>% group_by(geneid) %>% dplyr::top_n(1,dplyr::desc(evalue)) %>% group_by(geneid,evalue) %>% filter(row_number()==1) %>% 
-  left_join(uniprotkb_tab,by=c("uniprot_id"="Entry")) %>%
-  ungroup %>% 
-  select(geneid,uniprot_id,entryname="Entry name",
-         genename="Gene names",go="Gene ontology IDs",kegg="Cross-reference (KEGG)",protein="Protein names") %>% mutate(genename=ifelse(is.na(genename),entryname,genename))
-```
-
-```{r annotation-res-stats-table}
-all <- read_tsv("data/hpc/annotation/allgenes_ids_extracted_from_gff.txt",col_names = "geneid")
-all_annot<- all %>% left_join(interpro_go) %>% 
-  left_join(uniprot_gene_annot %>% select(geneid,go),by="geneid") %>% 
-  rename("InterProScan"=go.x,"Uniprot(blast)"=go.y) 
-
-map_df(all_annot %>% select(InterProScan,`Uniprot(blast)`), ~sum(!is.na(.))/nrow(all_annot)) %>% knitr::kable(caption = "The proportion of genes with GO term annotation")
-```
 
 We used GO annotation based on uniprot in Functional enrichment analysis. We merged gene candidates from iHS, XP-EHH, and XP-nSL scans and performed GO enrichment analysis. Firstly, we had a look of the shared candidate genes in three populations and visualised it in a simple Venn diagram. Clearly, between two offshore reefs share more sweeps than between offshore and inshore. Thus, inshore reefs have more unique genes under selection. In total, we had 487, 380, and 386 genes as the target in inshore, north offshore, and south offshore. Next, we used all annotated genes as background to do a Fisher's exact test based on weighted gene counts using topGO R package.
 

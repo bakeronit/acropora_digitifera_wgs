@@ -265,4 +265,15 @@ data/hpc/fineStructure/adigitifera_linked.chunkcounts.out
 data/hpc/fineStructure/adigitifera_linked_mcmc.xml
 data/hpc/fineStructure/adigitifera_linked_tree.xml
 
+# annotation
 
+data/hpc/annotation/Adigitifera_uniprot_blastp.outfmt6
+data/hpc/annotation/Adigitifera_uniprot_blastx.outfmt6
+data/hpc/annotation/adig_iprscan_withgo.tsv
+data/hpc/annotation/allgenes.bed
+data/hpc/annotation/allgenes_ids_extracted_from_gff.txt
+data/hpc/annotation/annotation_from_chuya
+data/hpc/annotation/gene-to-go_topgo.tsv
+data/hpc/annotation/uniprot-yourlist.tab
+data/hpc/annotation/uniprot_gene_annot.tsv
+data/hpc/annotation/uniprot_id_gene_name.tab

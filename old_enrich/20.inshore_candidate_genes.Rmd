@@ -17,6 +17,26 @@ multiIntersectBed -i {pop}*.percentile1.bed -header > {pop}.multiIntersect.bed
 
 For these windows, we checked several signals such as XP-EHH, XP-nSL, iHS and delta-iHH, delta-DAF, and Fst.
 
+```{r uniprot-table}
+bl6_cols <- c("qaccver","saccver","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore")
+blastp <- read_tsv("data/hpc/annotation/Adigitifera_uniprot_blastp.outfmt6", col_names = bl6_cols) %>% 
+  select(adi_id=qaccver, uniprot_id=saccver,evalue) %>% add_column(method="blastp") %>% mutate(geneid=str_remove(adi_id,'\\.t\\d'))
+
+blastx <- read_tsv("data/hpc/annotation/Adigitifera_uniprot_blastx.outfmt6", col_names = bl6_cols) %>% 
+  select(adi_id=qaccver, uniprot_id=saccver,evalue) %>% add_column(method="blastx") %>% mutate(geneid=str_remove(adi_id,'\\.t\\d'))
+
+uniprotkb_tab <- read_tsv("data/hpc/annotation/uniprot-yourlist.tab") %>% select(-Status)
+
+uniprot_gene_annot <- rbind(blastp,blastx) %>% group_by(geneid) %>% dplyr::top_n(1,dplyr::desc(evalue)) %>% group_by(geneid,evalue) %>% filter(row_number()==1) %>% 
+  left_join(uniprotkb_tab,by=c("uniprot_id"="Entry")) %>%
+  ungroup %>% 
+  select(geneid,uniprot_id,entryname="Entry name",
+         genename="Gene names",go="Gene ontology IDs",kegg="Cross-reference (KEGG)") %>% mutate(genename=ifelse(is.na(genename),entryname,genename))
+
+adi_id_genename <- uniprot_gene_annot %>% select(geneid,entryname)
+```
+
+
 ### Gene candidates in Inshore
 Combine all the significant regions in iHS, XP-EHH, and XP-nSL scans. There are 9 windows (including 33 genes) identified as under selection in all 5 comparisons in inshore reefs (iHS, XP-EHH and XP-nSL against north offshore and south offshore reefs).
 ```{r}

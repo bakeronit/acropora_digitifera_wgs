@@ -5,6 +5,7 @@ output: github_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
+library(tidyverse)
 ```
 
 Since hard selective sweeps lead to dominance of a single haplotype at the swept locus it is possible to estimate the date at which a sweep occurred.  This is because new haplotypes will be introduced via mutation, and recombination will act to break down the length of the region of extended haplotype homozygosity. 

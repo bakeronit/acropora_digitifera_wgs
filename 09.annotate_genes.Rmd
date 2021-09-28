@@ -1,0 +1,91 @@
+---
+title: "Gene Annotations"
+output: 
+  github_document:
+    toc: true
+    toc_depth: 3
+bibliography: bibliography.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
+library(tidyverse)
+```
+
+As a precursor to a range of gene functional analyses, we generated an annotated gene set for *A. digitifera*.  Our annotations are based on gene models provided by Chuya Shinzato for the version 2 genome. These annotations were provided as file `Adig-v2.gff` along with a translation table `20191203c.shinzato-0010_scaff_adig.acclist.txt` to convert scaffold ids in this file to those in the NCBI assembly, `GCA_014634065.1_Adig_2.0_genomic.fna`.
+
+
+First we extracted protein coding sequences and nucleotide sequences for the longest isoform per gene model. These sequences were used for BLAST and InterProScan analyses. 
+
+```bash
+cgat gff2gff --filter=longest-gene -I annotation_from_chuya/adig-v2.gff -S annotation_longest_gene.gff
+
+gffread -g reference_entryname.fa -y protein.fa annotation_longest_gene.gff
+gffread -g reference_entryname.fa -x CDS.fa annotation_longest_gene.gff
+```
+
+# Scan for conserved domains
+
+Next we used the [InterProScan5](https://www.ebi.ac.uk/seqdb/confluence/display/JDSAT/InterProScan+5+Help+and+Documentation#InterProScan5HelpandDocumentation-RESTAPI) REST API to identify conserved domains in protein translations of all genes.  This analysis was primarily used to provide a set of GO term assignments based on conserved domains rather than specific genes.  We call these GO terms `ipr_go` to distinguish them from those obtained from uniprot, which are terms assigned to a specific homologous gene. The `ipr_go` terms will tend to be less specific but are likely to be more reliable than those provided by uniprot. 
+
+```bash
+python iprscan5.py --multifasta protein.fa \
+--maxJobs 29 --useSeqId --email email@address.com \
+--outformat tsv
+```
+
+```{r}
+# We extract GO term assignments from Interproscan results.
+ipr_colnames <- c("adi_id","md5","seqlen","analysis","signature_acc","signature_desc","start","stop","score","status","date","ipr_acc","ipr_ann","ipr_go", "pathways")
+
+interpro <- read_tsv("data/hpc/annotation/adig_iprscan_withgo.tsv", guess_max = 10000, col_names = ipr_colnames) %>% 
+  select(adi_id,ipr_go)
+
+interpro_go <- interpro %>% 
+  separate_rows(ipr_go,sep="\\|") %>% 
+  mutate(geneid=str_remove(adi_id,"\\.t\\d")) %>% 
+  unique %>% 
+  group_by(geneid) %>% 
+  summarise(go=paste(ipr_go,collapse = "; "))
+```
+
+# Homology search with BLAST
+
+To identify homologs of *A. digitifera* with high quality functional annotations we used BLAST[xp] to search all genes against the swissprot uniprot database. After filtering blast results to include only those with evalue <1e-5, we then selected the best available hit based on evalue.  For all these best hits we then looked up putative gene names, GO terms, and Kegg information from [Uniprot ID mapping](https://www.uniprot.org/uploadlists/) from UniprotKB AC/ID to UniprotKB.
+
+```{r generate_annot_table}
+bl6_cols <- c("qaccver","saccver","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore")
+
+blastp <- read_tsv("data/hpc/annotation/Adigitifera_uniprot_blastp.outfmt6", col_names = bl6_cols) %>% 
+  select(adi_id=qaccver, uniprot_id=saccver,evalue) %>% 
+  add_column(method="blastp") %>% 
+  mutate(geneid=str_remove(adi_id,'\\.t\\d'))
+
+blastx <- read_tsv("data/hpc/annotation/Adigitifera_uniprot_blastx.outfmt6", col_names = bl6_cols) %>% 
+  select(adi_id=qaccver, uniprot_id=saccver,evalue) %>% 
+  add_column(method="blastx") %>% 
+  mutate(geneid=str_remove(adi_id,'\\.t\\d'))
+
+# This file was obtained using the uniprot mapping service
+uniprotkb_tab <- read_tsv("data/hpc/annotation/uniprot-yourlist.tab") %>% select(-Status)
+
+uniprot_gene_annot <- rbind(blastp,blastx) %>% 
+  group_by(geneid) %>% 
+  slice_min(order_by = evalue, n = 1, with_ties = FALSE) %>% 
+  left_join(uniprotkb_tab,by=c("uniprot_id"="Entry")) %>%
+  ungroup %>% 
+  select(geneid,uniprot_id,entryname="Entry name",
+         genename="Gene names",go="Gene ontology IDs",kegg="Cross-reference (KEGG)",protein="Protein names") %>% mutate(genename=ifelse(is.na(genename),entryname,genename))
+
+# Write out results to a table.  This can easily be used in other analyses for GO enrichment etc.
+write_tsv(uniprot_gene_annot, "data/hpc/annotation/uniprot_gene_annot.tsv")
+```
+
+```{r annotation-res-stats-table}
+all <- read_tsv("data/hpc/annotation/allgenes_ids_extracted_from_gff.txt",col_names = "geneid")
+all_annot<- all %>% left_join(interpro_go) %>% 
+  left_join(uniprot_gene_annot %>% select(geneid,go),by="geneid") %>% 
+  rename("InterProScan"=go.x,"Uniprot(blast)"=go.y) 
+
+map_df(all_annot %>% select(InterProScan,`Uniprot(blast)`), ~sum(!is.na(.))/nrow(all_annot)) %>% knitr::kable(caption = "The proportion of genes with GO term annotation")
+```
