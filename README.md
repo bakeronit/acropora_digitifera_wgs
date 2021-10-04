@@ -4,16 +4,15 @@
 - [Sampling sites and sequencing data](01.sample_information.md)
 - [Variant Calling and quality control](02.quality_control.md)
 - [Phasing haplotypes](03.phasing.md)
-- [Building pseudo-chromosomes](11.ragtag_scaffolding.md)
+- [Building pseudo-chromosomes](x30.ragtag_scaffolding.md)
 
 ### Population genetics analyses
 - [Population genomics genetic statistics](04.popgen_stats.md)
 - [Population structure analysis](05.population_structure.md)
-- [IBD segments and fineStructure analysis](06.ibd_finestructure.md)
+- [IBD and HBD segments](06.ibd_hbd.md)
 - [Demographic history](07.demographic_history.md)
-- [Outgroup analysis](10.outgroup_analysis.md)
-- Selection analysis based on [LD](06.haplotype_selection_analysis.md) and [allele frequency](12.pcangsd_selection.md)
-- [Signatures of selection comparison](14.selection_combined.md)
+- Selection analysis based on [EHH](08.ehh_stats.md) and [allele frequency](12.pcangsd_selection.md)
+- [GO Enrichment of genes under selection](11.GO_enrichment.md)
 
 ### Parallelisation
 Some codes provided markdown chunks show how to run command for a single scaffold or a single sample. Most jobs that require to run in HPC were performed using `snakemake` or `parallel` to achieve parallelisation. The actually scripts can be found in [smk](scripts/smk) or [bash](scripts/bash).

@@ -1,0 +1,205 @@
+---
+title: "Dating the selection"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
+library(tidyverse)
+```
+
+Since hard selective sweeps lead to dominance of a single haplotype at the swept locus it is possible to estimate the date at which a sweep occurred.  This is because new haplotypes will be introduced via mutation, and recombination will act to break down the length of the region of extended haplotype homozygosity. 
+
+The software [startmrca](https://github.com/jhavsmith/startmrca) [@Smith2018-xt] is designed to estimate the timing of sweeps based on patterns of haplotype diversity and length that arise as a result of mutation and recombination after a sweep has occurred. 
+
+`startmrca` relies on the concept of a "focal allele" which in-theory should represent the allele that is under selection, however, in-practise it need only represent an allele on the same haplotype as the selected allele in strong linkage disequilibrium with it. 
+
+In order to estimate the timing of selection at a locus we need the following information;
+  - The position of the focal allele
+  - The identity of the focal allele at this position (0 or 1 for a biallelic SNP)
+  - A list of individuals with haplotypes containing the focal allele
+  - A list of individuals without the focal allele
+
+
+## Identifying the focal Allele
+
+To identify the focal allele we look for the position with the maximum z-score from |iHS| or XP-EHH within the interval. 
+
+```{r, eval=FALSE, echo=FALSE}
+# This code is used to create a table of significant 50kb windows. This is then reduced manually by merging adjacent windows resulting in Table S9
+
+ihs <- read_tsv("data/hpc/selection2/ihs/inshore.ihs.50bins.norm.50kb.windows", col_names = c("chr","start","end","ihs_nsnp","frac","percentile","sd")) %>%
+  filter(percentile==1)
+
+xpehh <- read_tsv("data/hpc/selection2/xpehh/inshore_vs_offshore.xpehh.norm.50kb.windows", col_names = c("chr","start","end","xpehh_nsnp","fracA","fracB","percentileA","percentileB","max","min")) %>% 
+  filter(percentileA==1)
+
+xpehh_site <- read_tsv("data/hpc/selection2/xpehh/inshore_vs_offshore.xpehh.norm", col_names = c("chr","pos","norm_xpehh")) 
+
+temp_tb <- ihs %>% 
+  full_join(xpehh) %>% 
+  mutate(sig=case_when(is.na(ihs_nsnp)~"XP-EHH", is.na(xpehh_nsnp)~"iHS")) %>% 
+  mutate(sig=ifelse(is.na(sig),"iHS/XP-EHH",sig)) %>% 
+  select(chr,start,end,frac,max,sig) %>% 
+  arrange(sig) %>% left_join(xpehh_site) %>% 
+  filter(pos>=start & pos<=end) %>% 
+  group_by(chr,start,end) %>% 
+  mutate(max_pos=pos[which.max(norm_xpehh)], max_xpehh=max(norm_xpehh)) %>% 
+  select(-c(pos,norm_xpehh,max)) %>% 
+  unique %>% 
+  ungroup
+
+ihs_site <- read_tsv("data/hpc/selection2/ihs/inshore.ihs.50bins.norm",col_names = c("chr","pos","norm_ihs"))
+
+peak_snp<- temp_tb %>% left_join(ihs_site) %>% filter(pos>=start & pos<=end) %>% group_by(chr,start,end) %>% mutate(norm_ihs=abs(norm_ihs)) %>% 
+  mutate(max_ihs_pos=pos[which.max(norm_ihs)], max_ihs=max(norm_ihs)) %>% select(-c(pos,norm_ihs)) %>% unique 
+#write_tsv(peak_snp,"cache/peak_snp.txt")
+```
+
+
+```{r}
+inshore_sweeps <- readxl::read_excel("data/hpc/startmrca/Supplementary Tables.xlsx",sheet="Table S9", skip = 1, na = "-") %>% 
+  unite("sweep_id",`Scaffold`,Start,sep = "_",remove = FALSE)
+
+scaffold_lengths <- read_delim("data/hpc/startmrca/scaffold_lengths.txt", col_names = c("Scaffold","length"))
+
+tmp <- inshore_sweeps %>% 
+  left_join(scaffold_lengths) %>% 
+  mutate(region=paste(Scaffold,":",Start,"-",End, sep="")) %>% 
+  mutate(position = ifelse(is.na(`Peak XPEHH SNP`), `Peak iHS SNP`,`Peak XPEHH SNP`)) %>% 
+  mutate(derived_allele=1) %>%
+  mutate(position = as.integer(position)) %>% 
+  mutate(start=Start - 100000) %>% 
+  mutate(end=End+10000) %>% 
+  mutate(start = ifelse(start < 1, 1, start)) %>% 
+  mutate(end = ifelse(end > length, length, end)) %>% 
+  select(region,position,derived_allele,sweep_id,chr=Scaffold,start,end) %>% 
+  write_tsv("data/hpc/startmrca/inshore_sweep_regions.tsv")
+  
+
+#region	position	derived_allele	sweep_id	chr	start	end
+#BLFC01000008.1:1150001-1200001	1152070	1	BLFC01000008.1_1150001	BLFC01000008.1	1050001	1300001
+```
+
+After exporting this initial list of regions we then perform a manual check based on furcation plots.  These plots are generated for each window using;
+```bash
+bash 02_furcation_plots.sh
+```
+For each window we check the furcation plot to identify the focal allele (0 = ancestral, 1 = derived). This results in the file `inshore_sweep_regions_checked.txt` where all focal alleles are coded. 
+
+```{r}
+#BLFC01000007.1:93469	93469	0.133333	0.0162989	0.0169216	-0.0162829	-1.50666	0
+ihs_colnames <- c("locus","position","1_freq","ihh_1","ihh_0","ihs","norm","top1pc")
+#xpehh_colnames <- c("chr","position","norm")
+
+ihs <- read_tsv("data/hpc/selection/ihs/inshore/all.ihs.out.norm",col_names = ihs_colnames) %>% 
+  select(-position) %>% 
+  separate(locus,into = c("chr","position"),sep = ":") %>% 
+  mutate(position=as.integer(position))
+#xpehh_no <- read_tsv("data/hpc/selection/xpehh/inshore_vs_northoffshore.xpehh.norm",col_names = xpehh_colnames)
+#xpehh_so <- read_tsv("data/hpc/selection/xpehh/inshore_vs_southoffshore.xpehh.norm",col_names = xpehh_colnames)
+```
+Since XP-EHH is a bit complicated we start with the iHS sites
+
+```{r}
+inshore_sweeps_ihs <- inshore_sweeps %>% 
+  filter(`Sig in`=="iHS") %>% 
+  select(chr=`Scaffold`,start=Start, end=End)
+
+inshore_sweeps_ihs_top <- inshore_sweeps_ihs %>% 
+#  head(1)  %>% 
+  pmap_dfr(function(chr,start,end){
+    cat(chr,start,end,"\n")
+    chrom <- chr
+   sites <- ihs %>%
+     filter(chr==chrom) %>%
+     filter(between(position,start,end)) %>% 
+     slice_max(abs(ihs),n = 1, with_ties = FALSE)
+   
+    sites %>% 
+      mutate(derived_allele = as.integer(ihs>0)) %>% 
+      mutate(region = paste(chr,":",start,"-",end,sep="")) %>% 
+      mutate(sweep_id = paste(chr,"_",start,sep="")) %>% 
+      add_column(start = start-1e5, end = end+1e5) %>% 
+      mutate(start = ifelse(start<0,0,start)) %>% 
+      select(region,position,derived_allele, sweep_id,chr,start,end) 
+  })
+
+write_tsv(inshore_sweeps_ihs_top,"data/hpc/startmrca/inshore_ihs_sweeps.tsv")
+```
+
+
+Now that we have written input files to disk, run the MCMC on HPC using 
+
+```bash
+bash 03_run_tmrca.sh
+```
+
+# Results
+
+```{r}
+estimate_tmrca <- function(result){
+  result %>% 
+  mutate(n=row_number()) %>% 
+  mutate(kept = as.factor(V4)) %>% 
+  slice_tail(n=10000) %>% 
+  slice_sample(n=100) %>% 
+    summarise(tmrca_mean = mean(V1), var = var(V1))
+}
+
+read_chain <- function(path){
+  tmp <- read_rds(path) 
+  tmp$t.chain %>% 
+    as.data.frame() %>% 
+    mutate(p = path) %>% 
+    extract(p,"locus",regex="(B.*).rds")
+}
+
+tmrca_data <- list.files("data/hpc/startmrca/results/","*.rds", full.names = TRUE) %>% 
+  map_dfr(read_chain)
+
+tmrca_estimates <- tmrca_data %>% 
+  group_by(locus) %>% 
+  slice_tail(n=10000) %>% 
+  slice_sample(n=100) %>% 
+  summarise(tmrca_mean = mean(V1), var = var(V1))
+```
+
+```{r}
+heat_response <- c("BLFC01000326.1_1550001","BLFC01000770.1_1200001","BLFC01000185.1_900001","BLFC01000298.1_200001","BLFC01000277.1_150001","BLFC01000375.1_1150001")
+```
+
+
+```{r}
+pd <- tmrca_data %>% 
+  mutate(heat = locus %in% heat_response) %>% 
+  mutate(t_years = V1*5) %>% 
+  group_by(locus) %>% 
+  mutate(n=row_number()) %>% 
+  slice_tail(n=10000) %>% 
+  mutate(tmrca_mean = mean(V1*5)) %>% 
+  ungroup()
+
+pds <- pd %>% 
+  group_by(locus, heat) %>% 
+  summarise(tmrca_mean = first(tmrca_mean))
+
+  ggplot(pd,aes(y=t_years,x=reorder(locus,tmrca_mean))) + 
+    geom_boxplot() + 
+    geom_point(data=pds,aes(color=heat,y=tmrca_mean)) +
+    coord_flip()
+  
+ggsave("figures/sweep_dates.png", width = 12,height = 16)
+```
+
+
+
+
+
+
+
+
+
+
+
+
