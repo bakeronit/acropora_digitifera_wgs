@@ -46,7 +46,7 @@ We then start with our PCA analysis and Admixture analysis with **919,129** SNPs
 
 `smartpca` has a design flaw that it won't work with chromosome id other than small numbers (1-22,X,Y). So we used an [in-house script](scripts/fix_mapfile_for_smartpca.py) to fix the map file and run smartpca with default parameters.
 
-```{r smartpca,fig.retina=2,fig.show="hold", out.width="50%",fig.cap="Two plots depict the first vs second principal components (PC1 vs PC2) and PC2 vs PC3, which stratified by sample site location (red-like dots: Inshore, green-like dots from south offshore, blue dots: north offshore)."}
+```{r smartpca,fig.retina=2,fig.show="hold", out.width="100%",fig.cap="Two plots depict the first vs second principal components (PC1 vs PC2) and PC2 vs PC3, which stratified by sample site location (red-like dots: Inshore, green-like dots from south offshore, blue dots: north offshore)."}
 pca <- read.table("data/hpc/pca/Adigitifera_smartpca.evec",
                        comment = "#",sep="",
                        col.names =c("sampleid",paste0("PC",1:20),"location"))
@@ -55,7 +55,7 @@ sdev_eval <- sqrt(scan("data/hpc/pca/Adigitifera_smartpca.eval")[1:20])
 sum_eval <- sum(scan("data/hpc/pca/Adigitifera_smartpca.eval"))
 pve <- sdev_eval/sum_eval*100
 
-ggplot(pca %>% arrange(desc(location)), aes(PC1,PC2,color=location)) +
+p1 <- ggplot(pca %>% arrange(desc(location)), aes(PC1,PC2,color=location)) +
   geom_point(size=2,alpha=0.8,shape=16)  +
   scale_color_manual(values = my_color) + 
   labs(x=paste0("PC1(", signif(pve[1],3),"%)"), y=paste0("PC2(", signif(pve[2],3),"%)")) + theme_bw() +
@@ -65,23 +65,28 @@ ggplot(pca %>% arrange(desc(location)), aes(PC1,PC2,color=location)) +
         legend.position = c(0.18,0.9),
         legend.box = "horizontal",
         legend.direction = "horizontal",
-        panel.grid = element_blank()) +
-  ggtitle("smartpca PCA analysis (PC1 vs PC2)")
+        panel.grid = element_blank()) 
 
-
-ggplot(pca %>% arrange(desc(location)), aes(PC2,PC3,color=location)) +
+p2 <- ggplot(pca %>% arrange(desc(location)), aes(PC2,PC3,color=location)) +
   geom_point(size=2,alpha=0.8,shape=16)  +
   scale_color_manual(values = my_color) + 
   labs(x=paste0("PC2(", signif(pve[2],3),"%)"), y=paste0("PC3(", signif(pve[3],3),"%)")) + theme_bw() +
   theme(text=element_text(size=12,  face = "bold"),
         legend.position = "none",
         panel.grid = element_blank()) +
-  ggtitle("smartpca PCA analysis (PC2 vs PC3)")
+  geom_label(data = pca %>% 
+               extract(sampleid, "label", "([^\\:]*)", remove = FALSE) %>% 
+               filter(grepl(pattern = "^BR_5_121",sampleid)), 
+             aes(label=label), nudge_y = 0.1, size=2) 
 
+
+p1 + p2
 ```
 
 
 Corals from different regions were well separated as inshore, offshore north, and offshore south, except one sample from Beagle reef was clustered with offshore south. In the right plot, inshore samples were tightly congregated compared to two offshore groups. Therefore, our samples from six locations form three clusters which correspond to three geographic regions we called inshore, offshore north, and offshore south.
+
+This analysis revealed that one sample from Beagle Reef (inshore), `BR_5_121` had offshore ancestry despite being collected from inshore.  We excluded this sample from subsequent analyses of demography and selection.
 
 ### PC loadings
 To check whether population structure evident in the PCA was driven by a small number of genomic regions (eg such as inversions) we inspected the PC loadings for the first two principle components.
