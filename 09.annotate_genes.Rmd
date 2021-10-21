@@ -38,7 +38,7 @@ python iprscan5.py --multifasta protein.fa \
 # We extract GO term assignments from Interproscan results.
 ipr_colnames <- c("adi_id","md5","seqlen","analysis","signature_acc","signature_desc","start","stop","score","status","date","ipr_acc","ipr_ann","ipr_go", "pathways")
 
-interpro <- read_tsv("data/hpc/annotation/adig_iprscan_withgo.tsv", guess_max = 10000, col_names = ipr_colnames) %>% 
+interpro <- read_tsv("data/hpc/annotation/adig_iprscan_withgo.tsv", guess_max = 10000, col_names = ipr_colnames, show_col_types = FALSE) %>% 
   select(adi_id,ipr_go)
 
 interpro_go <- interpro %>% 

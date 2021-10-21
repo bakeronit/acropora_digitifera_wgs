@@ -251,12 +251,35 @@ data/hpc/vcf_filtering/Adigi.v2.filtered.imiss
 
 # selection
 
-data/hpc/selection/ihs/northoffshore/all.ihs.out
-data/hpc/selection/ihs/northoffshore/all.ihs.out.norm
-data/hpc/selection/ihs/inshore/all.ihs.out
-data/hpc/selection/ihs/inshore/all.ihs.out.norm
-data/hpc/selection/ihs/southoffshore/all.ihs.out
-data/hpc/selection/ihs/southoffshore/all.ihs.out.norm
+data/hpc/selection2/xpnsl/southoffshore_vs_inshore_northoffshore.xpnsl.norm.50kb.windows
+data/hpc/selection2/xpnsl/northoffshore_vs_inshore_southoffshore.xpnsl.norm
+data/hpc/selection2/xpnsl/inshore_vs_offshore.xpnsl.norm.50kb.windows
+data/hpc/selection2/xpnsl/northoffshore_vs_inshore_southoffshore.xpnsl.norm.50kb.windows
+data/hpc/selection2/xpnsl/inshore_vs_offshore.xpnsl.norm
+data/hpc/selection2/xpnsl/southoffshore_vs_inshore_northoffshore.xpnsl.norm
+data/hpc/selection2/xpnsl/northoffshore_vs_inshore_southoffshore.xpnsl.norm.ragtag.txt
+data/hpc/selection2/xpnsl/southoffshore_vs_inshore_northoffshore.xpnsl.norm.ragtag.txt
+data/hpc/selection2/xpnsl/inshore_vs_offshore.xpnsl.norm.ragtag.txt
+
+data/hpc/selection2/ihs/inshore.ihs.50bins.norm.50kb.windows
+data/hpc/selection2/ihs/northoffshore.ihs.50bins.norm
+data/hpc/selection2/ihs/southoffshore.ihs.50bins.norm
+data/hpc/selection2/ihs/southoffshore.ihs.50bins.norm.ragtag.txt
+data/hpc/selection2/ihs/southoffshore.ihs.50bins.norm.50kb.windows
+data/hpc/selection2/ihs/inshore.ihs.50bins.norm
+data/hpc/selection2/ihs/northoffshore.ihs.50bins.norm.ragtag.txt
+data/hpc/selection2/ihs/northoffshore.ihs.50bins.norm.50kb.windows
+data/hpc/selection2/ihs/inshore.ihs.50bins.norm.ragtag.txt
+
+data/hpc/selection2/xpehh/inshore_vs_offshore.xpehh.norm
+data/hpc/selection2/xpehh/northoffshore_vs_inshore_southoffshore.xpehh.norm
+data/hpc/selection2/xpehh/southoffshore_vs_inshore_northoffshore.xpehh.norm.50kb.windows
+data/hpc/selection2/xpehh/northoffshore_vs_inshore_southoffshore.xpehh.norm.ragtag.txt
+data/hpc/selection2/xpehh/inshore_vs_offshore.xpehh.norm.50kb.windows
+data/hpc/selection2/xpehh/northoffshore_vs_inshore_southoffshore.xpehh.norm.50kb.windows
+data/hpc/selection2/xpehh/southoffshore_vs_inshore_northoffshore.xpehh.norm.ragtag.txt
+data/hpc/selection2/xpehh/inshore_vs_offshore.xpehh.norm.ragtag.txt
+data/hpc/selection2/xpehh/southoffshore_vs_inshore_northoffshore.xpehh.norm
 
 # finestructure
 
