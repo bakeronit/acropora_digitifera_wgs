@@ -14,6 +14,11 @@ library(VennDiagram)
 library(RColorBrewer)
 require(topGO)
 require(ggsci)
+library(aplot)
+library(ape)
+library(GO.db)
+library(ggtree)
+library(ggstance)
 ```
 
 
@@ -93,6 +98,14 @@ We then used `topGO` to identify GO terms that were enriched in the gene sets co
 gene2go <- uniprot_gene_annot %>% 
   split(.$geneid) %>% 
   map(~  str_split(.$go,";") %>% pluck(1) %>% str_trim())
+
+go2gene <- uniprot_gene_annot %>% 
+  dplyr::select(geneid,go) %>% 
+  separate_rows(go,sep=";") %>% 
+  mutate(go=str_trim(go)) %>% 
+  group_by(go) %>%
+  split(.$go) %>% 
+  map( ~.$geneid)
 
 go_enrich_topgo <- function(targets,onto) {
     genenames <- names(gene2go)
@@ -178,22 +191,40 @@ jaccard <- function(a, b) {
 }
 
 
-jaccard_go <- function(terms1,go2gene_map){
+jaccard_go <- function(terms1){
+  # if(is.null(terms1)) stop("is null")
+  # if (length(terms1)!=2) browser()
+  # cat(length(terms1[[1]])," ",length(terms1[[2]]),"\n")
   jaccard(terms1[[1]],terms1[[2]])
 }
 
-go2gene_map <- topgo_results_all %>% 
+display_go <- topgo_results_all %>% 
   filter(WeightFisher<0.001) %>% 
-  dplyr::select(GO.ID,geneids) %>% 
-  distinct() %>% split(.$GO.ID) %>% 
+  pull(GO.ID) %>% 
+  unique()
+
+label_data <- topgo_results_all %>% 
+  filter(WeightFisher<0.001)
+
+go2gene_signif <- topgo_results_all %>%
+  filter(GO.ID %in% display_go) %>%
+  dplyr::select(GO.ID,geneids) %>%
+  separate_rows(geneids,sep=";") %>% 
+  group_by(GO.ID) %>% 
+  summarise(geneids=paste(unique(geneids),collapse = ";")) %>% 
+  ungroup() %>% 
+  split(.$GO.ID) %>%
   map(~ .$geneids %>% str_split(";") %>% pluck(1))
 
-jdm <- cross2(go2gene_map,go2gene_map) %>% 
-  map_dbl(jaccard_go,go2gene_map) %>% 
-  matrix(nrow=length(go2gene_map))
+#go2gene_signif <- go2gene[display_go]
 
-rownames(jdm) <- names(go2gene_map)
-colnames(jdm) <- names(go2gene_map)
+cx <- cross2(go2gene_signif,go2gene_signif) #
+jdm <- cx %>% 
+  map_dbl(jaccard_go) %>% 
+  matrix(nrow=length(go2gene_signif))
+
+rownames(jdm) <- names(go2gene_signif)
+colnames(jdm) <- names(go2gene_signif)
 
 hc <- hclust(as.dist(jdm))
 
@@ -203,35 +234,31 @@ names(hc_order) <- rownames(jdm)[hc$order]
 
 
 
-```{r}
-display_go <- topgo_results_all %>% 
-  filter(WeightFisher<0.001) %>% 
-  pull(GO.ID) %>% 
-  unique()
 
-label_data <- topgo_results_all %>% 
-  filter(WeightFisher<0.001)
-```
 
 We found a total of `r length(display_go)` GO terms enriched (p<0.001) across all three of the locations.  These are summarised in Figure 2.  
 
 ```{r, fig.height=12}
-library(aplot)
-library(ape)
-library(GO.db)
-library(ggtree)
-library(ggstance)
+n_regions_per_term <- function(term,focal_pop){
+  candidate_regions_table %>%
+  unite("region_id",chr,start,end,remove=FALSE) %>% 
+  separate_rows(genes,sep=";") %>% 
+  filter(genes %in% (go2gene_signif[term] %>% pluck(1))) %>% 
+    filter(pop==focal_pop) %>% 
+    pull(region_id) %>% n_distinct()
+}
 
 pd <- topgo_results_all %>% 
   filter(GO.ID %in% display_go) %>% 
   filter(Significant>0) %>% 
-  mutate(hc_order = as.numeric(hc_order[GO.ID]))
+  mutate(n_regions = map2_int(GO.ID,pop,n_regions_per_term))
 
 barplot <- pd %>% 
+  mutate(text_label = paste(Significant,"/",n_regions,sep = "")) %>% 
   ggplot(aes(x=-log10(WeightFisher),y=GO.ID,fill=ontology)) + 
   geom_colh() +
   scale_fill_brewer(palette="Dark2",labels = c("Biological process", "Cellular component", "Molecular function")) +
-  geom_text(aes(label=Significant), hjust=-.5,size=2) +
+  geom_text(aes(label=text_label), hjust=-.5,size=2) +
   theme_bw() + labs(x=expression(-Log[10](P)),y="",fill="") +
   theme(panel.grid = element_blank(),
         legend.position = "none",
@@ -242,6 +269,8 @@ barplot <- pd %>%
 
 go_terms = AnnotationDbi::select(GO.db, keys(GO.db, "GOID"), c("TERM", "ONTOLOGY")) %>% 
   filter(GOID %in% display_go)
+
+
 
 tree_data <- pd %>% pivot_wider(id_cols = c("GO.ID","ontology"), names_from = pop, values_from = classic) %>% 
   dplyr::rename(inshore_p = inshore, northoffshore_p = northoffshore, southoffshore_p = southoffshore) %>% 
@@ -266,7 +295,7 @@ ggsave("figures/go_enrichment.png",height = 10,width = 10)
 rth_genes <- candidate_regions_table %>%
   unite("region_id",chr,start,end,remove=FALSE) %>% 
   separate_rows(genes,sep=";") %>% 
-  filter(genes %in% (go2gene_map["GO:0009408"] %>% pluck(1))) %>% 
+  filter(genes %in% (go2gene_signif["GO:0009408"] %>% pluck(1))) %>% 
   left_join(uniprot_gene_annot,by=c("genes"="geneid")) %>% 
   ungroup()
 ```
