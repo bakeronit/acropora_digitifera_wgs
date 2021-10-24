@@ -216,25 +216,50 @@ label_data <- topgo_results_all %>%
 We found a total of `r length(display_go)` GO terms enriched (p<0.001) across all three of the locations.  These are summarised in Figure 2.  
 
 ```{r, fig.height=12}
+library(aplot)
+library(ape)
+library(GO.db)
+library(ggtree)
+library(ggstance)
+
 pd <- topgo_results_all %>% 
   filter(GO.ID %in% display_go) %>% 
   filter(Significant>0) %>% 
   mutate(hc_order = as.numeric(hc_order[GO.ID]))
 
-pd %>% 
-  ggplot(aes(x=-log10(WeightFisher),y=reorder(Term,hc_order),fill=ontology)) + 
-  geom_col() +
+barplot <- pd %>% 
+  ggplot(aes(x=-log10(WeightFisher),y=GO.ID,fill=ontology)) + 
+  geom_colh() +
   scale_fill_brewer(palette="Dark2",labels = c("Biological process", "Cellular component", "Molecular function")) +
   geom_text(aes(label=Significant), hjust=-.5,size=2) +
   theme_bw() + labs(x=expression(-Log[10](P)),y="",fill="") +
   theme(panel.grid = element_blank(),
-        legend.position = "bottom",
-        legend.text = element_text()) + 
+        legend.position = "none",
+        legend.text = element_text(),
+        axis.text.y = element_blank()) + 
+  ylab("") + 
   facet_wrap(~pop)
-ggsave("figures/go_enrichment.png",height = 10,width = 8)
+
+go_terms = AnnotationDbi::select(GO.db, keys(GO.db, "GOID"), c("TERM", "ONTOLOGY")) %>% 
+  filter(GOID %in% display_go)
+
+tree_data <- pd %>% pivot_wider(id_cols = c("GO.ID","ontology"), names_from = pop, values_from = classic) %>% 
+  dplyr::rename(inshore_p = inshore, northoffshore_p = northoffshore, southoffshore_p = southoffshore) %>% 
+  left_join(pd %>% pivot_wider(id_cols = c("GO.ID"), names_from = pop, values_from = Significant)) %>% 
+  as.data.frame() %>% 
+  left_join(go_terms,by=c("GO.ID"="GOID"))
+
+hcp <- as.phylo(hc)
+
+tree <- ggtree(hc) %<+% tree_data + 
+  geom_tiplab(aes(label = TERM)) + 
+  xlim(0,6)
+
+barplot %>% insert_left(tree)
+ggsave("figures/go_enrichment.png",height = 10,width = 10)
 ```
 
-**Figure 2: Enriched GO terms for genes intersecting with candidate loci under selection**. Length of bars indicates significance (longer is more significant) and colour indicates the ontology. Numerical labels indicate the number of genes putatively under selection. Terms are clustered based on shared genes so that related terms (sharing common genes) are displayed together. 
+**Figure 2: Enriched GO terms for genes intersecting with candidate loci under selection**. Length of bars indicates significance (longer is more significant) and colour indicates the ontology. Numerical labels indicate the number of genes putatively under selection. Dendrogram depicts relationships between GO terms based on numbers of shared annotated genes.  
 
 
 ```{r}
