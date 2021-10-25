@@ -14,12 +14,35 @@ library(VennDiagram)
 library(RColorBrewer)
 require(topGO)
 require(ggsci)
-gene_table <- readRDS("cache/candidate_genes.rds")
+library(aplot)
+library(ape)
+library(GO.db)
+library(ggtree)
+library(ggstance)
 ```
 
-Genes located in the candidate regions were extracted (see [10.identify_selective_genomic_windows](10.identify_selective_genomic_windows.md)). We identified 425, 372, and 355 in inshore, north offshore, and south offshore population respectively.
 
-```{r eval = FALSE}
+```{r}
+uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv")
+
+candidate_regions_table <- read_rds("cache/candidate_regions_genes_ehh.rds")
+
+candidate_genes_table <- candidate_regions_table %>% 
+  separate_rows(genes,sep=";") %>% 
+  left_join(uniprot_gene_annot, by = c("genes"="geneid") )
+```
+
+In a previous analysis (see [10.identify_selective_genomic_windows](10.identify_selective_genomic_windows.md) we identified a total of `r nrow(candidate_regions_table)` candidate selective sweep regions.  A summary of sweep regions and the number of genes covered by them in each population is shown below;
+
+```{r}
+candidate_genes_table %>% 
+  mutate(region_id = paste(chr,start,end,collapse = "_")) %>% 
+  group_by(pop) %>% 
+  summarise(numgenes = n(), nregions = length(unique(region_id))) %>% 
+  knitr::kable()
+```
+
+```{r eval = FALSE, include=FALSE}
 
 plot_venn <- function(popname) {
   futile.logger::flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger") # don't write the log file #https://stackoverflow.com/questions/33393962/r-dont-write-log-file-for-venndiagram
@@ -69,28 +92,20 @@ knitr::include_graphics(c("figures/venndiagram_inshore.png","figures/venndiagram
 **Figure 1: Three strategies used to identify a list of genes related to local adaptation in three populations. The iHS (blue) has more unique selection candidate sets. The XP-EHH (light yellow) and XP-nSL (red) selection candidate sets shared more gene sets since they both are able to detect selective sweep that are fixed or nearly fixed.**
 
 
-We then applied GO enrichment to these gene sets.
+We then used `topGO` to identify GO terms that were enriched in the gene sets covered by selective sweeps in each population. In all cases enrichment was calculated by considering the target set as the set of all genes intersecting with selective sweeps in a given population, and the background set was taken as the complete set of annotated genes for *A. digitifera*. 
 
-```{r def-topgo}
-gene2go_file <- "data/hpc/annotation/gene-to-go_topgo.tsv"
+```{r define-functions}
+gene2go <- uniprot_gene_annot %>% 
+  split(.$geneid) %>% 
+  map(~  str_split(.$go,";") %>% pluck(1) %>% str_trim())
 
-readMappings <- function(file){
-  tmp <- read_tsv(gene2go_file)
-  
-  gene_ids <- tmp$geneid
-  gostrings <- tmp$go
-  
-  gostring2vector <- function(gostring){
-    str_split(gostring,",")[[1]] %>% str_trim()
-  }
-
-
-  geneID2GO <- lapply(gostrings,gostring2vector)
-  names(geneID2GO) <- gene_ids
-  geneID2GO
-}
-
-gene2go <- readMappings(gene2go_file)
+go2gene <- uniprot_gene_annot %>% 
+  dplyr::select(geneid,go) %>% 
+  separate_rows(go,sep=";") %>% 
+  mutate(go=str_trim(go)) %>% 
+  group_by(go) %>%
+  split(.$go) %>% 
+  map( ~.$geneid)
 
 go_enrich_topgo <- function(targets,onto) {
     genenames <- names(gene2go)
@@ -111,134 +126,185 @@ go_enrich_topgo <- function(targets,onto) {
     gt <- GenTable(GOdata,classic=resultFisher,
                    WeightFisher=resultFisher,
                    orderBy = "WeightFisher",
-                   topNodes=10)
+                   topNodes=1000)
     list(godata= GOdata, result=resultFisher, table=gt)
 }
 
-genes_in_enrichedGO <- function(bp,mf,cc,target) {
-  bp_genes <- bp$table %>% mutate(classic=as.numeric(classic),
-                              WeightFisher=as.numeric(WeightFisher)) %>%
-    filter(WeightFisher<0.01) %>% dplyr::select(GO.ID) %>% pull %>% 
-    map_df(~genesInTerm(object = bp$godata,whichGO = .x)) %>%
+genes_in_enrichedGO <- function(topgo_results,target) {
+  topgo_results$table %>% 
+    mutate(classic=as.numeric(classic),
+           WeightFisher=as.numeric(WeightFisher)) %>%
+    dplyr::select(GO.ID) %>% pull %>% 
+    map_df(~genesInTerm(object = topgo_results$godata,whichGO = .x)) %>%
     pivot_longer(cols = everything(),names_to = "go",values_to = "geneid") %>% 
-    na.omit() %>% filter(geneid %in% target)
-  
-  mf_genes <- mf$table %>% mutate(classic=as.numeric(classic),
-                              WeightFisher=as.numeric(WeightFisher)) %>%
-    filter(WeightFisher<0.01) %>% dplyr::select(GO.ID) %>% pull %>% 
-    map_df(~genesInTerm(object = mf$godata,whichGO = .x)) %>%
-    pivot_longer(cols = everything(),names_to = "go",values_to = "geneid") %>% 
-    na.omit() %>% filter(geneid %in% target)
-  
-  cc_genes <- cc$table %>% mutate(classic=as.numeric(classic),
-                              WeightFisher=as.numeric(WeightFisher)) %>%
-    filter(WeightFisher<0.01) %>% dplyr::select(GO.ID) %>% pull %>% 
-    map_df(~genesInTerm(object = cc$godata,whichGO = .x)) %>%
-    pivot_longer(cols = everything(),names_to = "go",values_to = "geneid") %>% 
-    na.omit() %>% filter(geneid %in% target)
+    na.omit() %>% 
+    filter(geneid %in% target)
+}
 
-  rbind(bp_genes,mf_genes,cc_genes) %>% left_join(uniprot_gene_annot %>%
-                                                dplyr::select(geneid,uniprot_id)) %>%
-    group_by(go) %>% summarise(uniprot_id=paste(uniprot_id,collapse = "; "))
+go_enrich_all_ontologies <- function(genes_table,target_pop){
+  target <- genes_table %>% 
+    filter(pop==target_pop) %>% 
+    dplyr::select(genes) %>% 
+    distinct %>% 
+    pull
+
+  mf <- go_enrich_topgo(targets = target,onto = "MF")
+  bp <- go_enrich_topgo(targets = target,onto = "BP")
+  cc <- go_enrich_topgo(targets = target,onto = "CC")
+
+  all_results <- list("MF"=mf,"BP"=bp,"CC"=cc)
+  all_results_genes <- map_dfr(all_results,genes_in_enrichedGO,target) %>% 
+    left_join(uniprot_gene_annot %>%
+                dplyr::select(geneid,uniprot_id,protein)) %>%
+    group_by(go) %>% 
+    summarise(uniprot_ids = paste(unique(uniprot_id),collapse = ";"), 
+                geneids = paste(unique(geneid),collapse = ";"),
+                protein_names = paste(unique(protein),collapse = ";"))
   
+  all_onto <- rbind(bp$table %>% mutate(classic=as.numeric(classic),WeightFisher=as.numeric(WeightFisher)) %>% add_column(ontology="BP"), 
+                    mf$table %>% mutate(classic=as.numeric(classic),WeightFisher=as.numeric(WeightFisher)) %>% add_column(ontology="MF"),
+                    cc$table %>% mutate(classic=as.numeric(classic),WeightFisher=as.numeric(WeightFisher)) %>% add_column(ontology="CC"))
+  all_onto %>% 
+    left_join(all_results_genes,by=c("GO.ID"="go")) 
 }
 ```
 
-### GO enrichment in inshore population
+
 ```{r, cache=TRUE}
-uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv")
+if ( !file.exists("cache/topgo_results_all.rds") ){
+  inshore_topgo <- go_enrich_all_ontologies(candidate_genes_table,"inshore") %>% add_column(pop="inshore")
+  northoffshore_topgo <- go_enrich_all_ontologies(candidate_genes_table,"northoffshore") %>% add_column(pop="northoffshore")
+  southoffshore_topgo <- go_enrich_all_ontologies(candidate_genes_table,"southoffshore") %>% add_column(pop="southoffshore")
 
-inshore_target <- gene_table %>% filter(pop=="inshore") %>% dplyr::select(geneid) %>% distinct %>% pull
-inshore_topgo_mf <- go_enrich_topgo(targets = inshore_target,onto = "MF")
-inshore_topgo_bp <- go_enrich_topgo(targets = inshore_target,onto = "BP")
-inshore_topgo_cc <- go_enrich_topgo(targets = inshore_target,onto = "CC")
+  topgo_results_all <- rbind(inshore_topgo,northoffshore_topgo,southoffshore_topgo)
+  write_rds(topgo_results_all,"cache/topgo_results_all.rds")
+  write_tsv(topgo_results_all,"cache/topgo_results_all.tsv") # This table should be in Supp Info
+} else {
+  topgo_results_all <- read_rds("cache/topgo_results_all.rds")
+}
+```
 
-inshore_topgo <- rbind(inshore_topgo_bp$table %>% mutate(classic=as.numeric(classic),WeightFisher=as.numeric(WeightFisher)) %>% add_column(ontology="BP"), 
-                           inshore_topgo_mf$table %>% mutate(classic=as.numeric(classic),WeightFisher=as.numeric(WeightFisher)) %>% add_column(ontology="MF"),
-                           inshore_topgo_cc$table %>% mutate(classic=as.numeric(classic),WeightFisher=as.numeric(WeightFisher)) %>% add_column(ontology="CC")) %>% 
-                     filter(WeightFisher<0.01)
 
-inshore_topgo %>% left_join(genes_in_enrichedGO(inshore_topgo_bp,inshore_topgo_mf,inshore_topgo_cc,target = inshore_target),by=c("GO.ID"="go"))%>% knitr::kable()
+```{r}
+jaccard <- function(a, b) {
+    1-(length(intersect(a, b))/length(union(a,b)))
+}
 
-inshore_topgo2 <- inshore_topgo %>% filter(GO.ID!="GO:0019557") %>% arrange(WeightFisher)
-inshore_topgo2$Term <- factor(inshore_topgo2$Term,levels = rev(inshore_topgo2$Term) )
-  
-inshore_topgo2 %>% ggplot(aes(x=-log10(WeightFisher),y=Term,fill=ontology)) + 
-  geom_col() + scale_fill_brewer(palette="Dark2",labels = c("Biological process", "Cellular component", "Molecular function")) +
-  geom_text(aes(label=Significant), hjust=-.5) +
+
+jaccard_go <- function(terms1){
+  # if(is.null(terms1)) stop("is null")
+  # if (length(terms1)!=2) browser()
+  # cat(length(terms1[[1]])," ",length(terms1[[2]]),"\n")
+  jaccard(terms1[[1]],terms1[[2]])
+}
+
+display_go <- topgo_results_all %>% 
+  filter(WeightFisher<0.001) %>% 
+  pull(GO.ID) %>% 
+  unique()
+
+label_data <- topgo_results_all %>% 
+  filter(WeightFisher<0.001)
+
+go2gene_signif <- topgo_results_all %>%
+  filter(GO.ID %in% display_go) %>%
+  dplyr::select(GO.ID,geneids) %>%
+  separate_rows(geneids,sep=";") %>% 
+  group_by(GO.ID) %>% 
+  summarise(geneids=paste(unique(geneids),collapse = ";")) %>% 
+  ungroup() %>% 
+  split(.$GO.ID) %>%
+  map(~ .$geneids %>% str_split(";") %>% pluck(1))
+
+#go2gene_signif <- go2gene[display_go]
+
+cx <- cross2(go2gene_signif,go2gene_signif) #
+jdm <- cx %>% 
+  map_dbl(jaccard_go) %>% 
+  matrix(nrow=length(go2gene_signif))
+
+rownames(jdm) <- names(go2gene_signif)
+colnames(jdm) <- names(go2gene_signif)
+
+hc <- hclust(as.dist(jdm))
+
+hc_order <- hc$order
+names(hc_order) <- rownames(jdm)[hc$order]
+```
+
+
+
+
+
+We found a total of `r length(display_go)` GO terms enriched (p<0.001) across all three of the locations.  These are summarised in Figure 2.  
+
+```{r, fig.height=12}
+n_regions_per_term <- function(term,focal_pop){
+  candidate_regions_table %>%
+  unite("region_id",chr,start,end,remove=FALSE) %>% 
+  separate_rows(genes,sep=";") %>% 
+  filter(genes %in% (go2gene_signif[term] %>% pluck(1))) %>% 
+    filter(pop==focal_pop) %>% 
+    pull(region_id) %>% n_distinct()
+}
+
+pd <- topgo_results_all %>% 
+  filter(GO.ID %in% display_go) %>% 
+  filter(Significant>0) %>% 
+  mutate(n_regions = map2_int(GO.ID,pop,n_regions_per_term))
+
+barplot <- pd %>% 
+  mutate(text_label = paste(Significant,"/",n_regions,sep = "")) %>% 
+  ggplot(aes(x=-log10(WeightFisher),y=GO.ID,fill=ontology)) + 
+  geom_colh() +
+  scale_fill_brewer(palette="Dark2",labels = c("Biological process", "Cellular component", "Molecular function")) +
+  geom_text(aes(label=text_label), hjust=-.5,size=2) +
   theme_bw() + labs(x=expression(-Log[10](P)),y="",fill="") +
   theme(panel.grid = element_blank(),
-        legend.position = c(0.8,0.15),
-        legend.text = element_text())+
-  ggtitle("GO enrichment in inshore candidate genes")
+        legend.position = "none",
+        legend.text = element_text(),
+        axis.text.y = element_blank()) + 
+  ylab("") + 
+  facet_wrap(~pop)
+
+go_terms = AnnotationDbi::select(GO.db, keys(GO.db, "GOID"), c("TERM", "ONTOLOGY")) %>% 
+  filter(GOID %in% display_go)
+
+
+
+tree_data <- pd %>% pivot_wider(id_cols = c("GO.ID","ontology"), names_from = pop, values_from = classic) %>% 
+  dplyr::rename(inshore_p = inshore, northoffshore_p = northoffshore, southoffshore_p = southoffshore) %>% 
+  left_join(pd %>% pivot_wider(id_cols = c("GO.ID"), names_from = pop, values_from = Significant)) %>% 
+  as.data.frame() %>% 
+  left_join(go_terms,by=c("GO.ID"="GOID"))
+
+hcp <- as.phylo(hc)
+
+tree <- ggtree(hc) %<+% tree_data + 
+  geom_tiplab(aes(label = TERM)) + 
+  xlim(0,6)
+
+barplot %>% insert_left(tree)
+ggsave("figures/go_enrichment.png",height = 10,width = 10)
 ```
 
-### GO enrichment in north offshore population
-```{r, cache=TRUE}
-northoffshore_target <- gene_table %>% filter(pop=="northoffshore") %>% dplyr::select(geneid) %>% distinct %>% pull
-northoffshore_topgo_mf <- go_enrich_topgo(targets = northoffshore_target,onto = "MF")
-northoffshore_topgo_bp <- go_enrich_topgo(targets = northoffshore_target,onto = "BP")
-northoffshore_topgo_cc <- go_enrich_topgo(targets = northoffshore_target,onto = "CC")
+**Figure 2: Enriched GO terms for genes intersecting with candidate loci under selection**. Length of bars indicates significance (longer is more significant) and colour indicates the ontology. Numerical labels indicate the number of genes putatively under selection. Dendrogram depicts relationships between GO terms based on numbers of shared annotated genes.  
 
-northoffshore_topgo <- rbind(northoffshore_topgo_bp$table %>% mutate(classic=as.numeric(classic),WeightFisher=as.numeric(WeightFisher)) %>% add_column(ontology="BP"), 
-                           northoffshore_topgo_mf$table %>% mutate(classic=as.numeric(classic),WeightFisher=as.numeric(WeightFisher)) %>% add_column(ontology="MF"),
-                           northoffshore_topgo_cc$table %>% mutate(classic=as.numeric(classic),WeightFisher=as.numeric(WeightFisher)) %>% add_column(ontology="CC")) %>% 
-                     filter(WeightFisher<0.01)
 
-northoffshore_topgo %>% left_join(genes_in_enrichedGO(northoffshore_topgo_bp,northoffshore_topgo_mf,northoffshore_topgo_cc,target = northoffshore_target),by=c("GO.ID"="go"))%>% knitr::kable()
-
-northoffshore_topgo <- northoffshore_topgo %>% arrange(WeightFisher)
-northoffshore_topgo$Term <- factor(northoffshore_topgo$Term,levels = rev(northoffshore_topgo$Term) )
-  
-northoffshore_topgo %>% ggplot(aes(x=-log10(WeightFisher),y=Term,fill=ontology)) + 
-  geom_col() + scale_fill_brewer(palette="Dark2",labels = c("Biological process", "Cellular component", "Molecular function")) +
-  geom_text(aes(label=Significant), hjust=-.5) +
-  theme_bw() + labs(x=expression(-Log[10](P)),y="",fill="") +
-  theme(panel.grid = element_blank(),
-        legend.position = c(0.8,0.15),
-        legend.text = element_text())+
-  ggtitle("GO enrichment in north offshore candidate genes")
+```{r}
+rth_genes <- candidate_regions_table %>%
+  unite("region_id",chr,start,end,remove=FALSE) %>% 
+  separate_rows(genes,sep=";") %>% 
+  filter(genes %in% (go2gene_signif["GO:0009408"] %>% pluck(1))) %>% 
+  left_join(uniprot_gene_annot,by=c("genes"="geneid")) %>% 
+  ungroup()
 ```
 
-### GO enrichment in south offshore population
-```{r, cache=TRUE}
-southoffshore_target <- gene_table %>% filter(pop=="southoffshore") %>% dplyr::select(geneid) %>% distinct %>% pull
-southoffshore_topgo_mf <- go_enrich_topgo(targets = southoffshore_target,onto = "MF")
-southoffshore_topgo_bp <- go_enrich_topgo(targets = southoffshore_target,onto = "BP")
-southoffshore_topgo_cc <- go_enrich_topgo(targets = southoffshore_target,onto = "CC")
 
-southoffshore_topgo <- rbind(southoffshore_topgo_bp$table %>% mutate(classic=as.numeric(classic),WeightFisher=as.numeric(WeightFisher)) %>% add_column(ontology="BP"), 
-                           southoffshore_topgo_mf$table %>% mutate(classic=as.numeric(classic),WeightFisher=as.numeric(WeightFisher)) %>% add_column(ontology="MF"),
-                           southoffshore_topgo_cc$table %>% mutate(classic=as.numeric(classic),WeightFisher=as.numeric(WeightFisher)) %>% add_column(ontology="CC")) %>% 
-                     filter(WeightFisher<0.01)
+Interestingly, we found the genes under selection in inshore were enriched in response to heat `GO:0009408` (Figure 2). This included a total of `r nrow(rth_genes)` genes overlapping with `r (rth_genes$region_id %>% n_distinct())` distinct candidate regions. This included four copies of a HSP-16 homolog within a single region that was identified as significant in all three EHH statistics.
 
-southoffshore_topgo %>% left_join(genes_in_enrichedGO(southoffshore_topgo_bp,southoffshore_topgo_mf,southoffshore_topgo_cc,target = southoffshore_target),by=c("GO.ID"="go"))%>% knitr::kable()
-
-hore_topgo <- southoffshore_topgo %>% arrange(WeightFisher)
-southoffshore_topgo$Term <- factor(southoffshore_topgo$Term,levels = rev(southoffshore_topgo$Term) )
-  
-southoffshore_topgo %>% ggplot(aes(x=-log10(WeightFisher),y=Term,fill=ontology)) + 
-  geom_col() + scale_fill_brewer(palette="Dark2",labels = c("Biological process", "Cellular component", "Molecular function")) +
-  geom_text(aes(label=Significant), hjust=-.5) +
-  theme_bw() + labs(x=expression(-Log[10](P)),y="",fill="") +
-  theme(panel.grid = element_blank(),
-        legend.position = c(0.8,0.15),
-        legend.text = element_text())+
-  ggtitle("GO enrichment in south offshore candidate genes")
+```{r}
+rth_genes %>% 
+  dplyr::select(region_id,genes,entryname,genename,protein,frac,stats) %>% knitr::kable()
 ```
-Interestingly, we found the genes under selection in inshore were enriched in response to heat `GO:0009408` (Figure 2). Within these six unique annotated genes, two genes(`CBPB2_MOUSE`,`DNAJA1_PONAB`) were identified as candidates in all three methods, two genes(`DAXX_CANLF`,`HSP12_CAEEL`) were detected by cross population tests, beside, two genes(`ANO1_HUMAN` and `TRPA1_RAT`) were detected as under selection in XP-nSL. 
 
-```{r tables, echo=FALSE, message=FALSE, warnings=FALSE,results='asis'}
-in_table <- "
-
-|Unprot Entry Name	|Scaffold     |	Start	 |End	    |Fraction of \\|iHS\\|>2|Max XP-EHH	|Max XP-nSL|
-|------------------:|------------:|-------:|-------:|--------------------:|----------:|---------:|
-|CBPB2_MOUSE	      |BLFC01000770	|1200001 |1250001 |	0.393443            |	7.1799	  |7.69895   |
-|DNJA1_PONAB	      |BLFC01000326	|1550001 |2150000 |	0.8854482	          |10.0019	  |6.20647   |
-|ANO1_HUMAN	        |BLFC01000375	|1200001 |1250001	|-	                  |-	        |4.5262    |
-|DAXX_CANLF	        |BLFC01000185	|900001	 |1050001	|-	                  |7.54117	  |7.16109   |
-|TRPA1_RAT	        |BLFC01000277	|1200001 |1250001	|-	                  |-	        |4.93185   |
-|HSP12_CAEEL	      |BLFC01000298	|200001	 |300001	|-	                  |6.28043	  |5.50613   |
-"
-cat(in_table)
-```
