@@ -23,38 +23,7 @@ In order to estimate the timing of selection at a locus we need the following in
 
 ## Identifying the focal Allele
 
-To identify the focal allele we look for the position with the maximum z-score from |iHS| or XP-EHH within the interval. 
-
-```{r, eval=FALSE, echo=FALSE}
-# This code is used to create a table of significant 50kb windows. This is then reduced manually by merging adjacent windows resulting in Table S9
-
-ihs <- read_tsv("data/hpc/selection2/ihs/inshore.ihs.50bins.norm.50kb.windows", col_names = c("chr","start","end","ihs_nsnp","frac","percentile","sd")) %>%
-  filter(percentile==1)
-
-xpehh <- read_tsv("data/hpc/selection2/xpehh/inshore_vs_offshore.xpehh.norm.50kb.windows", col_names = c("chr","start","end","xpehh_nsnp","fracA","fracB","percentileA","percentileB","max","min")) %>% 
-  filter(percentileA==1)
-
-xpehh_site <- read_tsv("data/hpc/selection2/xpehh/inshore_vs_offshore.xpehh.norm", col_names = c("chr","pos","norm_xpehh")) 
-
-temp_tb <- ihs %>% 
-  full_join(xpehh) %>% 
-  mutate(sig=case_when(is.na(ihs_nsnp)~"XP-EHH", is.na(xpehh_nsnp)~"iHS")) %>% 
-  mutate(sig=ifelse(is.na(sig),"iHS/XP-EHH",sig)) %>% 
-  select(chr,start,end,frac,max,sig) %>% 
-  arrange(sig) %>% left_join(xpehh_site) %>% 
-  filter(pos>=start & pos<=end) %>% 
-  group_by(chr,start,end) %>% 
-  mutate(max_pos=pos[which.max(norm_xpehh)], max_xpehh=max(norm_xpehh)) %>% 
-  select(-c(pos,norm_xpehh,max)) %>% 
-  unique %>% 
-  ungroup
-
-ihs_site <- read_tsv("data/hpc/selection2/ihs/inshore.ihs.50bins.norm",col_names = c("chr","pos","norm_ihs"))
-
-peak_snp<- temp_tb %>% left_join(ihs_site) %>% filter(pos>=start & pos<=end) %>% group_by(chr,start,end) %>% mutate(norm_ihs=abs(norm_ihs)) %>% 
-  mutate(max_ihs_pos=pos[which.max(norm_ihs)], max_ihs=max(norm_ihs)) %>% select(-c(pos,norm_ihs)) %>% unique 
-#write_tsv(peak_snp,"cache/peak_snp.txt")
-```
+To identify the focal allele we look for the position with the maximum z-score from |iHS| or XP-EHH within the interval. This information is encoded in the candidate regions as described in [10.identify_selective_genomic_windows](10.identify_selective_genomic_windows.md)
 
 
 ```{r}
@@ -73,9 +42,15 @@ tmp <- inshore_sweeps %>%
   mutate(end=End+10000) %>% 
   mutate(start = ifelse(start < 1, 1, start)) %>% 
   mutate(end = ifelse(end > length, length, end)) %>% 
-  select(region,position,derived_allele,sweep_id,chr=Scaffold,start,end) %>% 
+  select(region,position,derived_allele,sweep_id,chr=Scaffold,start,end) 
+
+tmp %>% 
   write_tsv("data/hpc/startmrca/inshore_sweep_regions.tsv")
+
+inshore_sweep_regions <- read_rds("cache/candidate_regions_genes_ehh.rds") %>% 
+  unite(col = "sweep_id",chr,start,end,remove = FALSE)
   
+
 
 #region	position	derived_allele	sweep_id	chr	start	end
 #BLFC01000008.1:1150001-1200001	1152070	1	BLFC01000008.1_1150001	BLFC01000008.1	1050001	1300001
