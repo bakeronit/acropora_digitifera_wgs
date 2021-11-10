@@ -97,7 +97,7 @@ We then used `topGO` to identify GO terms that were enriched in the gene sets co
 ```{r define-functions}
 gene2go <- uniprot_gene_annot %>% 
   split(.$geneid) %>% 
-  map(~  str_split(.$go,";") %>% pluck(1) %>% str_trim())
+  purrr::map(~str_split(.$go,";") %>% pluck(1) %>% str_trim())
 
 go2gene <- uniprot_gene_annot %>% 
   dplyr::select(geneid,go) %>% 
@@ -105,7 +105,7 @@ go2gene <- uniprot_gene_annot %>%
   mutate(go=str_trim(go)) %>% 
   group_by(go) %>%
   split(.$go) %>% 
-  map( ~.$geneid)
+  purrr::map( ~.$geneid)
 
 go_enrich_topgo <- function(targets,onto) {
     genenames <- names(gene2go)
@@ -199,12 +199,10 @@ jaccard_go <- function(terms1){
 }
 
 display_go <- topgo_results_all %>% 
-  filter(WeightFisher<0.001) %>% 
+  filter(Significant>0) %>% 
+#  filter(WeightFisher<0.1) %>% 
   pull(GO.ID) %>% 
   unique()
-
-label_data <- topgo_results_all %>% 
-  filter(WeightFisher<0.001)
 
 go2gene_signif <- topgo_results_all %>%
   filter(GO.ID %in% display_go) %>%
@@ -214,27 +212,21 @@ go2gene_signif <- topgo_results_all %>%
   summarise(geneids=paste(unique(geneids),collapse = ";")) %>% 
   ungroup() %>% 
   split(.$GO.ID) %>%
-  map(~ .$geneids %>% str_split(";") %>% pluck(1))
+  purrr::map(~ .$geneids %>% str_split(";") %>% pluck(1))
 
-#go2gene_signif <- go2gene[display_go]
-
-cx <- cross2(go2gene_signif,go2gene_signif) #
-jdm <- cx %>% 
-  map_dbl(jaccard_go) %>% 
-  matrix(nrow=length(go2gene_signif))
+if ( !file.exists("cache/jdm.rds")){
+  cx <- cross2(go2gene_signif,go2gene_signif) #
+  jdm <- cx %>% 
+    map_dbl(jaccard_go) %>% 
+    matrix(nrow=length(go2gene_signif))
+  write_rds(jdm,"cache/jdm.rds")
+} else {
+  jdm <- read_rds("cache/jdm.rds")
+}
 
 rownames(jdm) <- names(go2gene_signif)
 colnames(jdm) <- names(go2gene_signif)
-
-hc <- hclust(as.dist(jdm))
-
-hc_order <- hc$order
-names(hc_order) <- rownames(jdm)[hc$order]
 ```
-
-
-
-
 
 We found a total of `r length(display_go)` GO terms enriched (p<0.001) across all three of the locations.  These are summarised in Figure 2.  
 
@@ -248,15 +240,34 @@ n_regions_per_term <- function(term,focal_pop){
     pull(region_id) %>% n_distinct()
 }
 
+bar_go1 <- topgo_results_all %>% 
+  group_by(GO.ID) %>% 
+  summarise(max_sig=max(Significant),minwf=min(WeightFisher)) %>% 
+  filter(max_sig>0) %>% 
+  filter(minwf<0.001) %>% 
+  pull(GO.ID) %>% 
+  unique()
+
+bar_go <- topgo_results_all %>% 
+  filter(GO.ID %in% bar_go1) %>%
+  rowwise() %>% 
+  mutate(n_regions = map2_int(GO.ID,pop,n_regions_per_term)) %>% 
+  group_by(GO.ID) %>% 
+  summarise(max_regions = max(n_regions)) %>% 
+  filter(max_regions>2) %>% 
+  pull(GO.ID) %>% 
+  unique()
+
 pd <- topgo_results_all %>% 
-  filter(GO.ID %in% display_go) %>% 
-  filter(Significant>0) %>% 
-  mutate(n_regions = map2_int(GO.ID,pop,n_regions_per_term))
+  filter(GO.ID %in% bar_go) %>% 
+  rowwise() %>% 
+  mutate(n_regions = map2_int(GO.ID,pop,n_regions_per_term)) %>% 
+  filter(WeightFisher<1) 
 
 barplot <- pd %>% 
   mutate(text_label = paste(Significant,"/",n_regions,sep = "")) %>% 
   ggplot(aes(x=-log10(WeightFisher),y=GO.ID,fill=ontology)) + 
-  geom_colh() +
+  ggstance::geom_colh() +
   scale_fill_brewer(palette="Dark2",labels = c("Biological process", "Cellular component", "Molecular function")) +
   geom_text(aes(label=text_label), hjust=-.5,size=2) +
   theme_bw() + labs(x=expression(-Log[10](P)),y="",fill="") +
@@ -276,15 +287,21 @@ tree_data <- pd %>% pivot_wider(id_cols = c("GO.ID","ontology"), names_from = po
   dplyr::rename(inshore_p = inshore, northoffshore_p = northoffshore, southoffshore_p = southoffshore) %>% 
   left_join(pd %>% pivot_wider(id_cols = c("GO.ID"), names_from = pop, values_from = Significant)) %>% 
   as.data.frame() %>% 
-  left_join(go_terms,by=c("GO.ID"="GOID"))
+  left_join(go_terms,by=c("GO.ID"="GOID")) %>% 
+  mutate(term_label = paste(GO.ID," ",TERM,sep=""))
 
-hcp <- as.phylo(hc)
+jdm_included <- jdm[tree_data$GO.ID,tree_data$GO.ID]
+hc <- hclust(as.dist(jdm_included))
+hc_order <- hc$order
+names(hc_order) <- rownames(jdm_included)[hc$order]
 
-tree <- ggtree(hc) %<+% tree_data + 
-  geom_tiplab(aes(label = TERM)) + 
-  xlim(0,6)
+#hcp <- as.phylo(hc)
 
-barplot %>% insert_left(tree)
+tree <- ggtree(as.phylo(hc)) %<+% tree_data + 
+geom_tiplab(aes(label = term_label),align = TRUE) + 
+  xlim(0,10)
+
+barplot %>% insert_left(tree, width = 2)
 ggsave("figures/go_enrichment.png",height = 10,width = 10)
 ```
 
@@ -292,19 +309,32 @@ ggsave("figures/go_enrichment.png",height = 10,width = 10)
 
 
 ```{r}
-rth_genes <- candidate_regions_table %>%
+gene_table_for_term <- function(goterm){
+  candidate_regions_table %>%
   unite("region_id",chr,start,end,remove=FALSE) %>% 
   separate_rows(genes,sep=";") %>% 
-  filter(genes %in% (go2gene_signif["GO:0009408"] %>% pluck(1))) %>% 
+  filter(genes %in% (go2gene_signif[goterm] %>% pluck(1))) %>% 
   left_join(uniprot_gene_annot,by=c("genes"="geneid")) %>% 
-  ungroup()
+  ungroup() %>% 
+    add_column(enriched_go=goterm) %>% 
+  dplyr::select(enriched_go,region_id,genes,entryname,genename,protein,frac,stats) %>% 
+    na.omit()
+}
+
+rth_genes <- gene_table_for_term("GO:0009408")
 ```
 
 
 Interestingly, we found the genes under selection in inshore were enriched in response to heat `GO:0009408` (Figure 2). This included a total of `r nrow(rth_genes)` genes overlapping with `r (rth_genes$region_id %>% n_distinct())` distinct candidate regions. This included four copies of a HSP-16 homolog within a single region that was identified as significant in all three EHH statistics.
 
 ```{r}
-rth_genes %>% 
-  dplyr::select(region_id,genes,entryname,genename,protein,frac,stats) %>% knitr::kable()
+go_terms_in_plot <- jdm_included %>% rownames()
+
+allgo_genes <- map_dfr(go_terms_in_plot,gene_table_for_term) %>% 
+  left_join(go_terms,by=c("enriched_go"="GOID")) %>% 
+  dplyr::select(enriched_go,TERM,region_id,genes,entryname,genename,protein,frac,stats)
+
+write_tsv(allgo_genes,"cache/allgo_genes.tsv")
 ```
+
 
