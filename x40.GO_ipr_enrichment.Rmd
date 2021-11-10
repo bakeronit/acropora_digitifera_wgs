@@ -1,0 +1,275 @@
+---
+title: "Alternative Gene Ontology Enrichment analysis using Interproscan GO terms"
+output: 
+  github_document:
+    toc: true
+    toc_depth: 3
+bibliography: bibliography.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
+library(tidyverse)
+library(VennDiagram)
+library(RColorBrewer)
+require(topGO)
+require(ggsci)
+library(aplot)
+library(ape)
+library(GO.db)
+library(ggtree)
+library(ggstance)
+```
+
+
+```{r}
+uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv") %>% 
+  mutate(go=go_ipr) %>% 
+  dplyr::select(-go_ipr)
+
+candidate_regions_table <- read_rds("cache/candidate_regions_genes_ehh.rds")
+
+candidate_genes_table <- candidate_regions_table %>% 
+  separate_rows(genes,sep=";") %>% 
+  left_join(uniprot_gene_annot, by = c("genes"="geneid") )
+```
+
+In a previous analysis (see [10.identify_selective_genomic_windows](10.identify_selective_genomic_windows.md) we identified a total of `r nrow(candidate_regions_table)` candidate selective sweep regions.  A summary of sweep regions and the number of genes covered by them in each population is shown below;
+
+
+We then used `topGO` to identify GO terms that were enriched in the gene sets covered by selective sweeps in each population. In all cases enrichment was calculated by considering the target set as the set of all genes intersecting with selective sweeps in a given population, and the background set was taken as the complete set of annotated genes for *A. digitifera*. 
+
+```{r define-functions}
+gene2go <- uniprot_gene_annot %>% 
+  split(.$geneid) %>% 
+  purrr::map(~str_split(.$go,";") %>% pluck(1) %>% str_trim())
+
+go2gene <- uniprot_gene_annot %>% 
+  dplyr::select(geneid,go) %>% 
+  separate_rows(go,sep=";") %>% 
+  mutate(go=str_trim(go)) %>% 
+  group_by(go) %>%
+  split(.$go) %>% 
+  purrr::map( ~.$geneid)
+
+go_enrich_topgo <- function(targets,onto) {
+    genenames <- names(gene2go)
+    genelist <- factor(as.integer(genenames %in% targets))
+    names(genelist) <- genenames
+
+    GOdata <- new("topGOdata",
+                  allGenes = genelist,
+                  annot=annFUN.gene2GO,
+                  gene2GO=gene2go,
+                  ontology=onto,
+                  nodeSize=5)
+    
+    resultFisher <- runTest(GOdata, 
+                        algorithm = "weight01",
+                        statistic = "fisher")
+
+    gt <- GenTable(GOdata,classic=resultFisher,
+                   WeightFisher=resultFisher,
+                   orderBy = "WeightFisher",
+                   topNodes=200)
+    list(godata= GOdata, result=resultFisher, table=gt)
+}
+
+genes_in_enrichedGO <- function(topgo_results,target) {
+  topgo_results$table %>% 
+    mutate(classic=as.numeric(classic),
+           WeightFisher=as.numeric(WeightFisher)) %>%
+    dplyr::select(GO.ID) %>% pull %>% 
+    map_df(~genesInTerm(object = topgo_results$godata,whichGO = .x)) %>%
+    pivot_longer(cols = everything(),names_to = "go",values_to = "geneid") %>% 
+    na.omit() %>% 
+    filter(geneid %in% target)
+}
+
+go_enrich_all_ontologies <- function(genes_table,target_pop){
+  target <- genes_table %>% 
+    filter(pop==target_pop) %>% 
+    dplyr::select(genes) %>% 
+    distinct %>% 
+    pull
+
+  mf <- go_enrich_topgo(targets = target,onto = "MF")
+  bp <- go_enrich_topgo(targets = target,onto = "BP")
+  cc <- go_enrich_topgo(targets = target,onto = "CC")
+
+  all_results <- list("MF"=mf,"BP"=bp,"CC"=cc)
+  all_results_genes <- map_dfr(all_results,genes_in_enrichedGO,target) %>% 
+    left_join(uniprot_gene_annot %>%
+                dplyr::select(geneid,uniprot_id,protein)) %>%
+    group_by(go) %>% 
+    summarise(uniprot_ids = paste(unique(uniprot_id),collapse = ";"), 
+                geneids = paste(unique(geneid),collapse = ";"),
+                protein_names = paste(unique(protein),collapse = ";"))
+  
+  all_onto <- rbind(bp$table %>% mutate(classic=as.numeric(classic),WeightFisher=as.numeric(WeightFisher)) %>% add_column(ontology="BP"), 
+                    mf$table %>% mutate(classic=as.numeric(classic),WeightFisher=as.numeric(WeightFisher)) %>% add_column(ontology="MF"),
+                    cc$table %>% mutate(classic=as.numeric(classic),WeightFisher=as.numeric(WeightFisher)) %>% add_column(ontology="CC"))
+  all_onto %>% 
+    left_join(all_results_genes,by=c("GO.ID"="go")) 
+}
+```
+
+
+```{r, cache=TRUE}
+if ( !file.exists("cache/topgo_results_all_ipr.rds") ){
+  inshore_topgo <- go_enrich_all_ontologies(candidate_genes_table,"inshore") %>% add_column(pop="inshore")
+  northoffshore_topgo <- go_enrich_all_ontologies(candidate_genes_table,"northoffshore") %>% add_column(pop="northoffshore")
+  southoffshore_topgo <- go_enrich_all_ontologies(candidate_genes_table,"southoffshore") %>% add_column(pop="southoffshore")
+
+  topgo_results_all <- rbind(inshore_topgo,northoffshore_topgo,southoffshore_topgo)
+  write_rds(topgo_results_all,"cache/topgo_results_all_ipr.rds")
+  write_tsv(topgo_results_all,"cache/topgo_results_all_ipr.tsv") # This table should be in Supp Info
+} else {
+  topgo_results_all <- read_rds("cache/topgo_results_all_ipr.rds")
+}
+```
+
+
+```{r}
+jaccard <- function(a, b) {
+    1-(length(intersect(a, b))/length(union(a,b)))
+}
+
+
+jaccard_go <- function(terms1){
+  # if(is.null(terms1)) stop("is null")
+  # if (length(terms1)!=2) browser()
+  # cat(length(terms1[[1]])," ",length(terms1[[2]]),"\n")
+  jaccard(terms1[[1]],terms1[[2]])
+}
+
+display_go <- topgo_results_all %>% 
+  filter(Significant>0) %>% 
+#  filter(WeightFisher<0.1) %>% 
+  pull(GO.ID) %>% 
+  unique()
+
+go2gene_signif <- topgo_results_all %>%
+  filter(GO.ID %in% display_go) %>%
+  dplyr::select(GO.ID,geneids) %>%
+  separate_rows(geneids,sep=";") %>% 
+  group_by(GO.ID) %>% 
+  summarise(geneids=paste(unique(geneids),collapse = ";")) %>% 
+  ungroup() %>% 
+  split(.$GO.ID) %>%
+  purrr::map(~ .$geneids %>% str_split(";") %>% pluck(1))
+
+if ( !file.exists("cache/jdm_ipr.rds")){
+  cx <- cross2(go2gene_signif,go2gene_signif) #
+  jdm <- cx %>% 
+    map_dbl(jaccard_go) %>% 
+    matrix(nrow=length(go2gene_signif))
+  write_rds(jdm,"cache/jdm_ipr.rds")
+} else {
+  jdm <- read_rds("cache/jdm_ipr.rds")
+}
+
+rownames(jdm) <- names(go2gene_signif)
+colnames(jdm) <- names(go2gene_signif)
+```
+
+We found a total of `r topgo_results_all %>% filter(WeightFisher<0.001) %>% nrow()` GO terms enriched (p<0.001) across all three of the locations.  These are summarised in Figure 2.  
+
+```{r, fig.height=12}
+n_regions_per_term <- function(term,focal_pop){
+  candidate_regions_table %>%
+  unite("region_id",chr,start,end,remove=FALSE) %>% 
+  separate_rows(genes,sep=";") %>% 
+  filter(genes %in% (go2gene_signif[term] %>% pluck(1))) %>% 
+    filter(pop==focal_pop) %>% 
+    pull(region_id) %>% n_distinct()
+}
+
+bar_go1 <- topgo_results_all %>% 
+  group_by(GO.ID) %>% 
+  summarise(max_sig=max(Significant),minwf=min(WeightFisher)) %>% 
+  filter(max_sig>0) %>% 
+  filter(minwf<0.001) %>% 
+  pull(GO.ID) %>% 
+  unique()
+
+bar_go <- topgo_results_all %>% 
+  filter(GO.ID %in% bar_go1) %>%
+  rowwise() %>% 
+  mutate(n_regions = map2_int(GO.ID,pop,n_regions_per_term)) %>% 
+  group_by(GO.ID) %>% 
+  summarise(max_regions = max(n_regions)) %>% 
+  filter(max_regions>2) %>% 
+  pull(GO.ID) %>% 
+  unique()
+
+pd <- topgo_results_all %>% 
+  filter(GO.ID %in% bar_go) %>% 
+  rowwise() %>% 
+  mutate(n_regions = map2_int(GO.ID,pop,n_regions_per_term)) %>% 
+  filter(WeightFisher<1) 
+
+barplot <- pd %>% 
+  mutate(text_label = paste(Significant,"/",n_regions,sep = "")) %>% 
+  ggplot(aes(x=-log10(WeightFisher),y=GO.ID,fill=ontology)) + 
+  ggstance::geom_colh() +
+  scale_fill_brewer(palette="Dark2",labels = c("Biological process", "Cellular component", "Molecular function")) +
+  geom_text(aes(label=text_label), hjust=-.5,size=2) +
+  theme_bw() + labs(x=expression(-Log[10](P)),y="",fill="") +
+  theme(panel.grid = element_blank(),
+        legend.position = "none",
+        legend.text = element_text(),
+        axis.text.y = element_blank()) + 
+  ylab("") + 
+  facet_wrap(~pop)
+
+go_terms = AnnotationDbi::select(GO.db, keys(GO.db, "GOID"), c("TERM", "ONTOLOGY")) %>% 
+  filter(GOID %in% display_go)
+
+
+
+tree_data <- pd %>% pivot_wider(id_cols = c("GO.ID","ontology"), names_from = pop, values_from = classic) %>% 
+  dplyr::rename(inshore_p = inshore, northoffshore_p = northoffshore, southoffshore_p = southoffshore) %>% 
+  left_join(pd %>% pivot_wider(id_cols = c("GO.ID"), names_from = pop, values_from = Significant)) %>% 
+  as.data.frame() %>% 
+  left_join(go_terms,by=c("GO.ID"="GOID")) %>% 
+  mutate(term_label = paste(GO.ID," ",TERM,sep=""))
+
+jdm_included <- jdm[tree_data$GO.ID,tree_data$GO.ID]
+hc <- hclust(as.dist(jdm_included))
+hc_order <- hc$order
+names(hc_order) <- rownames(jdm_included)[hc$order]
+
+#hcp <- as.phylo(hc)
+
+tree <- ggtree(as.phylo(hc)) %<+% tree_data + 
+geom_tiplab(aes(label = term_label),align = TRUE) + 
+  xlim(0,10)
+
+barplot %>% insert_left(tree, width = 2)
+ggsave("figures/go_enrichment_ipr.png",height = 10,width = 10)
+```
+
+```{r}
+gene_table_for_term <- function(goterm){
+  candidate_regions_table %>%
+  unite("region_id",chr,start,end,remove=FALSE) %>% 
+  separate_rows(genes,sep=";") %>% 
+  filter(genes %in% (go2gene_signif[goterm] %>% pluck(1))) %>% 
+  left_join(uniprot_gene_annot,by=c("genes"="geneid")) %>% 
+  ungroup() %>% 
+    add_column(enriched_go=goterm) %>% 
+  dplyr::select(enriched_go,region_id,genes,entryname,genename,protein,frac,stats) %>% 
+    na.omit()
+}
+
+go_terms_in_plot <- jdm_included %>% rownames()
+
+allgo_genes <- map_dfr(go_terms_in_plot,gene_table_for_term) %>% 
+  left_join(go_terms,by=c("enriched_go"="GOID")) %>% 
+  dplyr::select(enriched_go,TERM,region_id,genes,entryname,genename,protein,frac,stats)
+
+write_tsv(allgo_genes,"cache/allgo_genes_ipr.tsv")
+```
+
+
