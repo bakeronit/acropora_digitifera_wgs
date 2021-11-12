@@ -94,7 +94,7 @@ sweep_regions %>%
   mutate(chrom = paste(chrom,".1",sep="")) %>% 
   mutate(start = max(0,start-500000)) %>% 
   mutate(end = end+500000) %>% 
-  select(sweep_id,position,allele,chrom,start,end,pop) %>% 
+  dplyr::select(sweep_id,position,allele,chrom,start,end,pop) %>% 
   write_tsv("data/hpc/startmrca/sweep_regions.tsv")
 ```
 
@@ -428,7 +428,7 @@ p2 <- pd %>%
 
 plot_grid(p1,p2,ncol = 1)
 
-ggsave("figures/sweep_dates.png", width = 12,height = 16)
+ggsave("figures/sweep_dates.png", width = 10,height = 7)
 ```
 
 

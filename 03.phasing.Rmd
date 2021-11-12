@@ -6,6 +6,7 @@ output: github_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(tidyverse)
+library(cowplot)
 ```
 
 We used SHAPEIT2 to phase SNPs across the genome. Firstly, we removed one sample with more than 20% missing genotypes, leaving 74 samples. Next, an input file was prepared for each scaffold with three columns including sample id, the path to bamfile for this sample, and scaffold id. `extractPIRs` was then used to extract phase informative reads from BAM files.
@@ -43,29 +44,31 @@ We obtained **7,747,949** phased SNP sites in 74 samples.
 
 ### Imputation check
 
-To get an idea of the performance of the imputation step, we did a "masked analysis" with fully genotyped dataset. We used the script [prune_vcf.py](scripts/prune_vcf.py) to prune genotypes randomly and do phasing again. After phasing, we compared the imputed genotypes and real genotypes then computed the accuracy using the script [compare_vcf.py](scripts/compare_vcf.py).
+To get an idea of the performance of the imputation step, we did a "masked analysis" with the fully genotyped dataset. We used the script [prune_vcf.py](scripts/prune_vcf.py) to prune genotypes randomly at sites with high quality non-imputed genotype calls and do phasing again. After phasing, we compared the imputed genotypes and real genotypes then computed the accuracy using the script [compare_vcf.py](scripts/compare_vcf.py).
 
 ```{r, fig.align='center',fig.retina=2}
 ic <- read_tsv("data/hpc/phasing/imputation_check.txt") %>% 
   pivot_longer(cols =c( homo, het), names_to = "type", values_to = "accuary") 
 ic$n_pruned <- ic$n_pruned %>% as.factor()
-ggplot(ic,aes(x=n_pruned,y=accuary,group=type)) + geom_line(aes(color=type)) + geom_point(shape=21) + 
+
+icp <- ggplot(ic,aes(x=n_pruned,y=accuary,group=type)) + geom_line(aes(color=type)) + geom_point(shape=21) + 
   scale_color_discrete(name = "", 
                        labels = c("Heterozygous", "Homozygous")) +
     theme_classic() + labs(x="Number of genotypes pruned",y="Accuracy") +
     theme(legend.title = element_blank(),
           legend.position = "top")
 
+
+ic_af <- read_tsv("data/hpc/phasing/compare_imputation_with_af.txt",col_names = c("site_id","imputed","real","ref","alt","af")) %>% 
+  mutate(code1=imputed %>% strsplit("|") %>% map(first) %>% unlist %>% as.numeric + imputed %>% strsplit("|") %>% map(last) %>% unlist %>% as.numeric, code2=real %>% strsplit("\\||\\/") %>% map(first) %>% unlist %>% as.numeric + real %>% strsplit("\\||\\/") %>% map(last) %>% unlist %>% as.numeric) %>% select(site_id,code1,code2,af)
+
+ic_afp <- ic_af %>% mutate(correct=code1==code2) %>% 
+  group_by(group=cut(af,breaks=seq(0,max(af),length.out=10))) %>% 
+  summarise(accuracy=sum(correct)/n()) %>% 
+  ggplot(aes(x=group,y=accuracy,group=group)) + geom_point() + labs(x="Minor allele frequency",y="Accuracy") + theme(axis.text.x = element_text(angle=90))
+
+plot_grid(icp,ic_afp,labels = c("A","B"))
+ggsave("figures/imputation_accuracy.png")
 ```
 
-**Figure:** The imputation accuary at homo/heterozygous sites
-
-```{r, fig.align='center',fig.retina=2}
-ic_af <- read_tsv("data/hpc/phasing/compare_imputation_with_af.txt",col_names = c("site_id","imputed","real","ref","alt","af")) %>% mutate(code1=imputed %>% strsplit("|") %>% map(first) %>% unlist %>% as.numeric + imputed %>% strsplit("|") %>% map(last) %>% unlist %>% as.numeric, code2=real %>% strsplit("\\||\\/") %>% map(first) %>% unlist %>% as.numeric + real %>% strsplit("\\||\\/") %>% map(last) %>% unlist %>% as.numeric) %>% select(site_id,code1,code2,af)
-
-ic_af %>% mutate(correct=code1==code2) %>% 
-  group_by(group=cut(af,breaks=seq(0,max(af),length.out=10))) %>% summarise(accuracy=sum(correct)/n()) %>% ggplot(aes(x=group,y=accuracy,group=group)) + geom_point() + labs(x="Minor allele frequency",y="Accuracy") + theme(axis.text.x = element_text(angle=90))
-
-```
-
-**Figure:** The imputation accuary summarised by MAF.
+**Figure 1:** Summary of imputation accuracy based on concordance of imputed and original values for high quality genotypes. (A) Shows the relationship between imputation accuracy and missingness (number of pruned genotypes) for homozygous and heterozygous calls.  (B) Shows the relationship between overall accuracy and minor allele frequency.  
