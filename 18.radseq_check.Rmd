@@ -1,0 +1,32 @@
+---
+title: "Sample label check using Radseq data"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+```
+
+```{r}
+r2_stats <- read_tsv("data/hpc/radseq_data/out.relatedness2") 
+
+r2m <- r2_stats %>% 
+  select(INDV1,INDV2,RELATEDNESS_PHI) %>% 
+  pivot_wider(names_from = INDV2,values_from = RELATEDNESS_PHI) %>% 
+  column_to_rownames("INDV1") %>% as.matrix()
+```
+
+```{r}
+image(r2m)
+```
+
+```{r}
+r2_stats %>% 
+  filter(INDV2 %in% c("1439309")) %>% 
+  filter(INDV1 %in% c("1439309","BR_5_121_S125_L004","BR_5_124_S124_L004")) %>% 
+ggplot() + geom_point(aes(x=INDV1,y=RELATEDNESS_PHI)) + coord_flip()
+```
+

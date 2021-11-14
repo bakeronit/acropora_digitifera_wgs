@@ -301,7 +301,7 @@ gnjt2 + geom_facet(panel="Haplotypes",data = hh_gg2 %>% filter(allele==1),
 
 Manual check results are recorded [here](https://docs.google.com/spreadsheets/d/1HW_6cVteoJjQEhHLmL5XaNKmcBYcX7PG40uz-mWE-ew/edit?usp=sharing) and are downloaded to the file `sweep_regions.xlsx`.  These manual checks include a check for QC as well as a check on the status of the selected allele (0/1). We process this to produce an input file for the `startmrca` analysis, and after writing it to disk we run the MCMC on the HPC. 
 
-```{r}
+```{r, exec=FALSE}
 manual_sweeps <- readxl::read_excel("data/hpc/startmrca/sweep_regions.xlsx") %>% 
   mutate(allele=manual_allele) %>% 
   dplyr::select(-manual_allele,-note,-qc_pass) %>% 
