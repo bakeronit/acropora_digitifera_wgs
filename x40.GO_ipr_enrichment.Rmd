@@ -1,5 +1,5 @@
 ---
-title: "Gene Ontology Enrichment analysis"
+title: "Alternative Gene Ontology Enrichment analysis using Interproscan GO terms"
 output: 
   github_document:
     toc: true
@@ -23,7 +23,9 @@ library(ggstance)
 
 
 ```{r}
-uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv")
+uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv") %>% 
+  mutate(go=go_ipr) %>% 
+  dplyr::select(-go_ipr)
 
 candidate_regions_table <- read_rds("cache/candidate_regions_genes_ehh.rds")
 
@@ -33,63 +35,6 @@ candidate_genes_table <- candidate_regions_table %>%
 ```
 
 In a previous analysis (see [10.identify_selective_genomic_windows](10.identify_selective_genomic_windows.md) we identified a total of `r nrow(candidate_regions_table)` candidate selective sweep regions.  A summary of sweep regions and the number of genes covered by them in each population is shown below;
-
-```{r}
-candidate_genes_table %>% 
-  mutate(region_id = paste(chr,start,end,collapse = "_")) %>% 
-  group_by(pop) %>% 
-  summarise(numgenes = n(), nregions = length(unique(region_id))) %>% 
-  knitr::kable()
-```
-
-```{r eval = FALSE, include=FALSE}
-
-plot_venn <- function(popname) {
-  futile.logger::flog.threshold(futile.logger::ERROR, name = "VennDiagramLogger") # don't write the log file #https://stackoverflow.com/questions/33393962/r-dont-write-log-file-for-venndiagram
-  venn.diagram(
-     x = list(gene_table %>% filter(pop==popname & stat=="ihs") %>% dplyr::select(geneid) %>% pull,
-              gene_table %>% filter(pop==popname & stat=="xpehh") %>% dplyr::select(geneid) %>% pull,
-              gene_table %>% filter(pop==popname & stat=="xpnsl") %>% dplyr::select(geneid) %>% pull),
-     category.names = c("iHS","XP-EHH","XP-nSL"),
-     filename = paste0("figures/venndiagram_",popname,".png"),
-     output=TRUE,
-     imagetype = "png",
-     resolution = 300,
-     height = 480,
-     width = 480,
-
-     lwd = 1.5,
-     fill=c("#50B3AF", '#F9DE6A', '#E85A63'),
-     col=c(alpha("#50B3AF",0.3), alpha('#F9DE6A',0.3), alpha('#E85A63',0.3)),
-     
-     cex = 0.6,
-     fontface= "bold",
-     fontfamily = "sans",
-
-     cat.cex = 0.4,
-     cat.fontface = "bold",
-     cat.default.pos = "outer",
-     cat.pos = c(-27,27,135),
-     cat.dist = c(0.055,0.055,0.085),
-     cat.fontfamily = "sans",
-     rotation = 1,
-     sub = str_to_title(popname),
-     sub.fontfamily = "sans",
-     sub.cex = 0.8
-
- )
-}
-
-plot_venn("inshore")
-plot_venn("northoffshore")
-plot_venn("southoffshore")
-```
-
-```{r venn,results='hold', out.width="33%"}
-knitr::include_graphics(c("figures/venndiagram_inshore.png","figures/venndiagram_northoffshore.png","figures/venndiagram_southoffshore.png"))
-```
-
-**Figure 1: Three strategies used to identify a list of genes related to local adaptation in three populations. The iHS (blue) has more unique selection candidate sets. The XP-EHH (light yellow) and XP-nSL (red) selection candidate sets shared more gene sets since they both are able to detect selective sweep that are fixed or nearly fixed.**
 
 
 We then used `topGO` to identify GO terms that were enriched in the gene sets covered by selective sweeps in each population. In all cases enrichment was calculated by considering the target set as the set of all genes intersecting with selective sweeps in a given population, and the background set was taken as the complete set of annotated genes for *A. digitifera*. 
@@ -126,7 +71,7 @@ go_enrich_topgo <- function(targets,onto) {
     gt <- GenTable(GOdata,classic=resultFisher,
                    WeightFisher=resultFisher,
                    orderBy = "WeightFisher",
-                   topNodes=1000)
+                   topNodes=200)
     list(godata= GOdata, result=resultFisher, table=gt)
 }
 
@@ -171,16 +116,16 @@ go_enrich_all_ontologies <- function(genes_table,target_pop){
 
 
 ```{r, cache=TRUE}
-if ( !file.exists("cache/topgo_results_all.rds") ){
+if ( !file.exists("cache/topgo_results_all_ipr.rds") ){
   inshore_topgo <- go_enrich_all_ontologies(candidate_genes_table,"inshore") %>% add_column(pop="inshore")
   northoffshore_topgo <- go_enrich_all_ontologies(candidate_genes_table,"northoffshore") %>% add_column(pop="northoffshore")
   southoffshore_topgo <- go_enrich_all_ontologies(candidate_genes_table,"southoffshore") %>% add_column(pop="southoffshore")
 
   topgo_results_all <- rbind(inshore_topgo,northoffshore_topgo,southoffshore_topgo)
-  write_rds(topgo_results_all,"cache/topgo_results_all.rds")
-  write_tsv(topgo_results_all,"cache/topgo_results_all.tsv") # This table should be in Supp Info
+  write_rds(topgo_results_all,"cache/topgo_results_all_ipr.rds")
+  write_tsv(topgo_results_all,"cache/topgo_results_all_ipr.tsv") # This table should be in Supp Info
 } else {
-  topgo_results_all <- read_rds("cache/topgo_results_all.rds")
+  topgo_results_all <- read_rds("cache/topgo_results_all_ipr.rds")
 }
 ```
 
@@ -214,21 +159,21 @@ go2gene_signif <- topgo_results_all %>%
   split(.$GO.ID) %>%
   purrr::map(~ .$geneids %>% str_split(";") %>% pluck(1))
 
-if ( !file.exists("cache/jdm.rds")){
+if ( !file.exists("cache/jdm_ipr.rds")){
   cx <- cross2(go2gene_signif,go2gene_signif) #
   jdm <- cx %>% 
     map_dbl(jaccard_go) %>% 
     matrix(nrow=length(go2gene_signif))
-  write_rds(jdm,"cache/jdm.rds")
+  write_rds(jdm,"cache/jdm_ipr.rds")
 } else {
-  jdm <- read_rds("cache/jdm.rds")
+  jdm <- read_rds("cache/jdm_ipr.rds")
 }
 
 rownames(jdm) <- names(go2gene_signif)
 colnames(jdm) <- names(go2gene_signif)
 ```
 
-We found a total of `r length(display_go)` GO terms enriched (p<0.001) across all three of the locations.  These are summarised in Figure 2.  
+We found a total of `r topgo_results_all %>% filter(WeightFisher<0.001) %>% nrow()` GO terms enriched (p<0.001) across all three of the locations.  These are summarised in Figure 2.  
 
 ```{r, fig.height=12}
 n_regions_per_term <- function(term,focal_pop){
@@ -302,11 +247,8 @@ geom_tiplab(aes(label = term_label),align = TRUE) +
   xlim(0,10)
 
 barplot %>% insert_left(tree, width = 2)
-ggsave("figures/go_enrichment.png",height = 10,width = 10)
+ggsave("figures/go_enrichment_ipr.png",height = 10,width = 10)
 ```
-
-**Figure 2: Enriched GO terms for genes intersecting with candidate loci under selection**. Length of bars indicates significance (longer is more significant) and colour indicates the ontology. Numerical labels indicate the number of genes putatively under selection. Dendrogram depicts relationships between GO terms based on numbers of shared annotated genes.  
-
 
 ```{r}
 gene_table_for_term <- function(goterm){
@@ -321,20 +263,13 @@ gene_table_for_term <- function(goterm){
     na.omit()
 }
 
-rth_genes <- gene_table_for_term("GO:0009408")
-```
-
-
-Interestingly, we found the genes under selection in inshore were enriched in response to heat `GO:0009408` (Figure 2). This included a total of `r nrow(rth_genes)` genes overlapping with `r (rth_genes$region_id %>% n_distinct())` distinct candidate regions. This included four copies of a HSP-16 homolog within a single region that was identified as significant in all three EHH statistics.
-
-```{r}
 go_terms_in_plot <- jdm_included %>% rownames()
 
 allgo_genes <- map_dfr(go_terms_in_plot,gene_table_for_term) %>% 
   left_join(go_terms,by=c("enriched_go"="GOID")) %>% 
   dplyr::select(enriched_go,TERM,region_id,genes,entryname,genename,protein,frac,stats)
 
-write_tsv(allgo_genes,"cache/allgo_genes.tsv")
+write_tsv(allgo_genes,"cache/allgo_genes_ipr.tsv")
 ```
 
 

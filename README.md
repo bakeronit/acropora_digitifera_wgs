@@ -6,13 +6,16 @@
 - [Phasing haplotypes](03.phasing.md)
 - [Building pseudo-chromosomes](x30.ragtag_scaffolding.md)
 
-### Population genetics analyses
+### Population genetic analyses
 - [Population genomics genetic statistics](04.popgen_stats.md)
 - [Population structure analysis](05.population_structure.md)
 - [IBD and HBD segments](06.ibd_hbd.md)
 - [Demographic history](07.demographic_history.md)
 - Selection analysis based on [EHH](08.ehh_stats.md) and [allele frequency](12.pcangsd_selection.md)
 - [GO Enrichment of genes under selection](11.GO_enrichment.md)
+- [GO Enrichment of genes under selection based on Interproscan GO term assignments](x40.GO_ipr_enrichment.md)
+- [Estimating the TMRCA for selective sweeps](17.dating_the_selection.md)
+
 
 ### Parallelisation
 Some codes provided markdown chunks show how to run command for a single scaffold or a single sample. Most jobs that require to run in HPC were performed using `snakemake` or `parallel` to achieve parallelisation. The actually scripts can be found in [smk](scripts/smk) or [bash](scripts/bash).

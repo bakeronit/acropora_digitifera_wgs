@@ -300,3 +300,21 @@ data/hpc/annotation/gene-to-go_topgo.tsv
 data/hpc/annotation/uniprot-yourlist.tab
 data/hpc/annotation/uniprot_gene_annot.tsv
 data/hpc/annotation/uniprot_id_gene_name.tab
+
+# startmrca
+
+data/hpc/startmrca/02_furcation_plots.sh
+data/hpc/startmrca/03_run_tmrca.sh
+data/hpc/startmrca/04_runqc_plots.sh
+data/hpc/startmrca/05_haplostrips.sh
+data/hpc/startmrca/qsub_template.sh
+data/hpc/startmrca/run_furcation.R
+data/hpc/startmrca/run_qc.R
+data/hpc/startmrca/run_startmrca.R
+
+data/hpc/startmrca/sweep_regions.xlsx
+data/hpc/startmrca/sweep_regions.tsv
+data/hpc/startmrca/sweep_regions_checked.tsv
+data/hpc/startmrca/results
+data/hpc/startmrca/regions
+data/hpc/startmrca/qc_plots

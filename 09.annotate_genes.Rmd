@@ -39,7 +39,7 @@ python iprscan5.py --multifasta protein.fa \
 ipr_colnames <- c("adi_id","md5","seqlen","analysis","signature_acc","signature_desc","start","stop","score","status","date","ipr_acc","ipr_ann","ipr_go", "pathways")
 
 interpro <- read_tsv("data/hpc/annotation/adig_iprscan_withgo.tsv", guess_max = 10000, col_names = ipr_colnames, show_col_types = FALSE) %>% 
-  select(adi_id,ipr_go)
+  dplyr::select(adi_id,ipr_go)
 
 interpro_go <- interpro %>% 
   separate_rows(ipr_go,sep="\\|") %>% 
@@ -57,25 +57,28 @@ To identify homologs of *A. digitifera* with high quality functional annotations
 bl6_cols <- c("qaccver","saccver","pident","length","mismatch","gapopen","qstart","qend","sstart","send","evalue","bitscore")
 
 blastp <- read_tsv("data/hpc/annotation/Adigitifera_uniprot_blastp.outfmt6", col_names = bl6_cols) %>% 
-  select(adi_id=qaccver, uniprot_id=saccver,evalue) %>% 
+  dplyr::select(adi_id=qaccver, uniprot_id=saccver,evalue) %>% 
   add_column(method="blastp") %>% 
   mutate(geneid=str_remove(adi_id,'\\.t\\d'))
 
 blastx <- read_tsv("data/hpc/annotation/Adigitifera_uniprot_blastx.outfmt6", col_names = bl6_cols) %>% 
-  select(adi_id=qaccver, uniprot_id=saccver,evalue) %>% 
+  dplyr::select(adi_id=qaccver, uniprot_id=saccver,evalue) %>% 
   add_column(method="blastx") %>% 
   mutate(geneid=str_remove(adi_id,'\\.t\\d'))
 
 # This file was obtained using the uniprot mapping service
-uniprotkb_tab <- read_tsv("data/hpc/annotation/uniprot-yourlist.tab") %>% select(-Status)
+uniprotkb_tab <- read_tsv("data/hpc/annotation/uniprot-yourlist.tab") %>% dplyr::select(-Status)
 
 uniprot_gene_annot <- rbind(blastp,blastx) %>% 
   group_by(geneid) %>% 
   slice_min(order_by = evalue, n = 1, with_ties = FALSE) %>% 
   left_join(uniprotkb_tab,by=c("uniprot_id"="Entry")) %>%
   ungroup %>% 
-  select(geneid,uniprot_id,entryname="Entry name",
-         genename="Gene names",go="Gene ontology IDs",kegg="Cross-reference (KEGG)",protein="Protein names") %>% mutate(genename=ifelse(is.na(genename),entryname,genename))
+  dplyr::select(geneid,uniprot_id,entryname="Entry name",
+         genename="Gene names",go="Gene ontology IDs",kegg="Cross-reference (KEGG)",protein="Protein names") %>% mutate(genename=ifelse(is.na(genename),entryname,genename)) %>% 
+  left_join((interpro_go %>% dplyr::rename(go_ipr=go)),by=c("geneid"))
+
+
 
 # Write out results to a table.  This can easily be used in other analyses for GO enrichment etc.
 write_tsv(uniprot_gene_annot, "data/hpc/annotation/uniprot_gene_annot.tsv")
