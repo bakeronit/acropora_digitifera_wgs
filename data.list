@@ -318,3 +318,15 @@ data/hpc/startmrca/sweep_regions_checked.tsv
 data/hpc/startmrca/results
 data/hpc/startmrca/regions
 data/hpc/startmrca/qc_plots
+
+# radseq_check
+
+data/hpc/radseq_data/02_map_reads.sh
+data/hpc/radseq_data/03_prepare_regions.sh
+data/hpc/radseq_data/04_freebayes.sh
+data/hpc/radseq_data/05_filter.sh
+data/hpc/radseq_data/06_relatedness.sh
+data/hpc/radseq_data/out.relatedness2
+data/hpc/radseq_data/allrad_merged.vcf
+
+

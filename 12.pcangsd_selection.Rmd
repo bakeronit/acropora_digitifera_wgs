@@ -18,11 +18,8 @@ For the Western Australian data we found that PCA analysis with PCAngsd separate
 
 samples <- read_tsv("data/hpc/pcangsd/samples.txt",col_names = c("sample_id","location","mapping_rate","mean_mapping_depth","genome_cov"))
 
-sample_table_wa <- read_tsv("data/hpc/pcangsd/wa_bam.txt",col_names = "filename") %>%
-  mutate(sample = str_match(filename,pattern = "/fast/shared/Acropora_digitifera_wgs_bamfile/[A-Z]+/(.*)_aligned")[,2]) %>% 
-  mutate(sample = str_replace(sample,"_merged","")) %>% 
-    mutate(sample_id = str_replace(sample,"_L004","")) %>% 
-    mutate(sample_id = str_replace(sample_id,"_S[0-9]+$","")) %>% 
+sample_table_wa <- read_tsv("data/hpc/pcangsd/wa_bam.txt",col_names = "filename") %>% 
+    mutate(sample_id = str_replace(filename,"_S[0-9]+$","")) %>% 
   left_join(samples) %>% 
   rownames_to_column("number")
 ```
