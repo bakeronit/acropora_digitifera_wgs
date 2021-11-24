@@ -290,10 +290,14 @@ barplot <- pd %>%
   theme(panel.grid = element_blank(),
         legend.position = "none",
         legend.text = element_text(),
-        axis.text.y = element_blank()) + 
+        axis.text.y = element_blank(),
+        axis.text.x = element_text(size=6),
+        axis.title.x = element_text(size=6),
+        strip.text = element_text(size=6)) + 
   ylab("") + 
   facet_wrap(~pop) +
   xlim(0,45)
+
 
 go_terms = AnnotationDbi::select(GO.db, keys(GO.db, "GOID"), c("TERM", "ONTOLOGY")) %>% 
   filter(GOID %in% display_go)
@@ -316,10 +320,11 @@ names(hc_order) <- rownames(jdm_included)[hc$order]
 #hcp <- as.phylo(hc)
 
 tree <- ggtree(as.phylo(hc)) %<+% tree_data + 
-geom_tiplab(aes(label = term_label),align = TRUE, size=3) + 
+geom_tiplab(aes(label = term_label),align = TRUE, size=2) + 
   xlim(0,10) 
 
 bpt <- barplot %>% insert_left(tree, width = 1.2)
+ggsave(bpt,filename = "figures/go_enrichment_wide.png",height = 3,width = 6.75)
 ggsave(bpt,filename = "figures/go_enrichment.png",height = 6,width = 9.5)
 bpt
 ```

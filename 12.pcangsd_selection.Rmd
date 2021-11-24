@@ -37,7 +37,9 @@ pclabel <- function(pcnum,eigenvalues){
   paste("PC",pcnum," (",eigenvalues[pcnum],"%)",sep = "")
 }
 
-ggplot(pop_pca_wa ,aes(x=e1,y=e2)) + 
+pop_pca_wa %>% 
+  filter(!sample_id=="BR_5_121") %>% 
+  ggplot(aes(x=e1,y=e2)) + 
   geom_point(aes(color=location),size=1) + 
   theme_pubr() + xlab(pclabel(1,eigenvalues_wa)) + 
   ylab(pclabel(2,eigenvalues_wa)) + 

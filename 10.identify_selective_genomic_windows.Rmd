@@ -282,6 +282,21 @@ These annotated candidate windows form the basis for [Supplementary Table S9](ht
 
 ```{r}
 candidate_regions_genes_ehh %>% write_rds("cache/candidate_regions_genes_ehh.rds")
+
+# Also write as a gff track
+
+candidate_regions_genes_ehh %>% 
+  add_column(source="selscan") %>% 
+  add_column(feature="cds") %>% 
+  add_column(strand="+") %>% 
+  add_column(phase=".") %>% 
+  mutate(start=start+1) %>% 
+  mutate(chr=paste(chr,".1",collapse = "",sep="")) %>% 
+  mutate(ID = paste(chr,":",start,"-",end,collapse="",sep="")) %>% 
+  mutate(attributes = paste("ID=",ID,";genes=",genes,collapse = "",sep = "")) %>% 
+  ungroup() %>% 
+  dplyr::select(chr,source,feature,start,end,frac,strand,phase,attributes) %>% 
+    write_tsv("data/hpc/tracks/sweeps.gff3",col_names = FALSE)
 ```
 
 For the purposes of making a human viewable table in supp info we also attach gene names from uniprot

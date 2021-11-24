@@ -35,6 +35,7 @@ r2_stats %>%
   ggplot(aes(x=RELATEDNESS_PHI)) + geom_histogram(aes(fill=is_same))
 ```
 
+
 ```{r}
 sample_list <- readxl::read_excel("data/hpc/radseq_data/Sample_list_Jia_popgen_141121.xlsx") %>% 
   dplyr::select(ID_list_Jia_Ira,targetid) %>% 
@@ -53,11 +54,19 @@ r2_stats %>%
   dplyr::select(sample_code1=INDV1,sample_code2=INDV2,individual_1=iii1,individual_2=iii2,RELATEDNESS_PHI) %>% knitr::kable()
 ```
 
-Our sample labelled `BR_5_121_S125_L004` does not actually match any other samples.  The only match is to itself as shown below.
+```{r}
+sample_list2 <- readxl::read_excel("data/hpc/radseq_data/Complete_list_Adigi_Ashmore_Adele_Beagle_Rowleys_181121.xlsx") %>% 
+  dplyr::select(targetid,genotype) %>% 
+  pull(genotype,name = targetid)
+```
+
+
+Our sample labelled `BR_5_121_S125_L004` matches sample with the ID 1439306 which matches genotype `r sample_list2["1439306"]`
 
 ```{r}
 r2_stats %>% 
   filter(INDV1 %in% c("BR_5_121_S125_L004")  | INDV2 %in% c("BR_5_121_S125_L004")) %>% 
   filter(RELATEDNESS_PHI>0.1)
 ```
+
 

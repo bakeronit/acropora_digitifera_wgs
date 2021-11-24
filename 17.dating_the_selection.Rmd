@@ -301,10 +301,22 @@ gnjt2 + geom_facet(panel="Haplotypes",data = hh_gg2 %>% filter(allele==1),
 
 Manual check results are recorded [here](https://docs.google.com/spreadsheets/d/1HW_6cVteoJjQEhHLmL5XaNKmcBYcX7PG40uz-mWE-ew/edit?usp=sharing) and are downloaded to the file `sweep_regions.xlsx`.  These manual checks include a check for QC as well as a check on the status of the selected allele (0/1). We process this to produce an input file for the `startmrca` analysis, and after writing it to disk we run the MCMC on the HPC. 
 
+```{r}
+if (!file.exists("cachec/sweep_regions.rds")){
+  library(googlesheets4)
+  gs4_deauth()
+  sweeps_gs4 <- read_sheet("https://docs.google.com/spreadsheets/d/1HW_6cVteoJjQEhHLmL5XaNKmcBYcX7PG40uz-mWE-ew/edit?usp=sharing")
+  write_rds(sweeps_gs4,"cache/sweep_regions.rds")
+} else {
+  sweeps_gs4 <- read_rds("cache/sweep_regions.rds")
+}
+```
+
+
 ```{r, exec=FALSE}
-manual_sweeps <- readxl::read_excel("data/hpc/startmrca/sweep_regions.xlsx") %>% 
+manual_sweeps <- sweeps_gs4 %>% 
   mutate(allele=manual_allele) %>% 
-  dplyr::select(-manual_allele,-note,-qc_pass) %>% 
+  dplyr::select(-manual_allele,-note,-qc_pass,-bamnote) %>% 
   write_tsv("data/hpc/startmrca/sweep_regions_checked.tsv")
 ```
 
@@ -314,18 +326,16 @@ bash 03_run_tmrca.sh
 
 # Results
 
-Preliminary results are show below for all loci passing QC.  The dates shown are based on an assumption that the recombination rate equals the mutation rate.  A range is given simply by taking the distribution of the trace in the last 10000 MCMC steps. A better estimate should be obtained by running multiple chains to ensure convergence and making parameter estimates from converged chains only.
+Preliminary results are show below for all loci passing QC.  The dates shown are based on an assumption that the recombination rate equals the mutation rate.  A range is given by showing the sampling of the posterior distribution in the last 1000 MCMC steps. A better estimate should be obtained by running multiple chains to ensure convergence and making parameter estimates from converged chains only.
 
-One of the main things that can be seen here is that very few loci pass the QC checks for use with startmrca.  This severely limits the analysis, however we are able to see dating estimates for one locus involved in the enriched go term, hemidesmosome assembly.  This appears to be a relatively recent sweep (~6kya) which approximately matches the time when sea levels reached similar heights to what they are today.
-
-If we were to look at time estimates including all loci (not filtered for QC) we would see that they span a very wide range of times with many in the range >20kya.  Aside from issues with identification of a star-like selection signature this also raises the issue of what effect a large demographic change would have on these putative selection signals.  The process of QC seems to have naturally enriched for some of the more recent selective sweeps, and the sweep associated with hemidesmosome is recent enough that it is from a time period where changes in Ne were much less dramatic.
+One of the main things that can be seen here is that relatively few loci pass the QC checks for use with startmrca.  This limits the analysis a little but we are able to see dating estimates for several loci involved in enriched go terms.  The broad pattern of timing is also interesting because it shows a peak in the number of loci dating to around 6kya which approximately matches the time when sea levels reached similar heights to what they are today.
 
 ```{r}
 estimate_tmrca <- function(result){
   result %>% 
   mutate(n=row_number()) %>% 
   mutate(kept = as.factor(V4)) %>% 
-  slice_tail(n=10000) %>% 
+  slice_tail(n=1000) %>% 
   slice_sample(n=100) %>% 
     summarise(tmrca_mean = mean(V1), var = var(V1))
 }
@@ -363,13 +373,14 @@ go_terms_signif <- list("hemidesmosome"=c("GO:0030056","GO:0031581"),
                      "iron ion"=c("GO:0055072","GO:0006826"),
                      "response to heat"="GO:0009408",
                      "sperm"=c("GO:0061827","GO:0097225"),
-                     "fatty acid transporter"=c("GO:0005324","GO:0015245"),
+                     "fatty acid transporter activity"=c("GO:0005324","GO:0015245"),
                      "ion transport"="GO:0006811",
                      "histone methyltransferase"="GO:0042054",
-#                     "extracellular"=c("GO:0005615"),
+ #                    "extracellular"=c("GO:0005615"),
                      "acid-amino acid ligase activity"="GO:0016881",
                      "peptide receptor activity"=c("GO:0001653","GO:0004383"),
                      "4-beta-N-acetylglucosaminyltransferase"="GO:0008454",
+                     "cardiac septum development"="GO:0003279",
                      "ion antiporter activity"="GO:0008273",
                      "fgf"="GO:0005104",
 #                     "transcription factor activity"="GO:0000981",
@@ -389,46 +400,83 @@ add_go_flags <- function(data,go_terms_signif){
   }
   data
 }
-
-if (!file.exists("cachec/sweep_regions.rds")){
-  library(googlesheets4)
-  gs4_deauth()
-  sweeps_gs4 <- read_sheet("https://docs.google.com/spreadsheets/d/1HW_6cVteoJjQEhHLmL5XaNKmcBYcX7PG40uz-mWE-ew/edit?usp=sharing")
-  write_rds(sweeps_gs4,"cache/sweep_regions.rds")
-} else {
-  sweeps_gs4 <- read_rds("cache/sweep_regions.rds")
-}
   
 pd <- tmrca_data %>% 
   left_join(sweep_regions,by=c("locus"="sweep_id")) %>% 
+  filter(V4==1) %>% 
   mutate(t_years = V1*5) %>% 
   group_by(locus) %>% 
   mutate(n=row_number()) %>% 
-  slice_tail(n=10000) %>% 
+  slice_tail(n=1000) %>% 
   mutate(tmrca_mean = mean(V1*5)) %>% 
   ungroup() %>% 
   left_join(sweeps_gs4 %>% dplyr::select(locus=sweep_id,allele=manual_allele,note,qc_pass)) %>% 
   add_go_flags(go_terms_signif)
 
-
-p1 <- pd %>% 
-#  filter(is.na(note)) %>% 
-  filter(qc_pass==1) %>% 
-#  filter(note!="incomplete, allele unclear") %>% 
-  ggplot(aes(x=t_years,y=reorder(locus,tmrca_mean))) + 
-    geom_boxplot() + ylab("")
-
-p2 <- pd %>% 
+pdgo <- pd %>% 
   filter(qc_pass==1) %>% 
   pivot_longer(names(go_terms_signif),names_to = "go") %>% 
-  filter(value==TRUE)  %>% 
+  filter(value==TRUE) %>% 
+  group_by(locus,go,pop) %>% 
+  summarise(tmrca_mean = dplyr::first(tmrca_mean)) %>% 
+  ungroup() %>% 
+  filter(go!="iron ion") %>% 
+  filter(go!="ion antiporter activity") %>% 
+  filter(go!="symporter activity") %>% 
+  filter(!((go=="ion transport") & (pop=="inshore"))) %>% 
+  filter(go!="ion antiporter activity") %>% 
+  filter(go!="sperm") %>% 
+#  filter(go!="membrane") %>% 
+#  filter(go!="extracellular") %>% 
+#  filter(go!="transcription factor activity") %>% 
+  filter(!grepl("4-beta",go))  
+
+
+pdmeans <- pd %>% 
+    group_by(locus,pop) %>% 
+  summarise(tmrca_mean = dplyr::first(tmrca_mean)) 
+
+pdmeans_pass <- pd %>% 
+ filter(qc_pass==1) %>%
+    group_by(locus,pop) %>% 
+  summarise(tmrca_mean = dplyr::first(tmrca_mean)) 
+
+library(ggrepel)
+library(ggpubr)
+
+pd1 <- pd %>% 
+  filter(qc_pass==1) %>% 
   ggplot(aes(x=t_years,y=reorder(locus,tmrca_mean))) + 
-    geom_boxplot() +
-    facet_wrap(~go,nrow = 1) + theme(axis.text.x = element_text(angle=90)) + ylab("")
+  geom_violin(aes(fill=pop,color=pop)) + 
+  geom_label_repel(data= pdgo,
+                   aes(x=tmrca_mean,y=locus,label=go,fill=pop), 
+                   direction = "both",nudge_x = 20000, xlim=c(33000,NA), 
+                   force=10, size = 2,
+                   label.padding = 0.15, label.size = 0.2,segment.size=0.3, segment.alpha = 1) +
+  ylab("Sweep Locus") + xlab("TMRCA / Years since present") +
+  theme_pubr() +
+  theme(legend.title = element_blank(), 
+#        axis.text.y = element_text(size=4),
+        axis.text.y = element_blank(),
+        axis.text.x = element_text(size=6),
+        legend.text = element_text(size=6),
+        axis.title.x = element_text(size=7),
+axis.title.y= element_text(size=7),
+        legend.position = "bottom")
 
-plot_grid(p1,p2,ncol = 1)
+pdax <- axis_canvas(pd1,axis="x") +
+  geom_histogram(data=pdmeans,aes(x=tmrca_mean),alpha=0.2,binwidth = 2000) +
+  geom_histogram(data=pdmeans_pass,aes(x=tmrca_mean,fill=pop),binwidth = 2000) 
 
-ggsave("figures/sweep_dates.png", width = 10,height = 7)
+p1 <- insert_xaxis_grob(pd1,pdax,grid::unit(.2, "null"), position = "top")
+
+ggdraw(p1)
+
+ggsave("figures/sweep_dates_wide.png", width = 6.75,height = 4)
+#ggsave("figures/sweep_dates_narrow.png", width = 6.5,height = 10)
+#ggsave("figures/sweep_dates.png", width = 10,height = 7)
+
+
 ```
 
 
