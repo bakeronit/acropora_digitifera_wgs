@@ -256,7 +256,7 @@ bar_go <- topgo_results_all %>%
   pull(GO.ID) %>% 
   unique()
 
-pd <- topgo_results_all %>% 
+pg_go <- topgo_results_all %>% 
   filter(GO.ID %in% bar_go) %>% 
   mutate(n_regions = map2_int(GO.ID,pop,n_regions_per_term),
          n_region_bg = map_int(GO.ID,n_regions_bg_per_term),
@@ -264,10 +264,10 @@ pd <- topgo_results_all %>%
   mutate(p.region = pmap_dbl(list(total_bg_regions,number_of_sig_regions[pop],n_region_bg,n_regions),enrich_test)) 
 
 
-pd <- pd %>% 
+pg_go <- pg_go %>% 
   pivot_wider(id_cols = c("GO.ID","ontology"), names_from = pop,values_from = p.region,values_fill = NA) %>% 
   pivot_longer(c(inshore,northoffshore,southoffshore),names_to = "pop", values_to = "p.region") %>% 
-  left_join(pd) %>% 
+  left_join(pg_go) %>% 
   rowwise() %>% 
   mutate(Significant = ifelse(is.na(Significant), n_genes_per_term(GO.ID,pop),Significant )) %>% 
   mutate(n_regions = ifelse(is.na(n_regions), n_regions_per_term(GO.ID,pop),n_regions)) %>% 
@@ -277,7 +277,10 @@ pd <- pd %>%
 
 
 ```{r, fig.height=12}
-barplot <- pd %>% 
+pop_names <- c("inshore"="Inshore","northoffshore"="North Offshore","southoffshore"="South Offshore")
+
+barplot <- pg_go %>% 
+  mutate(pop_names=pop_names[pop]) %>% 
   mutate(text_label = paste(Significant,"/",n_regions,sep = "")) %>% 
   mutate(is_enriched = ifelse(p.region<0.001, 1, 0.9)) %>% 
   ggplot(aes(x=-log10(p.region),y=GO.ID,fill=ontology)) + 
@@ -295,7 +298,7 @@ barplot <- pd %>%
         axis.title.x = element_text(size=6),
         strip.text = element_text(size=6)) + 
   ylab("") + 
-  facet_wrap(~pop) +
+  facet_wrap(~pop_names) +
   xlim(0,45)
 
 
@@ -304,10 +307,10 @@ go_terms = AnnotationDbi::select(GO.db, keys(GO.db, "GOID"), c("TERM", "ONTOLOGY
 
 
 
-tree_data <- pd %>% 
+tree_data <- pg_go %>% 
   pivot_wider(id_cols = c("GO.ID","ontology"), names_from = pop, values_from = classic) %>% 
   dplyr::rename(inshore_p = inshore, northoffshore_p = northoffshore, southoffshore_p = southoffshore) %>% 
-  left_join(pd %>% pivot_wider(id_cols = c("GO.ID"), names_from = pop, values_from = Significant)) %>% 
+  left_join(pg_go %>% pivot_wider(id_cols = c("GO.ID"), names_from = pop, values_from = Significant)) %>% 
   as.data.frame() %>% 
   left_join(go_terms,by=c("GO.ID"="GOID")) %>% 
   mutate(term_label = paste(GO.ID," ",TERM,sep=""))

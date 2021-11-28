@@ -443,32 +443,49 @@ pdmeans_pass <- pd %>%
 
 library(ggrepel)
 library(ggpubr)
+source("scripts/color_scheme.R")
+
+dated_loci <- pd %>% 
+  filter(qc_pass==1) %>% 
+  dplyr::select(locus,tmrca_mean) %>% 
+  distinct() %>% 
+  arrange(tmrca_mean) %>% 
+  mutate(label=row_number()) %>% 
+  pull(label,name = locus)
+
+# Save this list of dated loci for other figures
+write_rds(dated_loci,"cache/dated_loci.rds")
 
 pd1 <- pd %>% 
   filter(qc_pass==1) %>% 
-  ggplot(aes(x=t_years,y=reorder(locus,tmrca_mean))) + 
+  mutate(locus_label = as.character(dated_loci[locus])) %>% 
+  ggplot(aes(x=t_years,y=reorder(locus_label,tmrca_mean))) + 
   geom_violin(aes(fill=pop,color=pop)) + 
-  geom_label_repel(data= pdgo,
-                   aes(x=tmrca_mean,y=locus,label=go,fill=pop), 
+  geom_label_repel(data= pdgo %>% mutate(locus_label = as.character(dated_loci[locus])),
+                   aes(x=tmrca_mean,y=locus_label,label=go,fill=pop), 
                    direction = "both",nudge_x = 20000, xlim=c(33000,NA), 
                    force=10, size = 2,
                    label.padding = 0.15, label.size = 0.2,segment.size=0.3, segment.alpha = 1) +
   ylab("Sweep Locus") + xlab("TMRCA / Years since present") +
-  theme_pubr() +
+  scale_fill_manual(values=myCol) +
+  scale_color_manual(values=myCol) +  
+    theme_pubr() +
+  guides(color="none") +
   theme(legend.title = element_blank(), 
-#        axis.text.y = element_text(size=4),
-        axis.text.y = element_blank(),
+        axis.text.y = element_text(size=5),
+#        axis.text.y = element_blank(),
         axis.text.x = element_text(size=6),
         legend.text = element_text(size=6),
         axis.title.x = element_text(size=7),
-axis.title.y= element_text(size=7),
+        axis.title.y= element_text(size=7),
         legend.position = "bottom")
 
 pdax <- axis_canvas(pd1,axis="x") +
-  geom_histogram(data=pdmeans,aes(x=tmrca_mean),alpha=0.2,binwidth = 2000) +
-  geom_histogram(data=pdmeans_pass,aes(x=tmrca_mean,fill=pop),binwidth = 2000) 
+#  geom_histogram(data=pdmeans,aes(x=tmrca_mean),alpha=0.2,binwidth = 2000) +
+  geom_histogram(data=pdmeans_pass,aes(x=tmrca_mean,fill=pop),binwidth = 2000) +
+    scale_fill_manual(values=myCol) 
 
-p1 <- insert_xaxis_grob(pd1,pdax,grid::unit(.2, "null"), position = "top")
+p1 <- insert_xaxis_grob(pd1,pdax,grid::unit(.15, "null"), position = "top")
 
 ggdraw(p1)
 

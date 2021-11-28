@@ -1,0 +1,175 @@
+---
+title: "Analysis of genetic statistics (pbs, Tajima's D, pi) in EHH sweep regions"
+output: 
+  github_document
+bibliography: bibliography.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
+library(tidyverse)
+library(ggpubr)
+library(bedr)
+```
+
+Regions identified as sweeps via EHH statistics also tended to have more extreme values of the population branch statistic (PBS), explained more genetic variation related to population structure (PCAdapt statistic), and had elevated values of Tajima's D.  
+
+```{r}
+ehh_sweeps <- read_rds("cache/candidate_regions_genes_ehh.rds") %>% 
+    mutate(chr=str_trim(chr)) 
+
+pbsdata <- read_tsv("data/hpc/thetastat/fst.slidingwindow.tsv",col_types = cols()) %>% 
+  dplyr::select(chr,midPos,Nsites,starts_with("PBS")) %>% 
+  pivot_longer(starts_with("PBS"),names_to = "population",values_to="PBS")
+
+
+pcadapt_pvals <- read_rds("cache/pcadapt_pvals.rds")
+untransformed_coords <- read_tsv("data/hpc/pcangsd/wa.positions.txt",col_names = c("scaffold","pos"))
+sites_binary <- read_tsv("data/hpc/pcangsd/wa.sites",col_names = c("included"))
+untransformed_coords_included <- untransformed_coords[sites_binary$included==1,] %>% mutate(p=row_number())
+
+
+read_pi <- function(pop) {
+ read_tsv(paste0("data/hpc/popgen/",pop,".filtered_windowed.pi"),col_names = c("chr","start","end","n","pi")) %>% add_column(pop=pop) 
+}
+
+pi <- rbind(read_pi("inshore"),read_pi("northoffshore"),read_pi("southoffshore"))
+
+
+read_td <- function(pop) {
+  read_tsv(paste0("data/hpc/popgen/",pop,".filtered_windowed.td"), col_names = c("chr","start","end","td")) %>% 
+    add_column(pop=pop)
+}
+
+
+tajimaD <- rbind(read_td("inshore"),read_td("northoffshore"),read_td("southoffshore"))
+
+```
+
+
+```{r, results='hide'}
+if ( !file.exists("cache/inout_stats.rds")){
+
+  pcadapt_bed <- untransformed_coords_included %>% 
+    add_column(pval = -log10(pcadapt_pvals)) %>% 
+    slice_sample(n=200000) %>% 
+    mutate(chr=str_replace(scaffold,".1$","")) %>% 
+    dplyr::select(chr,start=pos,end=pos,pval) %>% 
+    as.data.frame() %>% 
+    bedr.sort.region(check.chr = FALSE)
+
+  pbs_bed <- pbsdata %>% 
+    mutate(start=midPos-5000,end=midPos+5000) %>% 
+    unite("ID",chr,midPos,sep = ":", remove = FALSE) %>% 
+    extract(chr,"chr",regex = "(.*).1") %>% 
+    dplyr::select(chr,start,end,PBS,ID) %>% 
+      as.data.frame() %>% 
+    bedr.sort.region(check.chr = FALSE)
+
+  tajima_bed <- tajimaD %>% 
+    mutate(chr=str_replace(chr,".1$","")) %>% 
+    dplyr::rename(poptd=pop) %>% 
+    as.data.frame() %>% 
+    bedr.sort.region(check.chr = FALSE)
+
+  pi_bed <- pi %>% 
+    mutate(chr=str_replace(chr,".1$","")) %>% 
+    dplyr::rename(poppi=pop) %>% 
+    as.data.frame() %>% 
+    bedr.sort.region(check.chr = FALSE)
+
+  ehh_bed <- ehh_sweeps %>% 
+    dplyr::select(chr,start,end,pop) %>% 
+    as.data.frame() %>% 
+    bedr.sort.region(check.chr = FALSE)
+
+  pbs_ehh_joinbed <- bedr.join.region(pbs_bed,ehh_bed,check.chr = FALSE)
+
+  pcadapt_ehh_joinbed <- bedr.join.region(pcadapt_bed,ehh_bed,check.chr = FALSE)
+
+  tajima_ehh_joinbed <- bedr.join.region(tajima_bed,ehh_bed,check.chr = FALSE)
+
+  pi_ehh_joinbed <- bedr.join.region(pi_bed,ehh_bed,check.chr = FALSE)
+
+
+  pbs_inout <- pbs_ehh_joinbed %>% 
+    mutate(in_sweep = ifelse(chr.b!=".","Sweep","Non-Sweep")) %>% 
+    add_column(stat="pbs") %>% 
+    mutate(PBS=as.numeric(PBS)) %>% 
+    dplyr::select(in_sweep,pop,stat,value=PBS)
+
+
+  pcadapt_inout <- pcadapt_ehh_joinbed %>% 
+      mutate(in_sweep = ifelse(chr.b!=".","Sweep","Non-Sweep")) %>% 
+    add_column(stat="pcadapt") %>% 
+    mutate(pval=as.numeric(pval)) %>% 
+    dplyr::select(in_sweep,pop,stat,value=pval)
+
+  tajima_inout <- tajima_ehh_joinbed %>%
+    mutate(in_sweep = ifelse(chr.b!=".","Sweep","Non-Sweep")) %>% 
+    mutate(stat = paste("TajimaD_",poptd,sep="")) %>% 
+    mutate(td=as.numeric(td)) %>% 
+    dplyr::select(in_sweep,pop,stat,value=td)
+
+  pi_inout <- pi_ehh_joinbed %>%
+      mutate(in_sweep = ifelse(chr.b!=".","Sweep","Non-Sweep")) %>% 
+    mutate(stat = paste("PI_",poppi,sep="")) %>% 
+    mutate(pi=as.numeric(pi)) %>% 
+    dplyr::select(in_sweep,pop,stat,value=pi)
+
+  inout <- list(pbs=pbs_inout,pcadapt=pcadapt_inout,tajima=tajima_inout,pi=pi_inout)
+  
+  write_rds(inout,"cache/inout_stats.rds")
+} else {
+  inout <- read_rds("cache/inout_stats.rds")
+  
+  
+  
+}
+```
+
+
+```{r, fig.height=12}
+p_pbs <- inout[['pbs']] %>% 
+  ggplot(aes(x=value)) + geom_density(aes(fill=in_sweep),alpha=0.5) + 
+  xlim(NA,0.5) + xlab("Population Branch Statistic") + ylab("") +
+  theme_pubclean() + theme(legend.position = "none")
+
+p_pc <- inout[['pcadapt']] %>% 
+  ggplot(aes(x=value)) + geom_density(aes(fill=in_sweep),alpha=0.5) + xlim(0,10) + xlab("-Log10(p); p = PCAdapt z-score ")+
+  theme_pubclean() + theme(legend.position = "none") + ylab("")
+
+ p_pi <-  
+   inout[['pi']] %>% 
+  separate(stat,into = c("stat","location"),sep="_") %>% 
+  group_by(stat,location,in_sweep) %>% 
+  slice_sample(n=4000) %>%   
+  ggplot(aes(x=in_sweep,y=value)) + geom_boxplot(aes(fill=in_sweep)) + 
+ facet_wrap(~location, scales = "free",nrow = 1)+
+  theme_pubclean()+ theme(legend.position = "none") +
+   ylab("Nucleotide diversity pi") + xlab("")
+
+p_D <-inout[['tajima']] %>% 
+    separate(stat,into = c("stat","location"),sep="_") %>% 
+  group_by(stat,in_sweep) %>% 
+  slice_sample(n=4000) %>%   
+  ggplot(aes(x=in_sweep,y=value)) + geom_boxplot(aes(fill=in_sweep)) + 
+ facet_wrap(~location, scales = "free")+
+  theme_pubclean() + theme(legend.position = "none") +
+  ylab("Tajima's D") + xlab("")
+
+library(cowplot)
+
+
+legend_b <- get_legend(
+  p_pbs + 
+    guides(color = guide_legend(nrow = 1)) +
+    theme(legend.position = "bottom",legend.title = element_blank())
+)
+top_row <- plot_grid(p_pbs,p_pc,legend_b)
+
+plot_grid(top_row,p_pi,p_D,ncol=1)
+```
+
+
+**Figure 1:** Comparison of PBS, pi and Tajima's D in sweep and non-sweep regions.
