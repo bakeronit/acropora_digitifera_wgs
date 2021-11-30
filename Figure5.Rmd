@@ -69,7 +69,8 @@ pbs_ehh_overlapping <- bedr.join.region(pbs_extreme_loci,ehh_bed,check.chr = FAL
 to_label <- pbs_ehh_overlapping %>% 
   group_by(locus,dated_locus_number,population) %>% 
   summarise(PBS=max(PBS),abs_pos=mean(abs_pos,na.rm=TRUE)) %>% 
-  filter(dated_locus_number %in% c("7","20","31","37","38","40","41")) %>% 
+#  filter(!is.na(dated_locus_number)) %>% 
+  filter(dated_locus_number %in% c("1","8","10","37")) %>% 
 #  filter(PBS>0.3) %>% 
   na.omit()
   
@@ -79,8 +80,8 @@ mh_plot <- pbs_manhattan_data %>%
   ggplot() + 
   geom_point(aes(x=abs_pos/1e6,y=PBS,color=as.character(scaffold_num %% 2)),size=0.1) + 
   geom_point(data = pbs_ehh_overlapping,aes(x=abs_pos/1e6),y=-0.15,color="purple",size=0.5) + 
-  geom_point(data = to_label,aes(x=abs_pos/1e6,y=PBS),color="black",size=0.5) + 
-  geom_label_repel(data = to_label,aes(x=abs_pos/1e6,y=PBS, label=dated_locus_number),size=2,nudge_y=0.5,nudge_x = -5) + 
+  geom_point(data = to_label,aes(x=abs_pos/1e6,y=PBS),color="purple",size=0.5) + 
+  geom_label_repel(data = to_label,aes(x=abs_pos/1e6,y=PBS, label=dated_locus_number),size=2,nudge_y=1,nudge_x = -10) + 
   ylab("Population Branch Statistic") + xlab("Genome Position / Mb") + ylim(-0.2,NA) +
   scale_color_grey() +
   theme_bw() +
@@ -109,7 +110,7 @@ hap_names2pops <- function(hn){
   pops
 }
 
-get_furcation <- function(sweep_locus){
+analyse_haps <- function(sweep_locus){
   vcf_file <- paste("data/hpc/startmrca/regions/",sweep_locus,".vcf",sep="")
   position <- sweeps_gs4 %>% filter(sweep_id==sweep_locus) %>% pull(position)
 
@@ -119,18 +120,16 @@ get_furcation <- function(sweep_locus){
 
   marker_index <- which(positions(hh)==position)
 
-  hh_subset <- subset(hh, select.mrk = (marker_index2-200):(marker_index2+200))
-
   furcation <- calc_furcation(hh,mrk = marker_index)
-
+  haplen <- calc_haplen(furcation)
   hn <- hap_names2pops(hap.names(hh))
-  list(furcation,hn)
+  list(furcation,hn,haplen)
 }
 
 sweeps_gs4 <- read_rds("cache/sweep_regions.rds")
 
 if (!file.exists("cache/furcation_data.rds")){
-  furcation_data <- to_label %>% pull(locus) %>% purrr::map(get_furcation)
+  furcation_data <- to_label %>% pull(locus) %>% purrr::map(analyse_haps)
   names(furcation_data) <- to_label$locus
   write_rds(furcation_data,"cache/furcation_data.rds")
 } else {
@@ -139,35 +138,36 @@ if (!file.exists("cache/furcation_data.rds")){
   
 names(myCol) <- c("IN","NO","SO")
 
-plot_fc <- function(fc_data,loc,pop){
-  
-  hn <- fc_data[[2]]
-  hn[which(hn==pop)] <- "*"
-  hn[which(hn!="*")] <- ""
-  
-  par(mar=c(1,1,1,1)+0.1, tcl=-0.1, mgp=c(2,0,0))
-  
-  plot(fc_data[[1]],hap.names = hn,
-      col = c("black","grey70"),       
-       cex=0.2,cex.lab=0.2,cex.main=0.5,cex.sub=0.2,cex.axis=0.4,
-       main=loc,
-       legend.xy.coords = "none")
-}
-
-furcation_plot_7 <- ~{
-  plot_fc(furcation_data[['BLFC01000326_1550000_2150001']],"7","IN")
-}
-
-furcation_plot_38 <- ~{
-  plot_fc(furcation_data[['BLFC01000770_1200000_1250001']],"38","IN")
-}
-
-furcation_plot_31 <- ~{
-  plot_fc(furcation_data[['BLFC01000375_100000_450001']],"31","SO")
-}
+# plot_fc <- function(fc_data,loc,pop){
+#   
+#   hn <- fc_data[[2]]
+#   hn[which(hn==pop)] <- "*"
+#   hn[which(hn!="*")] <- ""
+#   
+#   par(mar=c(1,1,1,1)+0.1, tcl=-0.1, mgp=c(2,0,0))
+#   
+#   plot(fc_data[[1]],hap.names = hn,
+#       col = c("black","grey70"),       
+#        cex=0.2,cex.lab=0.2,cex.main=0.5,cex.sub=0.2,cex.axis=0.4,
+#        main=loc,
+#        legend.xy.coords = "none")
+# }
+# 
+# furcation_plot_7 <- ~{
+#   plot_fc(furcation_data[['BLFC01000326_1550000_2150001']],"7","IN")
+# }
+# 
+# furcation_plot_38 <- ~{
+#   plot_fc(furcation_data[['BLFC01000770_1200000_1250001']],"38","IN")
+# }
+# 
+# furcation_plot_31 <- ~{
+#   plot_fc(furcation_data[['BLFC01000375_100000_450001']],"31","SO")
+# }
 
 
 furcation_column <- plot_grid(furcation_plot_7,furcation_plot_38,ncol = 1)
+
 ggsave(filename = "figures/Figure5_furcation.png",width=2,height=4)
 
 
@@ -177,4 +177,29 @@ ggsave("figures/Figure5.png",width = 6.75,height = 4)
 
 
 
+```{r}
+make_hldata <- function(locus_name){
+  
+  hn <- furcation_data[[locus_name]][[3]]
+
+  furcation_data[[locus_name]][[3]][[4]] %>% 
+    as.data.frame() %>% 
+    add_column(name=furcation_data[[locus_name]][[2]]) %>% 
+    mutate(length = MAX-MIN) %>% 
+    mutate(rn=row_number()) %>% 
+    add_column(locus=locus_name) 
+}
+
+hldata <- to_label$locus %>% purrr::map_dfr(make_hldata)
+
+hldata %>% 
+    ggplot() + 
+      geom_segment(aes(x=MIN/1e6,xend=MAX/1e6,y=reorder(rn,length),yend=reorder(rn,length),color=name)) +
+    theme_pubr() + 
+  facet_wrap(~locus,scales = "free") +
+  theme(axis.text.y = element_blank()) +
+  xlab("Position /Mb") +
+  ylab("Haplotype")
+
+```
 
