@@ -354,7 +354,7 @@ tmrca_data <- list.files("data/hpc/startmrca/results/","*.rds", full.names = TRU
 tmrca_estimates <- tmrca_data %>% 
   group_by(locus) %>% 
   slice_tail(n=10000) %>% 
-  slice_sample(n=100) %>% 
+  slice_sample(n=1000) %>% 
   summarise(tmrca_mean = mean(V1), var = var(V1))
 
 # Annotate the regions table
@@ -376,14 +376,14 @@ go_terms_signif <- list("hemidesmosome"=c("GO:0030056","GO:0031581"),
                      "fatty acid transporter activity"=c("GO:0005324","GO:0015245"),
                      "ion transport"="GO:0006811",
                      "histone methyltransferase"="GO:0042054",
- #                    "extracellular"=c("GO:0005615"),
+#                     "extracellular"=c("GO:0005615"),
                      "acid-amino acid ligase activity"="GO:0016881",
                      "peptide receptor activity"=c("GO:0001653","GO:0004383"),
                      "4-beta-N-acetylglucosaminyltransferase"="GO:0008454",
                      "cardiac septum development"="GO:0003279",
                      "ion antiporter activity"="GO:0008273",
                      "fgf"="GO:0005104",
-#                     "transcription factor activity"="GO:0000981",
+                     "transcription factor activity"="GO:0000981",
 #                     "membrane"="GO:0016021",
                      "negative regulation of melanin biosynthesis"="GO:0048022",
                      "symporter activity"="GO:0015293",
@@ -420,11 +420,10 @@ pdgo <- pd %>%
   group_by(locus,go,pop) %>% 
   summarise(tmrca_mean = dplyr::first(tmrca_mean)) %>% 
   ungroup() %>% 
-  filter(go!="iron ion") %>% 
+  filter(!((go=="iron ion") & (pop == "inshore"))) %>% 
   filter(go!="ion antiporter activity") %>% 
   filter(go!="symporter activity") %>% 
   filter(!((go=="ion transport") & (pop=="inshore"))) %>% 
-  filter(go!="ion antiporter activity") %>% 
   filter(go!="sperm") %>% 
 #  filter(go!="membrane") %>% 
 #  filter(go!="extracellular") %>% 
@@ -460,17 +459,18 @@ pd1 <- pd %>%
   filter(qc_pass==1) %>% 
   mutate(locus_label = as.character(dated_loci[locus])) %>% 
   ggplot(aes(x=t_years,y=reorder(locus_label,tmrca_mean))) + 
+#  ggplot(aes(x=t_years,y=reorder(locus_label,tmrca_mean))) + 
   geom_violin(aes(fill=pop,color=pop)) + 
   geom_label_repel(data= pdgo %>% mutate(locus_label = as.character(dated_loci[locus])),
                    aes(x=tmrca_mean,y=locus_label,label=go,fill=pop), 
-                   direction = "both",nudge_x = 20000, xlim=c(33000,NA), 
-                   force=10, size = 2,
-                   label.padding = 0.15, label.size = 0.2,segment.size=0.3, segment.alpha = 1) +
+                   direction = "both",nudge_x = 5000, xlim=c(8000,NA), 
+                   force=10, size = 1.5,max.overlaps = 1000,
+                   label.padding = 0.15, label.size = 0.2,segment.size=0.3, segment.alpha = 1,alpha=0.8) +
   ylab("Sweep Locus") + xlab("TMRCA / Years since present") +
-  scale_fill_manual(values=myCol) +
+  scale_fill_manual(values=myCol,labels=c("Inshore","North Offshore","South Offshore")) +
   scale_color_manual(values=myCol) +  
     theme_pubr() +
-  guides(color="none") +
+  guides(color="none")+
   theme(legend.title = element_blank(), 
         axis.text.y = element_text(size=5),
 #        axis.text.y = element_blank(),
@@ -478,18 +478,19 @@ pd1 <- pd %>%
         legend.text = element_text(size=6),
         axis.title.x = element_text(size=7),
         axis.title.y= element_text(size=7),
-        legend.position = "bottom")
+        legend.position = "none")
 
 pdax <- axis_canvas(pd1,axis="x") +
 #  geom_histogram(data=pdmeans,aes(x=tmrca_mean),alpha=0.2,binwidth = 2000) +
-  geom_histogram(data=pdmeans_pass,aes(x=tmrca_mean,fill=pop),binwidth = 2000) +
-    scale_fill_manual(values=myCol) 
+  geom_histogram(data=pdmeans_pass,aes(x=tmrca_mean,fill=pop),binwidth = 1000) +
+    scale_fill_manual(values=myCol,labels=c("Inshore","North Offshore","South Offshore")) 
 
 p1 <- insert_xaxis_grob(pd1,pdax,grid::unit(.15, "null"), position = "top")
 
 ggdraw(p1)
 
 ggsave("figures/sweep_dates_wide.png", width = 6.75,height = 4)
+ggsave("figures/sweep_dates_wide4.png", width = 4.75,height = 4)
 #ggsave("figures/sweep_dates_narrow.png", width = 6.5,height = 10)
 #ggsave("figures/sweep_dates.png", width = 10,height = 7)
 
@@ -497,11 +498,120 @@ ggsave("figures/sweep_dates_wide.png", width = 6.75,height = 4)
 ```
 
 
+```{r, results='hide'}
+hap_names2pops <- function(hn){
+  pops <- rep("IN",length(hn))
+  sos <- grepl("RS[123]",hn)
+  nos <- grepl("^AR",hn)
+  ins <- (!sos & !nos)
+  pops[sos]="SO"
+  pops[nos]="NO"
+  pops
+}
+
+analyse_haps <- function(sweep_locus){
+  vcf_file <- paste("data/hpc/startmrca/regions/",sweep_locus,".vcf",sep="")
+  position <- sweeps_gs4 %>% filter(sweep_id==sweep_locus) %>% pull(position)
+
+  hh <- data2haplohh(hap_file = vcf_file,
+                     polarize_vcf = FALSE,
+                     vcf_reader = "data.table")
+
+  marker_index <- which(positions(hh)==position)
+
+  furcation <- calc_furcation(hh,mrk = marker_index)
+  haplen <- calc_haplen(furcation)
+  hn <- hap_names2pops(hap.names(hh))
+  list(furcation,hn,haplen)
+}
+
+sweeps_gs4 <- read_rds("cache/sweep_regions.rds")
+
+
+  
+make_hldata <- function(locus_name){
+  
+  hn <- furcation_data[[locus_name]][[3]]
+
+  furcation_data[[locus_name]][[3]][[4]] %>% 
+    as.data.frame() %>% 
+    add_column(name=furcation_data[[locus_name]][[2]]) %>% 
+    mutate(length = MAX-MIN) %>% 
+    mutate(rn=row_number()) %>% 
+    add_column(locus=locus_name) 
+}
+
+to_label <- as.data.frame(dated_loci) %>% 
+  rownames_to_column("locus") %>% 
+  dplyr::rename(dated_locus_number=dated_loci) %>% 
+  filter(dated_locus_number %in% c(1,8,29,39)) #%>% 
+#  mutate(dated_locus_number=as.character(dated_locus_number))
+
+if (!file.exists("cache/furcation_data.rds")){
+  furcation_data <- to_label %>% pull(locus) %>% purrr::map(analyse_haps)
+  names(furcation_data) <- to_label$locus
+  write_rds(furcation_data,"cache/furcation_data.rds")
+} else {
+  furcation_data <- read_rds("cache/furcation_data.rds")
+}
+
+hldata <- to_label$locus %>% 
+  purrr::map_dfr(make_hldata) %>% 
+  left_join(to_label)
+
+popmap <- c("IN"="inshore","NO"="northoffshore","SO"="southoffshore")
+
+named_cols <- c(myCol,"grey")
+names(named_cols) <- c("IN","NO","SO","notfocal")
+
+phaps <- hldata %>% 
+  left_join(sweeps_gs4 %>% dplyr::select(locus=sweep_id,pops=pop)) %>% 
+  mutate(poph=popmap[name]) %>% 
+  mutate(name = ifelse(poph==pops,name,"notfocal")) %>% 
+  group_by(locus) %>% 
+  arrange(length,.by_group = TRUE) %>% 
+  mutate(rn = row_number()) %>% 
+  mutate(xoffset=(max(MIN)+min(MAX))/2) %>% 
+    ggplot() + 
+      geom_segment(aes(x=(MIN-xoffset)/1e6,xend=(MAX-xoffset)/1e6,y=rn,yend=rn,color=name)) +
+    scale_color_manual(values=named_cols) +  
+    theme_pubr() + 
+  facet_wrap(~reorder(dated_locus_number,dplyr::desc(dated_locus_number)),ncol = 1) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        text = element_text(size=6),
+        legend.position = "none", 
+        strip.background = element_blank(),
+        strip.text = element_text(size=10)) +
+  xlab("Relative Position /Mb") +
+  ylab("Haplotype")
+
+ggsave(phaps,filename = "figures/haplengths.png",width = 2,height = 3.5)
+```
 
 
 
 
+```{r}
+#ptimeline <- ggdraw(p1)
+ptimeline <- p1
 
+
+plot_row <- plot_grid(phaps,
+                      ptimeline,
+                      rel_widths = c(0.2,0.8),align = "h")
+
+legend_b <- get_legend(
+  pd1 + 
+    guides(fill = guide_legend(nrow = 1)) +
+    theme(legend.position = "bottom")
+)
+
+
+plot_grid(plot_row,legend_b,ncol = 1,rel_heights = c(0.93,0.07))
+
+ggsave("figures/sweep_dates_wide.png",width = 6.75,height=4)
+```
 
 
 

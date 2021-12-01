@@ -279,6 +279,9 @@ pg_go <- pg_go %>%
 ```{r, fig.height=12}
 pop_names <- c("inshore"="Inshore","northoffshore"="North Offshore","southoffshore"="South Offshore")
 
+library(colorspace)
+hclcols <- qualitative_hcl(3,palette = "Dark 3",c=0)
+
 barplot <- pg_go %>% 
   mutate(pop_names=pop_names[pop]) %>% 
   mutate(text_label = paste(Significant,"/",n_regions,sep = "")) %>% 
@@ -286,21 +289,25 @@ barplot <- pg_go %>%
   ggplot(aes(x=-log10(p.region),y=GO.ID,fill=ontology)) + 
   geom_col(aes(alpha = is_enriched)) +
 #  ggstance::geom_colh(aes(alpha=is_enriched)) +
-  scale_fill_brewer(palette="Dark2",labels = c("Biological process", "Cellular component", "Molecular function")) +
-  geom_text(aes(label=text_label), hjust=-0.5,size=2) +
+  scale_fill_grey() +
+#  scale_fill_manual(values = hclcols,labels = c("Biological process", "Cellular component", "Molecular function")) +
+  geom_text(aes(label=text_label), hjust=-0.1,size=2) +
   theme_bw() + 
+  guides(alpha="none") +
   labs(x=expression(-Log[10](P)),y="",fill="") +
   theme(panel.grid = element_blank(),
-        legend.position = "none",
+#        legend.position = "none",
         legend.text = element_text(),
         axis.text.y = element_blank(),
         axis.text.x = element_text(size=6),
         axis.title.x = element_text(size=6),
-        strip.text = element_text(size=6)) + 
+        strip.text = element_text(size=6),
+        strip.background = element_blank()) + 
   ylab("") + 
   facet_wrap(~pop_names) +
   xlim(0,45)
 
+leg_b <- get_legend(barplot)
 
 go_terms = AnnotationDbi::select(GO.db, keys(GO.db, "GOID"), c("TERM", "ONTOLOGY")) %>% 
   filter(GOID %in% display_go)
@@ -326,9 +333,16 @@ tree <- ggtree(as.phylo(hc)) %<+% tree_data +
 geom_tiplab(aes(label = term_label),align = TRUE, size=2) + 
   xlim(0,10) 
 
-bpt <- barplot %>% insert_left(tree, width = 1.2)
+bpt <- (barplot + theme(legend.position = "none")) %>% insert_left(tree, width = 1.2)
 ggsave(bpt,filename = "figures/go_enrichment_wide.png",height = 3,width = 6.75)
-ggsave(bpt,filename = "figures/go_enrichment.png",height = 6,width = 9.5)
+leg_b <- ggdraw(leg_b)
+ggsave(leg_b,filename = "figures/go_legend.png",width = 3,height = 1)
+
+
+# plot_grid(bpt, leg_b, ncol=1, rel_heights =c(.9, .1))
+# ggsave(filename = "figures/go_enrichment_wide.png",height = 3,width = 6.75)
+
+#ggsave(bpt,filename = "figures/go_enrichment.png",height = 6,width = 9.5)
 bpt
 ```
 
