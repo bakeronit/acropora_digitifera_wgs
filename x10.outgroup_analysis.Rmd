@@ -10,6 +10,10 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina
 # loading required packages:
 library(tidyverse)
 library(ggpubr)
+source("scripts/color_scheme.R")
+
+location_colors <- c(myCol,"grey")
+names(location_colors) <- c("Inshore","North Offshore","South Offshore","Japan")
 ```
 
 To understand the relationship between *A. digitifera* from WA and a population in Japan we combined our data with publicly available data from [@Shinzato2015-rz].  This combined dataset included all of our samples as well as 16 samples from the Ryukyu Islands in Japan, randomly chosen from the Shinzato et al dataset. Note that the Ryukyu Islands is also the region of origin for the A. digitifera reference genome. Japanese samples downloaded from NCBI and subjected to the same read quality checks and alignment process as we applied for our own samples.  The resulting bam files had variable coverage (9x - 32x) roughly in the same range as those of our Western Australian samples.
@@ -58,7 +62,9 @@ pop_eigen <- eigen(covmat)
 
 eigenvalues <- round(pop_eigen$values,1)
 
-pop_pca <- data.frame(e1=pop_eigen$vectors[,1],e2=pop_eigen$vectors[,2],e3=pop_eigen$vectors[,3]) %>% cbind(sample_table)
+pop_pca <- data.frame(e1=pop_eigen$vectors[,1],e2=pop_eigen$vectors[,2],e3=pop_eigen$vectors[,3]) %>% 
+  cbind(sample_table) %>% 
+  filter(!grepl(pattern = "BR_5_121",x = sample))
 
 pclabel <- function(pcnum,eigenvalues){
   paste("PC",pcnum," (",eigenvalues[pcnum],"%)",sep = "")
@@ -66,11 +72,14 @@ pclabel <- function(pcnum,eigenvalues){
 
 p1 <- ggplot(pop_pca ,aes(x=e1,y=e2)) + 
   geom_point(aes(color=location),size=1) + 
-  theme_pubr() + xlab(pclabel(1,eigenvalues)) + ylab(pclabel(2,eigenvalues))
+#  geom_point(color="black",size=0.1) +
+  theme_pubr() + xlab(pclabel(1,eigenvalues)) + ylab(pclabel(2,eigenvalues)) +
+  scale_color_manual(values = location_colors)
 
 p2 <- ggplot(pop_pca ,aes(x=e2,y=e3)) + 
   geom_point(aes(color=location),size=1) + 
-  theme_pubr() + xlab(pclabel(2,eigenvalues)) + ylab(pclabel(3,eigenvalues))
+  theme_pubr() + xlab(pclabel(2,eigenvalues)) + ylab(pclabel(3,eigenvalues))+
+  scale_color_manual(values = location_colors)
 
 legend_b <- get_legend(
   p1 + 
@@ -87,6 +96,23 @@ prow <- plot_grid(
 plot_grid(prow,legend_b,ncol=1,rel_heights = c(1, .1))
 ```
 
+```{r}
+legend_r <- get_legend(
+  p1 + 
+    geom_point(aes(color=location),size=5) + 
+    guides(color = guide_legend(nrow = 4)) +
+    theme(legend.position = "right", legend.title = element_blank(), legend.key.size = unit(7,"mm"))
+)
+
+ggdraw(legend_r)
+
+ggsave("figures/point_colors_4pop_legend.png", width = 2,height = 3)
+
+p1 + theme(legend.position = "none") 
+ggsave(filename = "figures/pca_4pop.png", width = 3.5,height = 3)
+```
+
+
 **Figure 1:** PCA showing population structure for Japanese and Western Australian A. digitifera samples. 
 
 The PCA clearly shows that WA offshore populations are more similar to each other than to the other samples.  The plot also suggests that WA inshore samples are intermediate between WA offshore and Japanese samples.  With this in mind we construct a neighbour joining tree based on distances in PCA space using Japan as the root of the tree. 
@@ -98,12 +124,37 @@ library(ape)
 
 t <- read.tree("data/hpc/pcangsd/jpwa.tree")
 
-tr <- root(t,42)
+t_clean <- drop.tip(as.phylo(t),tip="46")
+st_clean <- sample_table %>% filter(!grepl(sample,pattern="BR_5_121"))
 
-ggtree(tr) %<+% sample_table + 
+jp_in_mrca <- getMRCA(t_clean,
+                      st_clean %>% filter(location %in% c("Inshore","Japan")) %>% pull(number) %>% as.character()
+                      )
+
+
+tr <- root(t_clean,node=jp_in_mrca)
+tr <- root(t_clean,outgroup = st_clean %>% filter(location %in% c("Japan")) %>% pull(number) %>% as.character())
+
+tr_plot <- ggtree(tr) %<+% st_clean + 
   geom_tippoint(aes(color=location)) +
-  geom_tiplab(aes(label=sample)) +
-  theme(legend.title = element_blank())
+#  geom_nodelab(label=id) +
+#  geom_tiplab(aes(label=sample)) +
+  theme(legend.title = element_blank()) +
+  scale_color_manual(values = location_colors) +
+  theme(legend.position = "bottom")
+
+
+ggsave(tr_plot + theme(legend.position = "none"),filename =  "figures/pcangst_tree.png",width = 3,height = 4)
+
+tree_leg <- get_legend(tr_plot)
+ggdraw(tree_leg)
+ggsave("figures/fig1_col_legend.png",height = 1,width = 4)
+
+# ggtree(t,layout = "circular") %<+% sample_table + 
+#   geom_tippoint(aes(color=location)) +
+# #  geom_nodelab(label=id) +
+# #  geom_tiplab(aes(label=sample)) +
+#   theme(legend.title = element_blank())
 ```
 
 **Figure 2:** Neighbour joining tree based on distances inferred by PCAngsd and placing Japan at the root. 

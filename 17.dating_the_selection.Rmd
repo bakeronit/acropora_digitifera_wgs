@@ -455,6 +455,14 @@ dated_loci <- pd %>%
 # Save this list of dated loci for other figures
 write_rds(dated_loci,"cache/dated_loci.rds")
 
+add.alpha <- function(col, alpha=1){
+  if(missing(col))
+    stop("Please provide a vector of colours.")
+  apply(sapply(col, col2rgb)/255, 2, 
+                     function(x) 
+                       rgb(x[1], x[2], x[3], alpha=alpha))  
+}
+
 pd1 <- pd %>% 
   filter(qc_pass==1) %>% 
   mutate(locus_label = as.character(dated_loci[locus])) %>% 
@@ -464,8 +472,8 @@ pd1 <- pd %>%
   geom_label_repel(data= pdgo %>% mutate(locus_label = as.character(dated_loci[locus])),
                    aes(x=tmrca_mean,y=locus_label,label=go,fill=pop), 
                    direction = "both",nudge_x = 5000, xlim=c(8000,NA), 
-                   force=10, size = 1.5,max.overlaps = 1000,
-                   label.padding = 0.15, label.size = 0.2,segment.size=0.3, segment.alpha = 1,alpha=0.8) +
+                   force=10, size = 2,max.overlaps = 1000,
+                   label.padding = 0.15, label.size = 0.5,segment.size=0.3, segment.alpha = 1) +
   ylab("Sweep Locus") + xlab("TMRCA / Years since present") +
   scale_fill_manual(values=myCol,labels=c("Inshore","North Offshore","South Offshore")) +
   scale_color_manual(values=myCol) +  
@@ -599,16 +607,19 @@ ptimeline <- p1
 
 plot_row <- plot_grid(phaps,
                       ptimeline,
-                      rel_widths = c(0.2,0.8),align = "h")
+                      rel_widths = c(0.2,0.8),align = "h",axis = "b")
 
 legend_b <- get_legend(
   pd1 + 
-    guides(fill = guide_legend(nrow = 1)) +
-    theme(legend.position = "bottom")
+    guides(fill = guide_legend()) +
+    theme(legend.position = "right")
 )
 
+ggdraw(legend_b)
+ggsave("figures/sweep_dates_legend.png",width = 1.5,height = 2)
 
-plot_grid(plot_row,legend_b,ncol = 1,rel_heights = c(0.93,0.07))
+
+plot_grid(plot_row,ncol = 1)
 
 ggsave("figures/sweep_dates_wide.png",width = 6.75,height=4)
 ```

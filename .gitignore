@@ -9,3 +9,4 @@ data/
 bin/
 cache/
 scripts/__pycache__/
+sw/

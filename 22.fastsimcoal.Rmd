@@ -1,0 +1,50 @@
+---
+title: "Demography with FSC"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+
+read_lik <- function(path){
+  model <- basename(path) %>% str_replace(".param","")
+  read_tsv(path, show_col_types = FALSE) %>% 
+    add_column(model=model) %>% 
+    dplyr::select(model,ends_with("hood"))
+}
+
+lik_data <- list.files("data/hpc/temp_files/fastsimcoal","*.param",recursive = TRUE,full.names = TRUE) %>% 
+  map_dfr(read_lik)
+
+lik_data %>% 
+  ggplot(aes(x=model, y=MaxEstLhood)) +
+    geom_violin() + theme(axis.text.x = element_text(angle=90))
+ggsave("figures/fsc_liks.png",width = 10)
+```
+
+```{r}
+split_in_params <- read_tsv("data/hpc/temp_files/fastsimcoal/split_IN/split_IN_ALL.param", show_col_types = FALSE) %>% 
+  slice_max(MaxEstLhood,n=10) %>% 
+  pivot_longer(-c(MaxEstLhood,File),names_to = "param",values_to = "value") 
+
+
+split_in_params %>% 
+  filter(grepl(param,pattern = "DIV")) %>% 
+  ggplot(aes(x=param,y=value)) +
+    geom_jitter(aes(color=MaxEstLhood))
+```
+
+
+```{r}
+split_in_params %>% 
+  filter(grepl(param,pattern = "N")) %>% 
+  filter(param!="ANCSIZE") %>% 
+  ggplot(aes(x=param,y=value)) +
+    geom_jitter(aes(color=MaxEstLhood))
+
+```
+

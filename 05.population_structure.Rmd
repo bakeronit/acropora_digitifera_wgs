@@ -10,7 +10,7 @@ library(ggsci)
 library(stringi)
 library(purrr)
 library(patchwork)
-library(PCAviz)
+#library(PCAviz)
 source(file = "scripts/color_scheme.R")
 ```
 
@@ -154,6 +154,34 @@ p2<-ggplot(read_Q("data/hpc/admixture/Adigitifera_ldpruned.3.Q"),aes(x=samples))
 
 p1/p2
 ```
+
+
+```{r}
+# For inclusion in Figure 1
+pop_order <- c("AR"=1,"AI"=2,"BR"=3,"RS1"=4,"RS2"=5,"RS3"=6)
+cluster_cols <- myCol
+names(myCol) <- c("X1","X2","X3")
+
+admix_vp <- read_Q("data/hpc/admixture/Adigitifera_ldpruned.3.Q") %>% 
+  filter(!grepl("BR_5_121",samples)) %>% 
+  mutate(order = pop_order[pop]) %>% 
+    ggplot(aes(x=samples)) + 
+    geom_col(aes(group=samples,y=proportion,fill=cluster),show.legend = FALSE) + theme_minimal() +
+    coord_flip() +
+    facet_wrap(~factor(pop,levels = names(pop_order)),
+               scales = "free_y",
+              labeller = labeller(pop=pop.labs),
+              ncol = 1,
+              strip.position = "left") +
+  scale_fill_manual(values = cluster_cols) +
+  theme(axis.text.y = element_blank(),panel.grid = element_blank())+
+  labs(y="Ancestry (K=3)", x="") 
+
+
+ggsave(admix_vp,filename = "figures/admixture_vertical.png",width = 2,height = 6)
+```
+
+
 
 ```{r cv, fig.retina=2, fig.width=3.4, fig.height=3.8,out.extra='style="float:left"'}
 cv <- read_delim("data/hpc/admixture/CV.txt", col_names = c("CV","value"),delim = " ")
