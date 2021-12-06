@@ -1,0 +1,1 @@
+vcftools --vcf allrad_merged.vcf --relatedness2

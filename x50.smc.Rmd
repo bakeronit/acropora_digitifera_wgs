@@ -1,0 +1,98 @@
+---
+title: "Demographic History with SMC++"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+source("scripts/color_scheme.R")
+```
+
+This rmarkdown document is primarily concerned with producing a single plot for publication.  
+
+TODO: Merge this with the main demographic history Rmd document. 
+
+
+```{r}
+all_csv_files <- list.files("data/hpc/temp_files/smc++/",recursive = TRUE,"*.csv",full.names = TRUE)
+
+read_main <- function(path){
+  pieces <- basename(path) %>% str_match("(mu[123])_main_(g[357])")
+  read_csv(path, show_col_types = FALSE) %>% 
+    add_column(mu=pieces[1,2]) %>% 
+    add_column(g=pieces[1,3])
+}
+
+main_data <- all_csv_files[grepl(all_csv_files,pattern = "main")] %>% 
+  map_dfr(read_main)
+
+botmin <- main_data %>% 
+  group_by(label,mu,g) %>% 
+    mutate(boty=min(y)) %>% 
+    mutate(botx= ifelse(y==boty,x,NA)) %>% 
+    na.omit() %>% 
+    summarise(boty=first(boty),botx=mean(botx)) %>% 
+    ungroup() %>% group_by(label) %>% summarise(xmin=min(botx),xmax=max(botx)) %>% 
+    add_column(y=10^c(3.3,3.4,3.5))
+
+# Setup neat breaks for log timescale and log Ne scale
+#
+xbreaks <- c(1e+2*1:9, 1e+3*1:9 , 1e+4*1:9 , 1e+5*1:9 , 1e+6*1:9 , 1e+7)
+xlabels <- as.character(xbreaks)
+xlabels[!(xbreaks%in%c(1e+3,1e+4,1e+5,1e+6,1e+7))] <- ''
+xlabels[xbreaks%in%c(1e+3,1e+4,1e+5,1e+6,1e+7)] <-c("1kya","10kya","100kya","1mya","10mya")
+
+ybreaks <- c(1e+3*2:9 , 1e+4*1:9 , 1e+5*1:9 , 1e+6*1:2)
+ylabels <- as.character(ybreaks)
+ylabels[!(ybreaks%in%c(1e+4,1e+5,1e+6))] <- ''
+ylabels[ybreaks%in%c(1e+4,1e+5,1e+6)] <- c("1","10","100")
+
+loc_names <- c("Inshore", "North Offshore", "South Offshore")
+
+named_colors <- myCol
+names(named_colors) <- c("IN","NO","SO")
+
+smc_plot <- main_data %>% 
+  filter(mu=="mu1",g=="g5") %>% 
+  filter(x>100) %>% 
+  ggplot() + 
+    geom_step(aes(x=x,y=y,color=label)) +
+#    geom_point(data=botmin,aes(x=xmin),y=10000) +
+    geom_segment(data=botmin,aes(x=xmin,y=y,xend=xmax,yend=y,color=label),size=2,alpha=0.5) +
+#    geom_linerange(data =botmin, aes(xmin=xmin,xmax=xmax,color=label),y=10) +
+  scale_x_log10(breaks=xbreaks, labels=xlabels,limits=c(400,1e6))+
+  scale_y_log10(breaks=ybreaks,labels=ylabels,limits=c(1.5e+3,2e+6)) +
+  scale_color_manual(values = named_colors, labels = loc_names) +
+  labs(x="",y=expression(paste("Effective Population Size ",N[e]," (x", 10^4 ,")"))) +
+  theme_pubr() +
+  theme(text = element_text(size=8),legend.title = element_blank(), legend.position = "none", axis.text.x = element_blank(), axis.ticks.x = element_line(size=0.2))
+  
+
+
+
+#Read Climate data
+
+
+climate_data <- read_tsv("data/nature07158-s2.txt",skip = 14)
+
+cp <- climate_data %>% 
+  filter(Time*1e3>100) %>% 
+  ggplot(aes(x=Time*1e3,y=-Ice_tot)) + 
+  geom_line() + 
+  scale_x_log10(breaks=xbreaks, labels=xlabels,limits=c(400,1e6)) +
+  theme_pubr() +
+#  theme(axis.text.x = element_blank()) +
+  xlab("Years before present") + ylab("Relative Sea Level (m)") +
+#  labs(x=expression(paste("Years Ago (g=5, ",mu, "=1.20e-8)"))) +
+  theme(text = element_text(size=8))
+
+
+pg <- plot_grid(smc_plot,cp, ncol = 1, align = "hv", axis = "lr", rel_heights = c(0.7,0.3))
+
+ggsave("figures/smc_climate.png",width = 6.75,height =4 )
+pg
+```
+

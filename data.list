@@ -1,5 +1,52 @@
 # Data listing for medium sized (<50Mb) data files
 
+# Radseq Checks
+
+data/hpc/radseq_data/out.relatedness2
+data/hpc/radseq_data/Sample_list_Jia_popgen_141121.xlsx
+data/hpc/radseq_data/Complete_list_Adigi_Ashmore_Adele_Beagle_Rowleys_181121.xlsx
+
+# IGV Tracks and track creation
+
+data/hpc/tracks/01_gather_data.sh
+data/hpc/tracks/02_tajima_to_wig.sh
+data/hpc/tracks/03_pi_to_wig.sh
+data/hpc/tracks/04_pbs_to_wig.sh
+data/hpc/tracks/05_bamcov.sh
+data/hpc/tracks/GCA_014634065.1_Adig_2.0_genomic.fna
+data/hpc/tracks/GCA_014634065.1_Adig_2.0_genomic.fna.fai
+data/hpc/tracks/adig-v2.gff
+data/hpc/tracks/adig2_chromsizes.txt
+data/hpc/tracks/fst.slidingwindow.tsv
+data/hpc/tracks/fst2wig.awk
+data/hpc/tracks/inshore.pestPG
+data/hpc/tracks/inshore_TajimaD.bw
+data/hpc/tracks/inshore_TajimaD.wig
+data/hpc/tracks/inshore_ThetaD.bw
+data/hpc/tracks/inshore_ThetaD.wig
+data/hpc/tracks/inshore_pbs.bw
+data/hpc/tracks/inshore_pbs.wig
+data/hpc/tracks/inshore_readcov.bw
+data/hpc/tracks/north_offshore.pestPG
+data/hpc/tracks/north_offshore_TajimaD.bw
+data/hpc/tracks/north_offshore_TajimaD.wig
+data/hpc/tracks/north_offshore_ThetaD.bw
+data/hpc/tracks/north_offshore_ThetaD.wig
+data/hpc/tracks/north_offshore_pbs.bw
+data/hpc/tracks/north_offshore_pbs.wig
+data/hpc/tracks/north_offshore_readcov.bw
+data/hpc/tracks/south_offshore.pestPG
+data/hpc/tracks/south_offshore_TajimaD.bw
+data/hpc/tracks/south_offshore_TajimaD.wig
+data/hpc/tracks/south_offshore_ThetaD.bw
+data/hpc/tracks/south_offshore_ThetaD.wig
+data/hpc/tracks/south_offshore_pbs.bw
+data/hpc/tracks/south_offshore_pbs.wig
+data/hpc/tracks/south_offshore_readcov.bw
+data/hpc/tracks/sweeps.gff3
+data/hpc/tracks/theta2wig.awk
+
+
 # IQTree
 data/hpc/iqtree/partition.nex.best_scheme.nex.treefile
 
@@ -318,3 +365,15 @@ data/hpc/startmrca/sweep_regions_checked.tsv
 data/hpc/startmrca/results
 data/hpc/startmrca/regions
 data/hpc/startmrca/qc_plots
+
+# radseq_check
+
+data/hpc/radseq_data/02_map_reads.sh
+data/hpc/radseq_data/03_prepare_regions.sh
+data/hpc/radseq_data/04_freebayes.sh
+data/hpc/radseq_data/05_filter.sh
+data/hpc/radseq_data/06_relatedness.sh
+data/hpc/radseq_data/out.relatedness2
+data/hpc/radseq_data/allrad_merged.vcf
+
+

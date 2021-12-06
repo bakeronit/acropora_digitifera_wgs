@@ -34,6 +34,13 @@ windowed_xpstats <- list.files("data/hpc/selection2",pattern = ".xp[a-z]{3}.norm
   select(chr,start,end,nsnp,frac=fracA,percentile=percentileA,pop,stat)
 
 windowed_ehh <- rbind(windowed_ihs,windowed_xpstats)
+
+all_regions <- windowed_ehh %>% 
+  select(chr,start,end) %>% 
+  distinct() %>% 
+  mutate(region_id = paste(chr,":",start,"-",end,sep = "")) %>% 
+  column_to_rownames("region_id") %>% 
+  add_column(pop="all")
 ```
 
 
@@ -166,12 +173,19 @@ inshore_genes <- genes_in_region(inshore_candidate_regions)
 northoffshore_genes <- genes_in_region(northoffshore_candidate_regions)
 southoffshore_genes <- genes_in_region(southoffshore_candidate_regions)
 
+# This is so we can construct GO terms by region in later analyses
+#
+all_regions %>% bedr.sort.region(check.chr = FALSE) %>% 
+  genes_in_region() %>% 
+  write_rds("cache/all_regions_genes.rds")
 
 candidate_regions_genes <- rbind(inshore_genes,northoffshore_genes,southoffshore_genes) %>%  
   group_by(chr, start, end, pop) %>% 
   summarise(genes=paste(geneid %>% unique,collapse = ";")) %>% 
   arrange(pop) %>% 
   ungroup
+
+
 ```
 
 ```{r ,results='hide'}
@@ -268,6 +282,21 @@ These annotated candidate windows form the basis for [Supplementary Table S9](ht
 
 ```{r}
 candidate_regions_genes_ehh %>% write_rds("cache/candidate_regions_genes_ehh.rds")
+
+# Also write as a gff track
+
+candidate_regions_genes_ehh %>% 
+  add_column(source="selscan") %>% 
+  add_column(feature="cds") %>% 
+  add_column(strand="+") %>% 
+  add_column(phase=".") %>% 
+  mutate(start=start+1) %>% 
+  mutate(chr=paste(chr,".1",collapse = "",sep="")) %>% 
+  mutate(ID = paste(chr,":",start,"-",end,collapse="",sep="")) %>% 
+  mutate(attributes = paste("ID=",ID,";genes=",genes,collapse = "",sep = "")) %>% 
+  ungroup() %>% 
+  dplyr::select(chr,source,feature,start,end,frac,strand,phase,attributes) %>% 
+    write_tsv("data/hpc/tracks/sweeps.gff3",col_names = FALSE)
 ```
 
 For the purposes of making a human viewable table in supp info we also attach gene names from uniprot

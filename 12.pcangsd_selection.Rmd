@@ -18,11 +18,8 @@ For the Western Australian data we found that PCA analysis with PCAngsd separate
 
 samples <- read_tsv("data/hpc/pcangsd/samples.txt",col_names = c("sample_id","location","mapping_rate","mean_mapping_depth","genome_cov"))
 
-sample_table_wa <- read_tsv("data/hpc/pcangsd/wa_bam.txt",col_names = "filename") %>%
-  mutate(sample = str_match(filename,pattern = "/fast/shared/Acropora_digitifera_wgs_bamfile/[A-Z]+/(.*)_aligned")[,2]) %>% 
-  mutate(sample = str_replace(sample,"_merged","")) %>% 
-    mutate(sample_id = str_replace(sample,"_L004","")) %>% 
-    mutate(sample_id = str_replace(sample_id,"_S[0-9]+$","")) %>% 
+sample_table_wa <- read_tsv("data/hpc/pcangsd/wa_bam.txt",col_names = "filename") %>% 
+    mutate(sample_id = str_replace(filename,"_S[0-9]+$","")) %>% 
   left_join(samples) %>% 
   rownames_to_column("number")
 ```
@@ -40,7 +37,9 @@ pclabel <- function(pcnum,eigenvalues){
   paste("PC",pcnum," (",eigenvalues[pcnum],"%)",sep = "")
 }
 
-ggplot(pop_pca_wa ,aes(x=e1,y=e2)) + 
+pop_pca_wa %>% 
+  filter(!sample_id=="BR_5_121") %>% 
+  ggplot(aes(x=e1,y=e2)) + 
   geom_point(aes(color=location),size=1) + 
   theme_pubr() + xlab(pclabel(1,eigenvalues_wa)) + 
   ylab(pclabel(2,eigenvalues_wa)) + 
@@ -84,6 +83,7 @@ if (K == 1) {
 }
 
 pvals <- pchisq(d2,df=K,lower.tail = F)
+write_rds(pvals,"cache/pcadapt_pvals.rds")
 ```
 
 For the first statistic (FastPCA / Galinsky statistic) we have one value for each of the PCs, whereas for pcadapt a single statistic based on robust Mahalanobis distance is used to summarise both PCs.  Examination of the distribution of p-values genome-wide in this case suggests that pcadapt is able to detect many significant loci under selection, whereas the Galinsky statistics are not.
@@ -109,6 +109,7 @@ For the pcadapt statistic we create a Manhattan plot to view sites under selecti
 ```
 
 ```{r pcadapt-manhattan-plot}
+
 coordinates <- read_tsv("data/hpc/pcangsd/wa.positions.scaf.txt",col_names = c("scaffold","pos"))
 coordinates_included <- coordinates[sites_binary$included==1,] %>% mutate(p=row_number())
 

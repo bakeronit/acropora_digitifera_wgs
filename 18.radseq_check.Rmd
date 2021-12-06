@@ -10,23 +10,63 @@ library(ggpubr)
 library(cowplot)
 ```
 
-```{r}
-r2_stats <- read_tsv("data/hpc/radseq_data/out.relatedness2") 
+Our whole genome sequencing libraries were generated from DNA that was also used as part of a study that used RAD sequencing (provided by DaRT) to examine population structure across a broader geographical region in WA.  DNA was extracted by DaRT and returned on 96 well plates to us prior to sending to QB3 (California Institute for Quantitative Bioscience, University of California, Berkeley) for whole genome sequencing. 
 
-r2m <- r2_stats %>% 
-  select(INDV1,INDV2,RELATEDNESS_PHI) %>% 
-  pivot_wider(names_from = INDV2,values_from = RELATEDNESS_PHI) %>% 
-  column_to_rownames("INDV1") %>% as.matrix()
+Since this process involved many steps at which a mistake in sample identity could have been introduced we performed a relatedness check on our data against all corresponding samples that were also sequenced with DaRT. All raw reads from DaRT were mapped against the genome and use to call variants with freebayes.  `bcftools` was then used to merge results from WGS and DaRT sequencing into a single vcf file as follows;
+
+```bash
+bcftools merge  Adigi.v2.filtered.vcf.gz allrad_filt.vcf.gz | 
+	bcftools view -i 'F_MISSING<0.1' > allrad_merged.vcf
+```
+
+We then used the relatedness2 function in `vcftools` to calculate a pairwise relatedness statistic between all pairs of samples in the file
+
+```bash
+vcftools --vcf allrad_merged.vcf --relatedness2
+```
+
+A histogram of relatedness values shows that the majority of pairs are unrelated (PHI close to or less than 0).  The peak close to 0.5 represents samples with the maximum possible relatedness value for diploids.  We can therefore use PHI to determine the matches between RAD and WGS samples. 
+
+```{r}
+r2_stats <- read_tsv("data/hpc/radseq_data/out.relatedness2")
+
+r2_stats %>% 
+  mutate(is_same = (INDV1==INDV2)) %>% 
+  ggplot(aes(x=RELATEDNESS_PHI)) + geom_histogram(aes(fill=is_same))
+```
+
+
+```{r}
+sample_list <- readxl::read_excel("data/hpc/radseq_data/Sample_list_Jia_popgen_141121.xlsx") %>% 
+  dplyr::select(ID_list_Jia_Ira,targetid) %>% 
+  pull(ID_list_Jia_Ira,name = targetid)
+
+r2_stats %>% 
+  filter(RELATEDNESS_PHI>0.1) %>% 
+  filter(INDV1!=INDV2) %>% 
+  mutate(i1 = sample_list[INDV1]) %>% 
+  mutate(i2 = sample_list[INDV2]) %>% 
+  mutate(ii1 = ifelse(is.na(i1),INDV1,i1)) %>% 
+  mutate(ii2 = ifelse(is.na(i2),INDV2,i2)) %>% 
+  extract(ii1,into = "iii1", regex = "([A-Z,1-9]+_[A-Z,0-9]+_[0-9]+)") %>% 
+  extract(ii2,into = "iii2", regex = "([A-Z,1-9]+_[A-Z,0-9]+_[0-9]+)") %>% 
+  filter(iii1!=iii2) %>% 
+  dplyr::select(sample_code1=INDV1,sample_code2=INDV2,individual_1=iii1,individual_2=iii2,RELATEDNESS_PHI) %>% knitr::kable()
 ```
 
 ```{r}
-image(r2m)
+sample_list2 <- readxl::read_excel("data/hpc/radseq_data/Complete_list_Adigi_Ashmore_Adele_Beagle_Rowleys_181121.xlsx") %>% 
+  dplyr::select(targetid,genotype) %>% 
+  pull(genotype,name = targetid)
 ```
+
+
+Our sample labelled `BR_5_121_S125_L004` matches sample with the ID 1439306 which matches genotype `r sample_list2["1439306"]`
 
 ```{r}
 r2_stats %>% 
-  filter(INDV2 %in% c("1439309")) %>% 
-  filter(INDV1 %in% c("1439309","BR_5_121_S125_L004","BR_5_124_S124_L004")) %>% 
-ggplot() + geom_point(aes(x=INDV1,y=RELATEDNESS_PHI)) + coord_flip()
+  filter(INDV1 %in% c("BR_5_121_S125_L004")  | INDV2 %in% c("BR_5_121_S125_L004")) %>% 
+  filter(RELATEDNESS_PHI>0.1)
 ```
+
 

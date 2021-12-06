@@ -1,5 +1,5 @@
 ---
-title: "ITS2"
+title: "Symbiont Profiless"
 output: github_document
 ---
 
@@ -11,15 +11,6 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 
 samples <- read_tsv("data/hpc/pcangsd/samples.txt",col_names = c("sample_id","location","mapping_rate","mean_mapping_depth","genome_cov"))
-
-sample_table_wa <- read_tsv("data/hpc/pcangsd/wa_bam.txt",col_names = "filename") %>%
-  mutate(sample = str_match(filename,pattern = "/fast/shared/Acropora_digitifera_wgs_bamfile/[A-Z]+/(.*)_aligned")[,2]) %>% 
-  mutate(sample = str_replace(sample,"_merged","")) %>% 
-    mutate(sample_id = str_replace(sample,"_L004","")) %>% 
-    mutate(sample_id = str_replace(sample_id,"_S[0-9]+$","")) %>% 
-  left_join(samples) %>% 
-  rownames_to_column("number") %>% 
-  select(sample_id,location)
 ```
 
 ```{r}
@@ -29,7 +20,8 @@ its <- read_tsv("data/hpc/its/sample_it2_div.txt") %>%
   mutate(sample = str_replace(sample,"_merged","")) %>% 
     mutate(sample_id = str_replace(sample,"_L004","")) %>% 
     mutate(sample_id = str_replace(sample_id,"_S[0-9]+$","")) %>% 
-  left_join(sample_table_wa,by="sample_id")
+  left_join(samples,by="sample_id") %>% 
+  filter(!grepl(sample_id,pattern = "^BR_5_121"))
 
 its_matrix <- its %>% 
   select(sample_id,prop,div) %>% 
@@ -43,27 +35,54 @@ keep_cols2 <-(its_matrix %>% apply(2,max))>0.2
 keep_cols <- keep_cols1 | keep_cols2
 
 library(ComplexHeatmap)
+library(colorspace)
 
 locations <- its %>% select(sample_id,location) %>% distinct() %>% pull(location)
 names(locations) <- its %>% select(sample_id,location) %>% distinct() %>% pull(sample_id)
 
-
+named_colors <- myCol
+names(named_colors) <- c("Inshore", "North Offshore", "South Offshore")
 
 ra <- rowAnnotation(location = locations[rownames(its_matrix)],
-                    col = list(location = c("Inshore" = "#CC0C00", "North Offshore" = "#5C88DA", "South Offshore" = "#84BD00")))
+                    col = list(location = named_colors),
+                    annotation_legend_param = list(title = ""),
+                    show_legend = FALSE,
+                    show_annotation_name = FALSE)
+
+library(circlize)
+
+col_fun = colorRamp2(c(0, 0.3, 0.5), diverging_hcl(3, palette = "Blue-Red 2"))
 
 hm <- Heatmap(its_matrix[,keep_cols],
               right_annotation = ra,
-              show_row_names = TRUE, 
+              col = col_fun,
+              show_row_names = FALSE, 
               show_column_dend = FALSE,
-              heatmap_legend_param = list(title = "Proportion of Reads",title_gp = gpar(fontsize = 8)))
+              heatmap_legend_param = list(title = "",title_gp = gpar(fontsize = 8)))
 
 
 
-hm_plot <- grid.grabExpr(draw(hm, padding = unit(c(2,2,2,20),"mm")))
+hm_plot <- grid.grabExpr(draw(hm, padding = unit(c(2,2,2,10),"mm")))
 
 plot_grid(hm_plot)
-ggsave2("figures/its2.png", width = 16,height = 30, units = "cm", dpi = 300)
+ggsave2("figures/its2.png", width = 3,height = 3, dpi = 300, units = "in")
 
+```
+
+MDS based on d2s distances 
+
+```{r}
+wad2s <- read_tsv("data/hpc/temp_files/symbiont_d2s/wa_matrix.txt",skip = 1,col_names = FALSE) %>% 
+  column_to_rownames("X1") 
+
+colnames(wad2s) <- rownames(wad2s)
+
+wad2s_d <- as.dist(wad2s)
+
+mds <- cmdscale(wad2s_d)
+as.data.frame(mds) %>% 
+  rownames_to_column("sample_id") %>% 
+  left_join(samples) %>% 
+  ggplot(aes(x=V1,y=V2)) + geom_point(aes(color=location)) 
 ```
 

@@ -11,72 +11,40 @@ library(tidyverse)
 library(ggpubr)
 ```
 
-Since selection analyses identified a large number of loci with strong signatures of selection, especially in the inshore population, it is possible that our estimates of population structure and divergence have been distorted by these effects.  
-
-
-```{r, exec=FALSE, include=FALSE}
-# Run this code block to generate tsv files with sites under selection from PCAngsd (zscore) and PBS
-#
-zscores <- npyLoad("data/hpc/pcangsd/wa.pcadapt.zscores.npy")
-
-sites_binary <- read_tsv("data/hpc/pcangsd/wa.sites",col_names = c("included"))
-
-d2 <- dist_ogk(zscores)
-
-pvals <- pchisq(d2,df=2,lower.tail = F)
-
-coordinates <- read_tsv("data/hpc/pcangsd/wa.positions.txt",col_names = c("scaffold","pos"))
-pcangsd_pvals <- coordinates[sites_binary$included==1,] %>% 
-  mutate(p=pvals)
-
-pcangsd_exclude <- pcangsd_pvals %>% filter(p<0.01)
-write_tsv(pcangsd_exclude,"data/hpc/pcangsd/significant_zscore.tsv")
-
-
-if ( !file.exists("cache/pbs.rds") || !file.exists("cache/pcadapt.rds")) {
-  stop("Unable to find cached results for PBS and PCAdapt statistics. Run 12.pcangsd_selection and 13.popgen_stats_angsd first")
-}
-pbs_data <- read_rds("cache/pbs.rds")
-
-# Top 1% of PBS values
-pbs_data %>% 
-  filter(ntile(PBS,100)==100) %>% 
-  separate(old_pos,into=c("old_scaff","old_pos"),sep=":") %>% 
-  select(scaffold=old_scaff,position=old_pos,PBS) %>% 
-  write_tsv("data/hpc/pcangsd/significant_pbs.tsv")
-```
-
 ```{r}
-# Read sample information and construct a sample table
-
 samples <- read_tsv("data/hpc/pcangsd/samples.txt",col_names = c("sample_id","location","mapping_rate","mean_mapping_depth","genome_cov"))
 
-sample_table_wa <- read_tsv("data/hpc/pcangsd/wa_bam.txt",col_names = "filename") %>%
+sample_table <- read_tsv("data/hpc/pcangsd/all_bam.txt",col_names = "filename") %>%
+  mutate(country=str_match(filename,pattern = "/fast/shared/Acropora_digitifera_wgs_bamfile/([A-Z]+)/")[,2]) %>% 
   mutate(sample = str_match(filename,pattern = "/fast/shared/Acropora_digitifera_wgs_bamfile/[A-Z]+/(.*)_aligned")[,2]) %>% 
   mutate(sample = str_replace(sample,"_merged","")) %>% 
     mutate(sample_id = str_replace(sample,"_L004","")) %>% 
     mutate(sample_id = str_replace(sample_id,"_S[0-9]+$","")) %>% 
   left_join(samples) %>% 
+  mutate(location = ifelse(is.na(location),"Japan",location)) %>% 
   rownames_to_column("number")
 ```
 
+
+Since selection analyses identified a large number of loci with strong signatures of selection, especially in the inshore population, it is possible that our estimates of population structure and divergence have been distorted by these effects.  
+
 ```{r}
-covmat_wa_neutral_thin <- read_table2("data/hpc/pcangsd/wa_neutral_thinned.cov",col_names = FALSE) %>% 
+covmat_all_uces <- read_table2("data/hpc/pcangsd/all_uces.cov",col_names = FALSE) %>% 
   as.matrix()
 
-pop_eigen_wa_neutral_thin <- eigen(covmat_wa_neutral_thin)
-eigenvalues_wa_neutral_thin <- round(pop_eigen_wa_neutral_thin$values,1)
+pop_eigen_uces <- eigen(covmat_all_uces)
+eigenvalues_uces <- round(pop_eigen_uces$values,1)
 
-pop_pca_wa_neutral_thin <- data.frame(e1=pop_eigen_wa_neutral_thin$vectors[,1],e2=pop_eigen_wa_neutral_thin$vectors[,2]) %>% cbind(sample_table_wa)
+pop_pca_uces <- data.frame(e1=pop_eigen_uces$vectors[,1],e2=pop_eigen_uces$vectors[,2]) %>% cbind(sample_table)
 
 pclabel <- function(pcnum,eigenvalues){
   paste("PC",pcnum," (",eigenvalues[pcnum],"%)",sep = "")
 }
 
-ggplot(pop_pca_wa_neutral_thin ,aes(x=e1,y=e2)) + 
+ggplot(pop_pca_uces ,aes(x=e1,y=e2)) + 
   geom_point(aes(color=location),size=1) + 
-  theme_pubr() + xlab(pclabel(1,eigenvalues_wa_neutral_thin)) + 
-  ylab(pclabel(2,eigenvalues_wa_neutral_thin)) + 
+  theme_pubr() + xlab(pclabel(1,eigenvalues_uces)) + 
+  ylab(pclabel(2,eigenvalues_uces)) + 
   theme(legend.title = element_blank())
 ```
 
@@ -86,12 +54,13 @@ library(ggtree)
 library(treeio)
 library(ape)
 
-t <- read.tree("data/hpc/pcangsd/wa_neutral_thinned.tree")
+t <- read.tree("data/hpc/pcangsd/all_uces.tree")
 
 tr <- root(t,node=133)
 
-ggtree(tr) %<+% sample_table_wa + 
+ggtree(tr) %<+% sample_table + 
   geom_tippoint(aes(color=location)) +
+  geom_tiplab(aes(label=sample)) +
 #  geom_nodelab(aes(label=node)) +
   theme(legend.title = element_blank())
 ```
