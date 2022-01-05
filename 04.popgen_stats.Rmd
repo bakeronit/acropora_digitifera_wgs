@@ -6,6 +6,7 @@ output: github_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(tidyverse)
+library(ggpubr)
 ```
 
 ### Number of unique SNPs in populations
@@ -21,6 +22,77 @@ bcftools view -S ^{pop}.txt Adigi.v2.filtered.vcf.gz | bcftools filter -i 'AC=0 
 |Offshore North|     20      |  1,424,388   |
 |Offshore South|     25      |  1,510,524   |
 | Total        |     75      |  9,656,554   |
+
+### Number of privately fixed SNPs 
+Here our objective was to count SNPs with a very high allele frequency (fixed or nearly fixed) in one population, but absent in both other populations. For this we first used PLINK to create separate allele frequency summaries for each population as follows;
+
+```bash
+plink2 --vcf Adigi.v2.filtered.vcf.gz --allow-extra-chr --freq 'cols=chrom,pos,ref,alt,altfreq'  --pheno populations.txt --loop-cats 'site' 
+```
+
+where the file `populations.txt` has a format like;
+
+```bash
+#IID  site
+AI_1_001_S102_L004 IN
+AI_1_008_merged IN
+AI_1_021_S97_L004 IN
+```
+
+This generates an `afreq` file for each population with the allele frequencies at each SNP.  We used `paste` to combine these three files and then an awk script [priv.awk](data/hpc/private_alleles/priv.awk).  
+
+```bash
+paste plink2.IN.afreq plink2.NO.afreq plink2.SO.afreq | awk '{print $1,$2,$4,$5,$6,$12,$18}' | awk -v mv=1.0 -f priv.awk > 1.0.priv
+paste plink2.IN.afreq plink2.NO.afreq plink2.SO.afreq | awk '{print $1,$2,$4,$5,$6,$12,$18}' | awk -v mv=0.9 -f priv.awk > 0.9.priv
+```
+
+Note that the awk script accepts an argument `mv` that determines the threshold allele frequency for "fixation".  The script always requires that the allele be absent (freq=0) in the other populations.
+
+When the threshold is set at complete fixation just a single SNP is identified at `BLFC01000154.1 282919` which is fixed in Inshore and absent elsewhere.  This SNP is surrounded by other SNPs with very high (but not quite fixed) frequencies and is located within a gene `adig_s0150.g21` that has a blast hit to Peroxidasin and is on one of our identified putative selective sweeps. See [17.dating_the_selection](17.dating_the_selection.md) for the estimated age of this sweep.
+
+If the threshold is set lower to 0.9 far more SNPs (95) are identified but all are in the inshore population and all are concentrated in just four loci. Two of these fall within putative sweeps and two fall just outside them within 50kb. 
+
+### Observed and expected heterozygosity
+We used plink2 to calculate heterozygosity per sample as
+
+```bash
+plink2 --vcf Adigi.v2.filtered.vcf.gz --allow-extra-chr --het
+```
+
+```{r}
+het_data <- read_tsv("data/hpc/popgen/plink2.het") %>% 
+  rename(sample=`#IID`) %>% 
+  filter(sample!="BR_5_121_S125_L004") %>% 
+  mutate(location= case_when(
+      grepl("^AI",sample) ~ "Inshore",
+      grepl("^BR",sample) ~ "Inshore",
+      grepl("^AR",sample) ~ "North Offshore",
+      grepl("^RS",sample) ~ "South Offshore"
+          )) %>% 
+  mutate(Ho= (OBS_CT-`O(HOM)`)/OBS_CT )  %>% 
+  mutate(He= (OBS_CT-`E(HOM)`)/OBS_CT ) %>% 
+  pivot_longer(cols = c(F,Ho,He), names_to = "stat", values_to = "value")
+```
+
+
+```{r}
+source("scripts/color_scheme.R")
+
+het_data %>% 
+  filter(stat=="F") %>% 
+  ggplot(aes(x=location,y=value)) + 
+  geom_boxplot(aes(color=location),alpha=0.5) + 
+  geom_point(aes(x=location,color=location), position = position_jitter(w=0.1,h=0)) + 
+  theme_pubr() + 
+  theme(legend.position = "none", text = element_text(size=8)) + #, axis.text.x = element_blank()) +
+  scale_color_manual(values = myCol) + 
+  xlab("") + ylab("Inbreeding coeffient, F")
+```
+
+
+```{r}
+ggsave("figures/inbreeding.png",width = 3,height = 3)
+```
 
 
 ### Pairwise Fst values
