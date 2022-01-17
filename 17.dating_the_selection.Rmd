@@ -326,7 +326,7 @@ bash 03_run_tmrca.sh
 
 # Results
 
-Preliminary results are show below for all loci passing QC.  The dates shown are based on an assumption that the recombination rate equals the mutation rate.  A range is given by showing the sampling of the posterior distribution in the last 1000 MCMC steps. A better estimate should be obtained by running multiple chains to ensure convergence and making parameter estimates from converged chains only.
+Preliminary results are shown below for all loci passing QC.  The dates shown are based on a mutation rate of 1.2e-8 and a recombination rate of 3.2e-8.  This mutation rate is the same as used in other analyses (SMC++, fastSimCoal) and the recombination rate is based on a linkage map for *Acropora millepora* published by Dixon et al [@Dixon2015-x] which had a length of 1358 centimorgans (cM). Assuming a genome size of 430mb for *A. millepora* this corresponds to a mean recombination rate of 3.16e-8 per base per generation, which we rounded to 3.2e-8. A range is given by showing the sampling of the posterior distribution in the last 1000 MCMC steps. 
 
 One of the main things that can be seen here is that relatively few loci pass the QC checks for use with startmrca.  This limits the analysis a little but we are able to see dating estimates for several loci involved in enriched go terms.  The broad pattern of timing is also interesting because it shows a peak in the number of loci dating to around 6kya which approximately matches the time when sea levels reached similar heights to what they are today.
 
@@ -358,7 +358,9 @@ tmrca_estimates <- tmrca_data %>%
   summarise(tmrca_mean = mean(V1), var = var(V1))
 
 # Annotate the regions table
-uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv")
+uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv") %>% 
+  mutate(go=go_ipr) %>% 
+  dplyr::select(-go_ipr)
 
 topgo_results_all <- read_rds("cache/topgo_results_all.rds")
 
@@ -369,26 +371,32 @@ sweep_regions_go <- sweep_regions %>%
   separate_rows(go,sep=";") %>% 
   mutate(go = str_trim(go))
 
-go_terms_signif <- list("hemidesmosome"=c("GO:0030056","GO:0031581"),
-                     "iron ion"=c("GO:0055072","GO:0006826"),
-                     "response to heat"="GO:0009408",
-                     "sperm"=c("GO:0061827","GO:0097225"),
-                     "fatty acid transporter activity"=c("GO:0005324","GO:0015245"),
-                     "ion transport"="GO:0006811",
-                     "histone methyltransferase"="GO:0042054",
-#                     "extracellular"=c("GO:0005615"),
-                     "acid-amino acid ligase activity"="GO:0016881",
-                     "peptide receptor activity"=c("GO:0001653","GO:0004383"),
-                     "4-beta-N-acetylglucosaminyltransferase"="GO:0008454",
-                     "cardiac septum development"="GO:0003279",
-                     "ion antiporter activity"="GO:0008273",
-                     "fgf"="GO:0005104",
-                     "transcription factor activity"="GO:0000981",
-#                     "membrane"="GO:0016021",
-                     "negative regulation of melanin biosynthesis"="GO:0048022",
-                     "symporter activity"="GO:0015293",
-                     "leukocyte chemotaxis"="GO:0030595",
-                     "regulation of nitric-oxide synthase"="GO:0050999")
+sweep_regions_go %>% write_tsv("cache/sweep_regions_go.tsv")
+
+genes_of_interest <- data.frame(name=c(
+  "DNAJ - Sacsin",
+  "DNAJ - HSP40",
+  "HSP70",
+  "HSP16",
+  "Peroxidasin"),
+  id=c(
+    "adig_s0061.g32",
+    "adig_s0038.g95",
+    "adig_s0017.g68",
+    "adig_s0120.g14",
+    "adig_s0150.g21"
+  )
+)
+
+sweep_regions_of_interest <- sweep_regions_go %>% 
+  left_join(genes_of_interest,by=c("genes"="id")) %>% 
+  filter(!is.na(name))
+
+go_terms_signif <- list("metal ion homeostasis"=c("GO:0006875","GO:0055076"),
+                        
+                     "GPCR activity"=c("GO:0004930", "GO:0007186"),
+#                     "ion transport"="GO:0006811",
+                     "transcription factor activity"=c("GO:0000981"))
             
 
 add_go_flags <- function(data,go_terms_signif){
@@ -411,7 +419,7 @@ pd <- tmrca_data %>%
   mutate(tmrca_mean = mean(V1*5)) %>% 
   ungroup() %>% 
   left_join(sweeps_gs4 %>% dplyr::select(locus=sweep_id,allele=manual_allele,note,qc_pass)) %>% 
-  add_go_flags(go_terms_signif)
+  add_go_flags(go_terms_signif) 
 
 pdgo <- pd %>% 
   filter(qc_pass==1) %>% 
@@ -419,18 +427,18 @@ pdgo <- pd %>%
   filter(value==TRUE) %>% 
   group_by(locus,go,pop) %>% 
   summarise(tmrca_mean = dplyr::first(tmrca_mean)) %>% 
-  ungroup() %>% 
-  filter(!((go=="iron ion") & (pop == "inshore"))) %>% 
-  filter(go!="ion antiporter activity") %>% 
-  filter(go!="symporter activity") %>% 
-  filter(!((go=="ion transport") & (pop=="inshore"))) %>% 
-  filter(go!="sperm") %>% 
-#  filter(go!="membrane") %>% 
-#  filter(go!="extracellular") %>% 
-#  filter(go!="transcription factor activity") %>% 
-  filter(!grepl("4-beta",go))  
+  ungroup() #%>% 
+#  filter(!((go=="iron ion") & (pop == "inshore"))) %>% 
+#  filter(!((go=="ion transport") & (pop=="inshore"))) 
 
-
+pd_gi <- pd %>% 
+  filter(qc_pass==1) %>%
+  left_join(sweep_regions_of_interest %>% dplyr::select(sweep_id,name),by=c("locus"="sweep_id")) %>% 
+  filter(!is.na(name)) %>% 
+  group_by(locus,name) %>% 
+  summarise(tmrca_mean = dplyr::first(tmrca_mean)) %>% 
+  ungroup()
+  
 pdmeans <- pd %>% 
     group_by(locus,pop) %>% 
   summarise(tmrca_mean = dplyr::first(tmrca_mean)) 
@@ -469,11 +477,19 @@ pd1 <- pd %>%
   ggplot(aes(x=t_years,y=reorder(locus_label,tmrca_mean))) + 
 #  ggplot(aes(x=t_years,y=reorder(locus_label,tmrca_mean))) + 
   geom_violin(aes(fill=pop,color=pop)) + 
-  geom_label_repel(data= pdgo %>% mutate(locus_label = as.character(dated_loci[locus])),
-                   aes(x=tmrca_mean,y=locus_label,label=go,fill=pop), 
-                   direction = "both",nudge_x = 5000, xlim=c(8000,NA), 
+  # geom_label_repel(data= pdgo %>% mutate(locus_label = as.character(dated_loci[locus])),
+  #                  aes(x=tmrca_mean,y=locus_label,label=go), 
+  #                  direction = "both",nudge_x = 5000, xlim=c(8000,NA), 
+  #                  force=10, size = 2,max.overlaps = 1000,
+  #                  label.padding = 0.15, label.size = 0.5,segment.size=0.3, segment.alpha = 1) +
+  
+  geom_label_repel(data= pd_gi %>% 
+                     mutate(locus_label = as.character(dated_loci[locus])),
+                   aes(x=tmrca_mean,y=locus_label,label=name),
+                   direction = "both",nudge_x = 5000, xlim=c(8000,NA),
                    force=10, size = 2,max.overlaps = 1000,
                    label.padding = 0.15, label.size = 0.5,segment.size=0.3, segment.alpha = 1) +
+  
   ylab("Sweep Locus") + xlab("TMRCA / Years since present") +
   scale_fill_manual(values=myCol,labels=c("Inshore","North Offshore","South Offshore")) +
   scale_color_manual(values=myCol) +  
@@ -605,9 +621,10 @@ ggsave(phaps,filename = "figures/haplengths.png",width = 2,height = 3.5)
 ptimeline <- p1
 
 
-plot_row <- plot_grid(phaps,
+plot_row <- plot_grid(
                       ptimeline,
-                      rel_widths = c(0.2,0.8),align = "h",axis = "b")
+                      phaps,
+                      rel_widths = c(0.7,0.3),align = "h",axis = "b")
 
 legend_b <- get_legend(
   pd1 + 

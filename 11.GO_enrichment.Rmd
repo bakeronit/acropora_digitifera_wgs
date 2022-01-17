@@ -18,11 +18,14 @@ library(ape)
 library(GO.db)
 library(ggtree)
 library(ggstance)
+library(cowplot)
 ```
 
 
 ```{r}
-uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv")
+uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv") %>% 
+  mutate(go=go_ipr) %>% 
+  dplyr::select(-go_ipr)
 
 candidate_regions_table <- read_rds("cache/candidate_regions_genes_ehh.rds")
 
@@ -79,7 +82,7 @@ go_enrich_topgo <- function(targets,onto) {
                   annot=annFUN.gene2GO,
                   gene2GO=gene2go,
                   ontology=onto,
-                  nodeSize=5)
+                  nodeSize=10)
     
     resultFisher <- runTest(GOdata, 
                         algorithm = "weight01",
@@ -88,7 +91,7 @@ go_enrich_topgo <- function(targets,onto) {
     gt <- GenTable(GOdata,classic=resultFisher,
                    WeightFisher=resultFisher,
                    orderBy = "WeightFisher",
-                   topNodes=1000)
+                   topNodes=150)
     list(godata= GOdata, result=resultFisher, table=gt)
 }
 
@@ -139,9 +142,15 @@ if ( !file.exists("cache/topgo_results_all.rds") ){
   southoffshore_topgo <- go_enrich_all_ontologies(candidate_genes_table,"southoffshore") %>% add_column(pop="southoffshore")
 
   topgo_results_all <- rbind(inshore_topgo,northoffshore_topgo,southoffshore_topgo)
-  write_rds(topgo_results_all_gene,"cache/topgo_results_all.rds")
-  write_tsv(topgo_results_all_gene,"cache/topgo_results_all.tsv") # This table should be in Supp Info
-} else {
+  write_rds(topgo_results_all,"cache/topgo_results_all.rds")
+  write_tsv(topgo_results_all,"cache/topgo_results_all.tsv") # This table should be in Supp Info
+
+  # dated_loci <- read_rds("cache/dated_loci.rds")
+  # dated_inshore_topgo <- candidate_genes_table %>% unite("locus_id",chr,start,end,remove=FALSE) %>% filter(locus_id %in% names(dated_loci)) %>% go_enrich_all_ontologies("inshore")
+  # dated_northoffshore_topgo <- candidate_genes_table %>% unite("locus_id",chr,start,end,remove=FALSE) %>% filter(locus_id %in% names(dated_loci)) %>% go_enrich_all_ontologies("northoffshore")  
+  # dated_southoffshore_topgo <- candidate_genes_table %>% unite("locus_id",chr,start,end,remove=FALSE) %>% filter(locus_id %in% names(dated_loci)) %>% go_enrich_all_ontologies("southoffshore")
+
+  } else {
   topgo_results_all <- read_rds("cache/topgo_results_all.rds")
 }
 ```
@@ -256,18 +265,17 @@ bar_go <- topgo_results_all %>%
   pull(GO.ID) %>% 
   unique()
 
-pg_go <- topgo_results_all %>% 
+pg_go1 <- topgo_results_all %>% 
   filter(GO.ID %in% bar_go) %>% 
   mutate(n_regions = map2_int(GO.ID,pop,n_regions_per_term),
          n_region_bg = map_int(GO.ID,n_regions_bg_per_term),
          n_region_expected = number_of_sig_regions[pop]*n_region_bg/total_bg_regions) %>% 
   mutate(p.region = pmap_dbl(list(total_bg_regions,number_of_sig_regions[pop],n_region_bg,n_regions),enrich_test)) 
 
-
-pg_go <- pg_go %>% 
+pg_go <- pg_go1 %>% 
   pivot_wider(id_cols = c("GO.ID","ontology"), names_from = pop,values_from = p.region,values_fill = NA) %>% 
   pivot_longer(c(inshore,northoffshore,southoffshore),names_to = "pop", values_to = "p.region") %>% 
-  left_join(pg_go) %>% 
+  left_join(pg_go1) %>% 
   rowwise() %>% 
   mutate(Significant = ifelse(is.na(Significant), n_genes_per_term(GO.ID,pop),Significant )) %>% 
   mutate(n_regions = ifelse(is.na(n_regions), n_regions_per_term(GO.ID,pop),n_regions)) %>% 
@@ -280,23 +288,23 @@ pg_go <- pg_go %>%
 pop_names <- c("inshore"="Inshore","northoffshore"="North Offshore","southoffshore"="South Offshore")
 
 library(colorspace)
-hclcols <- qualitative_hcl(3,palette = "Dark 3",c=0)
+hclcols <- sequential_hcl(3,palette = "ag_Sunset")
 
 barplot <- pg_go %>% 
   mutate(pop_names=pop_names[pop]) %>% 
   mutate(text_label = paste(Significant,"/",n_regions,sep = "")) %>% 
-  mutate(is_enriched = ifelse(p.region<0.001, 1, 0.9)) %>% 
-  ggplot(aes(x=-log10(p.region),y=GO.ID,fill=ontology)) + 
-  geom_col(aes(alpha = is_enriched)) +
+  mutate(is_enriched = ifelse(p.region<0.001, 1, 0.3)) %>% 
+  ggplot(aes(x=-log10(classic),y=GO.ID,fill=ontology)) + 
+  geom_col(aes(alpha=is_enriched)) +
 #  ggstance::geom_colh(aes(alpha=is_enriched)) +
-  scale_fill_grey() +
-#  scale_fill_manual(values = hclcols,labels = c("Biological process", "Cellular component", "Molecular function")) +
+#  scale_fill_grey() +
+  scale_fill_manual(values = hclcols,labels = c("Biological process", "Cellular component", "Molecular function")) +
   geom_text(aes(label=text_label), hjust=-0.1,size=2) +
   theme_bw() + 
   guides(alpha="none") +
   labs(x=expression(-Log[10](P)),y="",fill="") +
   theme(panel.grid = element_blank(),
-#        legend.position = "none",
+        legend.position = "bottom",
         legend.text = element_text(),
         axis.text.y = element_blank(),
         axis.text.x = element_text(size=6),
@@ -305,7 +313,7 @@ barplot <- pg_go %>%
         strip.background = element_blank()) + 
   ylab("") + 
   facet_wrap(~pop_names) +
-  xlim(0,45)
+  xlim(0,15)
 
 leg_b <- get_legend(barplot)
 
@@ -336,7 +344,7 @@ geom_tiplab(aes(label = term_label),align = TRUE, size=2) +
 bpt <- (barplot + theme(legend.position = "none")) %>% insert_left(tree, width = 1.2)
 ggsave(bpt,filename = "figures/go_enrichment_wide.png",height = 3,width = 6.75)
 leg_b <- ggdraw(leg_b)
-ggsave(leg_b,filename = "figures/go_legend.png",width = 3,height = 1)
+ggsave(leg_b,filename = "figures/go_legend.png",width = 6.75,height = 1)
 
 
 # plot_grid(bpt, leg_b, ncol=1, rel_heights =c(.9, .1))

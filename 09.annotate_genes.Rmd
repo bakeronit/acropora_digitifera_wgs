@@ -38,15 +38,28 @@ python iprscan5.py --multifasta protein.fa \
 # We extract GO term assignments from Interproscan results.
 ipr_colnames <- c("adi_id","md5","seqlen","analysis","signature_acc","signature_desc","start","stop","score","status","date","ipr_acc","ipr_ann","ipr_go", "pathways")
 
-interpro <- read_tsv("data/hpc/annotation/adig_iprscan_withgo.tsv", guess_max = 10000, col_names = ipr_colnames, show_col_types = FALSE) %>% 
-  dplyr::select(adi_id,ipr_go)
+# interpro <- read_tsv("data/hpc/annotation/adig_iprscan_withgo.tsv", guess_max = 10000, col_names = ipr_colnames, show_col_types = FALSE) %>% 
+#   dplyr::select(adi_id,ipr_go)
 
-interpro_go <- interpro %>% 
+interpro2 <- read_tsv("data/hpc/annotation/all_ipr.tsv", guess_max = 10000, col_names = ipr_colnames, show_col_types = FALSE) %>% 
+  dplyr::select(adi_id,ipr_go) %>% 
+  filter(ipr_go!="-") %>% 
+  na.omit()
+
+# interpro_go <- interpro %>% 
+#   separate_rows(ipr_go,sep="\\|") %>% 
+#   mutate(geneid=str_remove(adi_id,"\\.t\\d")) %>% 
+#   unique %>% 
+#   group_by(geneid) %>% 
+#   summarise(go=paste(ipr_go,collapse = "; "))
+
+interpro_go <- interpro2 %>% 
   separate_rows(ipr_go,sep="\\|") %>% 
   mutate(geneid=str_remove(adi_id,"\\.t\\d")) %>% 
   unique %>% 
   group_by(geneid) %>% 
   summarise(go=paste(ipr_go,collapse = "; "))
+
 ```
 
 # Homology search with BLAST
@@ -87,8 +100,8 @@ write_tsv(uniprot_gene_annot, "data/hpc/annotation/uniprot_gene_annot.tsv")
 ```{r annotation-res-stats-table}
 all <- read_tsv("data/hpc/annotation/allgenes_ids_extracted_from_gff.txt",col_names = "geneid")
 all_annot<- all %>% left_join(interpro_go) %>% 
-  left_join(uniprot_gene_annot %>% select(geneid,go),by="geneid") %>% 
-  rename("InterProScan"=go.x,"Uniprot(blast)"=go.y) 
+  left_join(uniprot_gene_annot %>% dplyr::select(geneid,go),by="geneid") %>% 
+  dplyr::rename("InterProScan"=go.x,"Uniprot(blast)"=go.y) 
 
-map_df(all_annot %>% select(InterProScan,`Uniprot(blast)`), ~sum(!is.na(.))/nrow(all_annot)) %>% knitr::kable(caption = "The proportion of genes with GO term annotation")
+map_df(all_annot %>% dplyr::select(InterProScan,`Uniprot(blast)`), ~sum(!is.na(.))/nrow(all_annot)) %>% knitr::kable(caption = "The proportion of genes with GO term annotation")
 ```

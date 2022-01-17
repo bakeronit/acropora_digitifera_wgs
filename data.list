@@ -1,5 +1,9 @@
 # Data listing for medium sized (<50Mb) data files
 
+# Kraken profiling
+
+data/hpc/symbiodinium_profiles/genome_kraken_mpa/
+
 # Radseq Checks
 
 data/hpc/radseq_data/out.relatedness2

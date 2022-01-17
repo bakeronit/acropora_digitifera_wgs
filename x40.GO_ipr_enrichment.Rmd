@@ -199,7 +199,7 @@ bar_go <- topgo_results_all %>%
   mutate(n_regions = map2_int(GO.ID,pop,n_regions_per_term)) %>% 
   group_by(GO.ID) %>% 
   summarise(max_regions = max(n_regions)) %>% 
-  filter(max_regions>2) %>% 
+  filter(max_regions>=2) %>% 
   pull(GO.ID) %>% 
   unique()
 

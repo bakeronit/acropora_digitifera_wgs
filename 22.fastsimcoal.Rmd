@@ -3,12 +3,15 @@ title: "Demography with FSC"
 output: github_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message=FALSE,warning = FALSE)
+library(tidyverse)
+library(ggpubr)
 ```
 
-```{r}
-library(tidyverse)
+FastSimCoal can fit a demographic model to SFS data and it can also be used to simulate data under a demographic model.  In our model selection process with FSC we determined the best model and obtained bootstrap estimates for its parameters.  These were then used as priors to simulate data under the model.  An advantage of this is that it allows us to calculate many summary statistics other than just the SFS from the data, and determine whether these match or deviate from our real data. 
+
+```{r, eval=FALSE}
 
 read_lik <- function(path){
   model <- basename(path) %>% str_replace(".param","")
@@ -17,7 +20,7 @@ read_lik <- function(path){
     dplyr::select(model,ends_with("hood"))
 }
 
-lik_data <- list.files("data/hpc/temp_files/fastsimcoal","*.param",recursive = TRUE,full.names = TRUE) %>% 
+lik_data <- list.files("data/hpc/fastsimcoal/final",".*growth.*ALL.param",recursive = TRUE,full.names = TRUE) %>% 
   map_dfr(read_lik)
 
 lik_data %>% 
@@ -27,24 +30,158 @@ ggsave("figures/fsc_liks.png",width = 10)
 ```
 
 ```{r}
-split_in_params <- read_tsv("data/hpc/temp_files/fastsimcoal/split_IN/split_IN_ALL.param", show_col_types = FALSE) %>% 
-  slice_max(MaxEstLhood,n=10) %>% 
+best_params <- read_tsv("data/hpc/fastsimcoal/final/3.growth_rate_SC_ALL.param", show_col_types = FALSE) %>% 
+  slice_max(MaxEstLhood,n=5) %>% 
   pivot_longer(-c(MaxEstLhood,File),names_to = "param",values_to = "value") 
 
 
-split_in_params %>% 
-  filter(grepl(param,pattern = "DIV")) %>% 
+plot_params <- best_params %>% 
+  mutate(paramgroup = case_when(
+    grepl(param,pattern = "^T") ~ "Time",
+    grepl(param,pattern = "^[A]?N") ~ "Ne",
+    grepl(param,pattern = "^MI") ~ "Migration"
+#    grepl(param,pattern = "^R") ~ "Growth Rate",
+      )) %>% 
+  filter(!is.na(paramgroup)) 
+
+
+migtime_plot <- plot_params %>% 
+  filter(paramgroup %in% c("Time","Migration","Growth Rate")) %>% 
   ggplot(aes(x=param,y=value)) +
-    geom_jitter(aes(color=MaxEstLhood))
+    geom_violin() + 
+  geom_jitter(aes(color=MaxEstLhood)) +
+    facet_wrap(~paramgroup, scales = "free", nrow = 1) + 
+  ylab("") + xlab("") 
+
+ne_plot <- plot_params %>% 
+  filter(paramgroup %in% c("Ne")) %>% 
+  ggplot(aes(x=param,y=value)) +
+    geom_violin() + 
+  geom_jitter(aes(color=MaxEstLhood)) +
+    facet_wrap(~paramgroup, scales = "free", nrow = 1) + 
+  ylab("") + xlab("") 
 ```
 
 
 ```{r}
-split_in_params %>% 
-  filter(grepl(param,pattern = "N")) %>% 
-  filter(param!="ANCSIZE") %>% 
-  ggplot(aes(x=param,y=value)) +
-    geom_jitter(aes(color=MaxEstLhood))
+library(cowplot)
+
+plot_grid(migtime_plot,ne_plot, nrow = 2)
 
 ```
+Summarise best parameters in a table for ease of translation to a FSC input file
+
+```{r}
+best_params %>% 
+  group_by(param) %>% 
+  summarise(av=mean(value),lb=min(value),ub=max(value))
+```
+
+Using these parameters as priors we then run FSC to generate data as follows;
+
+```bash
+../fsc27_linux64/fsc2702 -t 3.out.growth_rate_SC.tpl -n 1 -e 3.out.growth_rate_SC.est  -E 10 -G x -c 0
+```
+
+Where the file [3.out.growth_rate_SC.tpl](data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC.tpl) and specifies that the simulation should generate 100 independent chromosomes of length 2mb using a recombination rate of 3.2e-8 and mutation rate of 1.2e-8.  The outputs can be converted to vcf using the awk script [gen2vcf](data/hpc/fastsimcoal/gen2vcf.awk). 
+
+
+## Calculations based on simulated data
+
+Long runs of homozygosity were calculated using ibdseq in the same way as for real data .. ie as in [06.ibd_hbd](06.ibd_hbd.md)
+
+```{r}
+read_hbd <- function(path){
+  name_parts <- basename(path) %>% str_match(pattern = "([0-9]+)_1.([0-9]+)")
+  rep <- name_parts[1,2]
+  chr <- name_parts[1,3]
+  
+  raw <- read_tsv(path,col_names = c("s1","h1","s2","h2","chr","start","end","LOD")) 
+  if ( nrow(raw)>0){
+    raw <- raw %>% 
+    add_column(rep=rep) %>% 
+    extract(s1,into="loc",regex="([A-Z]+)",remove = FALSE) %>% 
+    mutate(roh_len = (end-start)/1e6)
+  } else 
+  {
+    raw <- NULL
+  }
+  raw
+}
+
+
+hbd_data <- list.files("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/ibdseq/","*.hbd",full.names = TRUE) %>% 
+  map_dfr(read_hbd)
+
+#hbd_data %>% ggplot(aes(x=loc,y=roh_len)) + geom_violin(aes(fill=loc,color=loc))
+
+source("scripts/color_scheme.R")
+
+hbd_data %>% 
+  group_by(s1,loc,rep) %>% 
+  summarise(hbd_len = sum(roh_len)) %>% 
+  ungroup() %>% 
+  group_by(rep,loc) %>% 
+  summarise(hbd_len=mean(hbd_len*(309/200))) %>% 
+  ggplot(aes(x=loc,y=hbd_len)) + 
+    geom_boxplot(aes(color=loc),alpha=0.5) +
+    geom_point(aes(x=loc,color=loc), position = position_jitter(w=0.1,h=0)) + 
+  xlab("") + ylab("Runs of Homozygosity: Total (Mb)") +
+  theme_pubr() +
+  theme(legend.position = "none", text = element_text(size=8), axis.text.x = element_blank()) +
+  scale_color_manual(values = myCol)
+
+ggsave("figures/hbd_simulated.png",width = 3,height = 3)
+```
+
+
+PLINK was used to calculate heterozygosity statistics just as in [04.popgen_stats](04.popgen_stats.md)
+
+```{r}
+read_het <- function(path){
+  name_parts <- basename(path) %>% str_match(pattern = "([0-9]+)_1")
+  rep <- name_parts[1,2]
+  read_tsv(path) %>% 
+    rename(sample=`#IID`) %>% 
+    extract(sample,into="location",regex="([A-Z]+)",remove = FALSE) %>% 
+    mutate(Ho= (OBS_CT-`O(HOM)`)/OBS_CT )  %>% 
+    mutate(He= (OBS_CT-`E(HOM)`)/OBS_CT ) %>% 
+    pivot_longer(cols = c(F,Ho,He), names_to = "stat", values_to = "value") %>% 
+    add_column(rep=rep)
+}
+
+
+
+het_data <- list.files("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/plink2/","*.het",full.names = TRUE) %>% 
+  map_dfr(read_het)
+
+het_data %>% 
+  group_by(rep,location,stat) %>% 
+  summarise(value=mean(value)) %>% 
+  ggplot(aes(x=location)) + 
+  geom_boxplot(aes(y=value, color=stat))
+```
+
+
+
+And `vk tajima` was used to calculate Tajima's D in sliding windows as in [04.popgen_stats](04.popgen_stats.md)
+
+```{r}
+read_td <- function(path){
+  name_parts <- basename(path) %>% str_match(pattern = "([0-9]+)_1.gen.vcf.gz_([A-Z]+)")
+  rep <- name_parts[1,2]
+  loc <- name_parts[1,3]
+  
+  read_tsv(path,col_names = c("contig","start","end","tajima")) %>% 
+    add_column(rep=rep) %>% 
+    add_column(loc=loc)
+}
+
+td_data <- list.files("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/","*.td",full.names = TRUE) %>% 
+  map_dfr(read_td)
+
+ggplot(td_data,aes(x=loc,y=tajima)) + 
+  geom_violin()
+```
+
 
