@@ -130,6 +130,8 @@ hbd_data %>%
   theme_pubr() +
   theme(legend.position = "none", text = element_text(size=8), axis.text.x = element_blank()) +
   scale_color_manual(values = myCol)
+
+ggsave("figures/hbd_simulated.png",width = 3,height = 3)
 ```
 
 

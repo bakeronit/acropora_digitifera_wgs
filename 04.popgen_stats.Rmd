@@ -64,10 +64,10 @@ het_data <- read_tsv("data/hpc/popgen/plink2.het") %>%
   rename(sample=`#IID`) %>% 
   filter(sample!="BR_5_121_S125_L004") %>% 
   mutate(location= case_when(
-      grepl("^AI",sample) ~ "Inshore",
-      grepl("^BR",sample) ~ "Inshore",
-      grepl("^AR",sample) ~ "North Offshore",
-      grepl("^RS",sample) ~ "South Offshore"
+      grepl("^AI",sample) ~ "IN",
+      grepl("^BR",sample) ~ "IN",
+      grepl("^AR",sample) ~ "NO",
+      grepl("^RS",sample) ~ "SO"
           )) %>% 
   mutate(Ho= (OBS_CT-`O(HOM)`)/OBS_CT )  %>% 
   mutate(He= (OBS_CT-`E(HOM)`)/OBS_CT ) %>% 
@@ -84,7 +84,7 @@ het_data %>%
   geom_boxplot(aes(color=location),alpha=0.5) + 
   geom_point(aes(x=location,color=location), position = position_jitter(w=0.1,h=0)) + 
   theme_pubr() + 
-  theme(legend.position = "none", text = element_text(size=8)) + #, axis.text.x = element_blank()) +
+  theme(legend.position = "none", text = element_text(size=12) , axis.text.x = element_text(size=12)) +
   scale_color_manual(values = myCol) + 
   xlab("") + ylab("Inbreeding coeffient, F")
 ```
