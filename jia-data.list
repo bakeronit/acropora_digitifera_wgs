@@ -1,0 +1,15 @@
+
+# fastsimcoal fitting
+
+data/hpc/demography/fastsimcoal/bootstrap_param.txt
+data/hpc/demography/fastsimcoal/divergence/split_IN_ALL.param
+data/hpc/demography/fastsimcoal/divergence/split_NO_ALL.param
+data/hpc/demography/fastsimcoal/divergence/split_SO_ALL.param
+data/hpc/demography/fastsimcoal/divergence/split_poly_ALL.param
+data/hpc/demography/fastsimcoal/final/0.growth_rate_SI_fixed.param
+data/hpc/demography/fastsimcoal/final/1.growth_rate_IM_fixed.param
+data/hpc/demography/fastsimcoal/final/3.growth_rate_SC_fixed.param
+data/hpc/demography/fastsimcoal/final/4.growth_rate_SC2_fixed.param
+data/hpc/demography/fastsimcoal/final/6.growth_rate_AM2_fixed.param
+data/hpc/demography/fastsimcoal/final/7.growth_rate_AM_fixed.param
+data/hpc/demography/fastsimcoal/n_parameters.txt
