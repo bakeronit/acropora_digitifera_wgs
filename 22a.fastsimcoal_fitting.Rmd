@@ -1,5 +1,5 @@
 ---
-title: "fastsimcoal.Rmd"
+title: "Demography model fitting with fastsimcoal"
 output: github_document
 ---
 
@@ -132,7 +132,7 @@ bs_df %>% filter(param %in% c("TDIV1","TDIV2")) %>%
 **Estimated population sizes**
 
 ```{r}
-bs_df %>% filter(grepl(param, pattern = "^N")) %>% 
+bs_df %>% filter(grepl(param, pattern = "^NA")) %>% 
   ggplot(aes(x=param, y= value)) + geom_boxplot()
 ```
 
