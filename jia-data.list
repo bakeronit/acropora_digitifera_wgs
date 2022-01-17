@@ -13,3 +13,17 @@ data/hpc/demography/fastsimcoal/final/4.growth_rate_SC2_fixed.param
 data/hpc/demography/fastsimcoal/final/6.growth_rate_AM2_fixed.param
 data/hpc/demography/fastsimcoal/final/7.growth_rate_AM_fixed.param
 data/hpc/demography/fastsimcoal/n_parameters.txt
+
+## final models
+data/hpc/demography/fastsimcoal/final/1.growth_rate_IM.est
+data/hpc/demography/fastsimcoal/final/3.growth_rate_SC.est
+data/hpc/demography/fastsimcoal/final/4.growth_rate_SC2.est
+data/hpc/demography/fastsimcoal/final/6.growth_rate_AM2.est
+data/hpc/demography/fastsimcoal/final/7.growth_rate_AM.est
+data/hpc/demography/fastsimcoal/final/1.growth_rate_IM.tpl
+data/hpc/demography/fastsimcoal/final/3.growth_rate_SC.tpl
+data/hpc/demography/fastsimcoal/final/4.growth_rate_SC2.tpl
+data/hpc/demography/fastsimcoal/final/6.growth_rate_AM2.tpl
+data/hpc/demography/fastsimcoal/final/7.growth_rate_AM.tpl
+
+
