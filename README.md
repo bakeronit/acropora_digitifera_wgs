@@ -33,7 +33,7 @@
 
 **Unwanted Rmd or not rendered Rmd**
 - [19.ldheatmap.Rmd](19.ldheatmap.Rmd): delete it?
-- [16.symbiont_profile.Rmd](16.symbiont_profile.Rmd): render it using the final results
+- [16.symbiont_profiles.Rmd](16.symbiont_profiles.Rmd): render it using the final results
 - [15.pcangsd_neutral.Rmd](15.pcangsd_neutral.Rmd)
 
 ### How to use this repository
