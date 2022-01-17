@@ -1,0 +1,109 @@
+---
+title: "Symbiont Profiles"
+output:
+  github_document:
+    pandoc_args: --webtex
+bibliography: bibliography.bib
+---
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8,
+                      echo=FALSE, warning=FALSE, message=FALSE)
+library(tidyverse)
+```
+
+The relative abundance of major clades (genera) of Symbiodiniaceae was profiled using [kraken](https://ccb.jhu.edu/software/kraken/) version 1.1.1 [@Wood2014-qp] to classify raw reads from each sample.  To ensure that this made full use of available reads and also that it was not affected by biased database composition we restricted our analysis to taxa for which a complete reference genome was available. This included the following data;
+
+- Clade A: *Symbiodinium microadriadicum* [from genbank](https://www.ncbi.nlm.nih.gov/assembly/GCA_001939145.1)
+- Clade B: *Breviolum sp.* [from OIST](https://marinegenomics.oist.jp/symb/download/symbB.v1.0.genome.fa.gz)
+- Clade C: (C1) *Cladocopium sp.* [from reefgenomics](http://symbs.reefgenomics.org/download/SymbC1.Genome.Scaffolds.fasta.gz)
+- Clade D: *Durusdinium sp.* [from OIST](https://marinegenomics.oist.jp/symbd/viewer/download?project_id=102)
+- Clade F: *Fugacium sp.* [from reefgenomics](http://symbs.reefgenomics.org/download/SymbF.Genome.Scaffolds.fasta.gz)
+
+These genomes were combined with the host *A. digitifera* genome as well the standard kraken bacterial sequences to build a kraken database (see [07_build_kraken.sh](data/hpc/symbiodinium_profiles/07_build_kraken.sh)) using default values for kmer length (31) and minimiser length (15).
+
+kraken was then used to classify all non host read pairs (paired reads not aligning to the host genome) for all samples and the raw outputs processed with `kraken-mpa-report`.  This produces a report in a format similar to MetaPhlAn's output (see [09_run_kraken_genome.sh](data/hpc/symbiodinium_profiles/09_run_kraken_genome.sh)). 
+
+```{r}
+genome_mpa31_files <- list.files("data/hpc/symbiodinium_profiles/genome_kraken_mpa/",pattern = "*.mpa",full.names = TRUE)
+
+read_mpa <- function(path){
+  s <- basename(path) %>% str_extract("[^\\.]+")
+  sample_group <- s %>% str_extract("[^\\-]+")
+  mpa_data <- read_tsv(path,col_names = c("taxonomy","read_count"),col_types = cols()) %>% 
+    add_column(sample=s) %>% 
+    mutate(sample_group= case_when(
+      grepl("^AI",sample) ~ "IN",
+      grepl("^BR",sample) ~ "IN",
+      grepl("^AR",sample) ~ "NO",
+      grepl("^RS",sample) ~ "SO",
+      grepl("^DR",sample) ~ "JP"
+          ))
+}
+
+genome_mpa31_data <- do.call(rbind,lapply(genome_mpa31_files,read_mpa)) %>% add_column(kmer="g31")
+
+mpa_data <- genome_mpa31_data 
+```
+
+
+```{r}
+group_order <- c("A"=1,"B"=2,"C"=3,"D"=4,"F"=5, 'Host'=8)
+loc_order <- c("IN"=1,"NO"=2,"SO"=3,"JP"=4)
+
+clade_names <- c("A"="Symbiodinium","B"="Breviolum","C"="Cladocopium","D"="Durusdinium","F"="Fugacium")
+
+symbiodinium_data <- mpa_data %>% 
+  filter(grepl(pattern = "f__Symbiodiniaceae",taxonomy) | 
+           grepl( pattern = "digitifera", taxonomy)) %>% 
+  mutate(clade = str_match(taxonomy,pattern = "clade_([ABCDF])")[,2]) %>% 
+  mutate(clade = ifelse(is.na(clade),"Host",clade)) %>% 
+  mutate(clade_order=group_order[clade]) %>% 
+  mutate(sample_group_order=loc_order[sample_group]) %>%   
+  mutate(clade_name = clade_names[clade]) %>% 
+  filter(clade!="Host")
+```
+
+
+```{r}
+# Plot by absolute read counts
+# 
+
+library(ggrepel)
+library(ggpubr)
+
+spg_plot <- ggplot(symbiodinium_data ,aes(x=clade_name,y=read_count/1e6)) + 
+  geom_boxplot(aes(color=clade_name)) + 
+  facet_wrap(~reorder(sample_group,sample_group_order),nrow = 1)  + theme_pubclean() +
+  ylab("Read Count (Millions)") + xlab("") +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+        legend.position = "none", legend.title = element_blank())
+```
+
+
+```{r}
+# Plot by read count proportions
+gp_symb_data <- symbiodinium_data %>% 
+  group_by(sample) %>% 
+  mutate(sample_total = sum(read_count)) %>% 
+  ungroup() %>% 
+  group_by(clade,sample) %>% 
+  mutate(proportion = sum(read_count)/sample_total)
+
+spg_plot_props <- ggplot(gp_symb_data ,aes(x=clade_name,y=proportion)) + 
+  geom_point(aes(color=clade_name), position = position_jitterdodge(jitter.height = 0.01, jitter.width = 0.8), size=0.5) +
+#  geom_point(data=DI11,aes(color=clade_name), size=2) +  
+#  geom_label_repel(data=DI11,aes(label=sample), nudge_x = 2, point.padding = 0.5, arrow = arrow(length = unit(0.2,"cm")), size=2.5) +
+  facet_wrap(~reorder(sample_group,sample_group_order),nrow = 1) + theme_pubclean() +
+    xlab("") + ylab("Read Proportion") + 
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(),
+        legend.position = "bottom", legend.title = element_blank())
+```
+
+Irrespective of whether absolute read counts or proportion of reads is used the dominant symbiont clade for all locations and all but one sample was *Cladocopium*. A single sample from Japan was dominated by *Durusdinium*.
+
+```{r}
+# Combine plots 
+library(cowplot)
+plot_grid(spg_plot,spg_plot_props, ncol = 1, align = "hv", axis = "lr", rel_heights = c(0.4,0.6))
+```

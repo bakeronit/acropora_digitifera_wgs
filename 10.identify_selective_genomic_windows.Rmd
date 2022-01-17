@@ -282,6 +282,7 @@ These annotated candidate windows form the basis for [Supplementary Table S9](ht
 
 ```{r}
 candidate_regions_genes_ehh %>% write_rds("cache/candidate_regions_genes_ehh.rds")
+candidate_regions_genes_ehh %>% mutate(chr=paste(chr,".1",sep="")) %>% write_tsv("data/hpc/ragtag/ehh_sweeps.tsv",col_names = FALSE)
 
 # Also write as a gff track
 
@@ -322,4 +323,22 @@ supp_table9 %>%
 ```
 
 
+
+```{r}
+candidate_regions_genes_ehh <-  read_rds("cache/candidate_regions_genes_ehh.rds")
+
+candidate_regions_genes_ehh %>% 
+  group_by(stats) %>% 
+  filter(n() > 10) %>% 
+  ggplot() + 
+  geom_boxplot(aes(x=pop,y=frac)) + 
+  geom_jitter(aes(x=pop,y=frac,color=pop),alpha=0.5) + 
+  facet_wrap(~stats) + coord_flip()
+```
+
+```{r}
+candidate_regions_genes_ehh %>% 
+  ggplot() + 
+  geom_density(aes(x=frac,color=pop))
+```
 

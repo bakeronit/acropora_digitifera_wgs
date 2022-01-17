@@ -107,6 +107,7 @@ def sup_update(in_file, agp_file, args):
                     print("\t".join(fields))
 
 
+
 def main():
     parser = argparse.ArgumentParser(description="Update gff intervals given a RagTag AGP file", usage="ragtag.py updategff [-c] <genes.gff> <ragtag.agp>")
 
@@ -134,7 +135,9 @@ def main():
     coord_file = os.path.abspath(args.coordinate_file)
     agp_file = os.path.abspath(args.agp)
 
+
     sup_update(coord_file, agp_file, args)
+
 
 
 #    log("Goodbye")

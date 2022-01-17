@@ -176,7 +176,6 @@ plot_grid(top_row,p_pi,p_D,ncol=1)
 
 
 ```{r}
-
 pbs_bed <- pbsdata %>%
   mutate(start=midPos-5000,end=midPos+5000) %>%
   unite("ID",chr,midPos,sep = ":", remove = FALSE) %>%
@@ -201,8 +200,35 @@ pbs_extreme_loci <- pbsdata %>%
   dplyr::select(chr,start,end,PBS,ID) %>%
     as.data.frame() %>%
   bedr.sort.region(check.chr = FALSE)
+```
 
 
+```{r}
+#map_ehh_regions_to_scaffolds
+
+# Read the translated equivalent of ehh_bed (translated with command below)
+#python ../../../scripts/translate_coords.py ehh_sweeps.tsv  ragtag_output/ragtag.scaffolds.agp > ehh_sweeps_scaff.tsv
+
+sweep_lengths <- ehh_sweeps %>% 
+  mutate(length = end-start)
+
+ehh_sweeps_scaff <- read_tsv("data/hpc/ragtag/ehh_sweeps_scaff.tsv", col_names = colnames(ehh_sweeps)) %>% 
+  mutate(end = start + sweep_lengths$length)  
+  
+
+
+offsets <- read_tsv("data/hpc/ragtag/all.lengths.scaf.txt", col_names = c("chr","length"),show_col_types = FALSE) %>% 
+  arrange(desc(length)) %>%
+  mutate(offset=lag(cumsum(length),default=0)) %>% 
+  mutate(scaffold_num=row_number())
+
+ehh_sweep_manhattan_data <- ehh_sweeps_scaff %>% 
+  left_join(offsets) %>% 
+  mutate(abs_start = start + offset, abs_end = end + offset)
+```
+
+
+```{r}
 dated_loci <- read_rds("cache/dated_loci.rds")
 
 pop_names <- c("inshore"="Inshore","northoffshore"="North Offshore","southoffshore"="South Offshore")
@@ -228,24 +254,27 @@ to_label <- pbs_ehh_overlapping %>%
   na.omit()
   
 
+
 mh_plot <- pbs_manhattan_data %>% 
   filter(PBS>0) %>% 
   ggplot() + 
-  geom_point(aes(x=abs_pos/1e6,y=PBS,color=as.character(scaffold_num %% 2)),size=0.1) + 
-  geom_point(data = pbs_ehh_overlapping,aes(x=abs_pos/1e6),y=-0.15,color="purple",size=0.5) + 
-  geom_point(data = to_label,aes(x=abs_pos/1e6,y=PBS),color="purple",size=0.5) + 
-  geom_label_repel(data = to_label,aes(x=abs_pos/1e6,y=PBS, label=dated_locus_number),size=2,nudge_y=1,nudge_x = -10) + 
-  ylab("Population Branch Statistic") + xlab("Genome Position / Mb") + ylim(-0.2,NA) +
+  geom_point(aes(x=abs_pos/1e6,y=PBS,color=as.character(scaffold_num %% 2)),size=0.01) + 
+  geom_point(data = pbs_ehh_overlapping,aes(x=abs_pos/1e6),y=-0.1,color="blue",size=0.1) + 
+    geom_linerange(data=ehh_sweep_manhattan_data, aes(xmin=(abs_start/1e6)-0.1,xmax=(abs_end/1e6)+0.1,y=-0.25),size=1.5,color="purple",alpha=1) +
+#  geom_point(data = to_label,aes(x=abs_pos/1e6,y=PBS),color="purple",size=0.5) + 
+#  geom_label_repel(data = to_label,aes(x=abs_pos/1e6,y=PBS, label=dated_locus_number),size=2,nudge_y=1,nudge_x = -10) + 
+  ylab("Population Branch Statistic") + xlab("Genome Position / Mb") + ylim(-0.3,NA) +
   scale_color_grey() +
   theme_bw() +
     theme(panel.grid = element_blank(),
         legend.position = "none",
         legend.text = element_text(),
-        axis.text.y = element_blank(),
+        axis.text.y = element_text(size=6),
         axis.text.x = element_text(size=6),
-        axis.title.x = element_text(size=6),
+        axis.title.x = element_text(size=8),
+        axis.title.y = element_text(size=8),
         strip.text = element_text(size=6))  + facet_wrap(~population,ncol = 1)
-ggsave(mh_plot,filename = "figures/pbs_ehh_manhattan.png",width = 6.75,height = 4)
+ggsave(mh_plot,filename = "figures/pbs_ehh_manhattan.png",width = 6.75,height = 3)
 ```
 
 

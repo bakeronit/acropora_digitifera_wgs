@@ -1,0 +1,1 @@
+../fsc27_linux64/fsc2702 -t 3.out.growth_rate_SC.tpl -n 1 -e 3.out.growth_rate_SC.est  -E 10 -G x -c 0
