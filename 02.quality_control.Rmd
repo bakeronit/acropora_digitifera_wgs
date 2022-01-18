@@ -100,10 +100,11 @@ p1 + p2
 ```{r,fig.align='center',fig.retina=2}
 snpden <- read_tsv("data/hpc/vcf_filtering/Adigi.v2.filtered.snpden") %>% filter(SNP_COUNT>10) 
 ggplot(snpden) + geom_histogram(aes(x=SNP_COUNT,y=..density..),binwidth = 20,color="black",fill="darkblue") +
-  stat_function(fun = dnorm, colour="red",args = list(mean=mean(snpden$SNP_COUNT,na.rm=TRUE),sd=sd(snpden$SNP_COUNT,na.rm = TRUE))) + labs(x="SNP count per 10kb",y="Density") + theme_classic()
+#  stat_function(fun = dnorm, colour="red",args = list(mean=mean(snpden$SNP_COUNT,na.rm=TRUE),sd=sd(snpden$SNP_COUNT,na.rm = TRUE))) + 
+  labs(x="SNP count per 10kb",y="Density") + theme_classic()
 ```
 
-**Figure 2:** SNP distribution for all samples, the standard normal distribution and the real distribution are shown in the red line and blue vertical bars, respectively.
+**Figure 2:** SNP distribution for all samples.
 
 ### Notes
 The samples with low coverage depth contain more missing genotypes, this makes sense because we filtered genotypes with very low coverage to ensure accuracy. Only one sample, `RS3_S_250` had an appreciable genotype missingness (almost 30%). We decided to keep it for the purposes of population structure analysis but to remove it from analyses based on phasing (haplotype based analysis). 
