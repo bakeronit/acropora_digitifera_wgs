@@ -16,7 +16,7 @@ source(file = "scripts/color_scheme.R")
 
 ## Prepare data for population structure analysis
 
-We performed further filtering steps for [population genetic analysis](04.population_structure.md).
+We performed further filtering steps for [population genetic analysis](04.popgen_stats.Rmd).
 
 1.To avoid potential errors from sequencing, we only included sites with minor allele count greater than or equal to two.
 
@@ -28,7 +28,7 @@ Starting with a fully filtered VCF, we performed linkage pruning and prepared da
 
 ### LD pruning
 
-Because plink will only take common chromosome id like in human, we first created a map file for *Acropora digitifera*.
+Because plink will only take common chromosome id like in human, we firstly created a map file for *Acropora digitifera*.
 
 ```bash
 bcftools view -H Adigi.DPg90gdp3gq30.vcf.gz | \
@@ -36,7 +36,7 @@ bcftools view -H Adigi.DPg90gdp3gq30.vcf.gz | \
   awk '{print $0"\t"$0 }' > Adigi.DPg90gdp3gq30.chrom-map.txt
 ```
 
-Next, we converted our vcf file to plink format which included sites with a minor allele count greater than or equal to two and excluded sites with a p-value for exact test for Hardy-Weinberg Equilibrium below 1e-4. Eventually, we pruned SNPs in highly linked regions.
+Next, we used Plink1 to convert our vcf file to plink format which included sites with a minor allele count greater than or equal to two and excluded sites with a p-value for exact test for Hardy-Weinberg Equilibrium below 1e-4. Eventually, we pruned SNPs in highly linked regions.
 
 ```bash
 plink --vcf Adigi.v2.filtered.vcf.gz --out Adigitifera \
@@ -56,7 +56,7 @@ We then start with our PCA analysis and Admixture analysis with **919,129** SNPs
 
 `smartpca` has a design flaw that it won't work with chromosome id other than small numbers (1-22,X,Y). So we used an [in-house script](scripts/fix_mapfile_for_smartpca.py) to fix the map file and run smartpca with default parameters.
 
-```{r smartpca,fig.retina=2,fig.show="hold", out.width="100%",fig.cap="Two plots depict the first vs second principal components (PC1 vs PC2) and PC2 vs PC3, which stratified by sample site location (red-like dots: Inshore, green-like dots from south offshore, blue dots: north offshore)."}
+```{r smartpca,fig.retina=2,fig.show="hold",fig.height=3.6, out.width="100%",fig.cap="Two plots depict the first vs second principal components (PC1 vs PC2) and PC2 vs PC3, which stratified by sample site location (red-like dots: Inshore, green-like dots from south offshore, blue dots: north offshore)."}
 pca <- read.table("data/hpc/pca/Adigitifera_smartpca.evec",
                        comment = "#",sep="",
                        col.names =c("sampleid",paste0("PC",1:20),"location"))
@@ -65,29 +65,30 @@ sdev_eval <- sqrt(scan("data/hpc/pca/Adigitifera_smartpca.eval")[1:20])
 sum_eval <- sum(scan("data/hpc/pca/Adigitifera_smartpca.eval"))
 pve <- sdev_eval/sum_eval*100
 
-p1 <- ggplot(pca %>% arrange(desc(location)), aes(PC1,PC2,color=location)) +
+
+p1 <- ggplot(pca %>% filter(sampleid!="BR_5_121:BR_5_121_S125_L004") %>% arrange(desc(location)), aes(PC1,PC2,color=location)) +
   geom_point(size=2,alpha=0.8,shape=16)  +
   scale_color_manual(values = my_color) + 
   labs(x=paste0("PC1(", signif(pve[1],3),"%)"), y=paste0("PC2(", signif(pve[2],3),"%)")) + theme_bw() +
   theme(text=element_text(size=12,  face = "bold"),
         legend.text = element_text(size=8,face = "bold"),
         legend.title = element_blank(),
-        legend.position = c(0.18,0.9),
+        legend.position = c(0.4,0.85),
         legend.box = "horizontal",
         legend.direction = "horizontal",
         panel.grid = element_blank()) 
 
-p2 <- ggplot(pca %>% arrange(desc(location)), aes(PC2,PC3,color=location)) +
+p2 <- ggplot(pca %>% filter(sampleid!="BR_5_121:BR_5_121_S125_L004")%>% arrange(desc(location)), aes(PC2,PC3,color=location)) +
   geom_point(size=2,alpha=0.8,shape=16)  +
   scale_color_manual(values = my_color) + 
   labs(x=paste0("PC2(", signif(pve[2],3),"%)"), y=paste0("PC3(", signif(pve[3],3),"%)")) + theme_bw() +
   theme(text=element_text(size=12,  face = "bold"),
         legend.position = "none",
-        panel.grid = element_blank()) +
-  geom_label(data = pca %>% 
-               extract(sampleid, "label", "([^\\:]*)", remove = FALSE) %>% 
-               filter(grepl(pattern = "^BR_5_121",sampleid)), 
-             aes(label=label), nudge_y = 0.1, size=2) 
+        panel.grid = element_blank()) 
+  #geom_label(data = pca %>% 
+               #extract(sampleid, "label", "([^\\:]*)", remove = FALSE) %>% 
+               #filter(grepl(pattern = "^BR_5_121",sampleid)), 
+            # aes(label=label), nudge_y = 0.1, size=2) 
 
 
 p1 + p2
@@ -99,7 +100,7 @@ Corals from different regions were well separated as inshore, offshore north, an
 This analysis revealed that one sample from Beagle Reef (inshore), `BR_5_121` had offshore ancestry despite being collected from inshore.  We excluded this sample from subsequent analyses of demography and selection.
 
 ### PC loadings
-To check whether population structure evident in the PCA was driven by a small number of genomic regions (eg such as inversions) we inspected the PC loadings for the first two principle components.
+To check whether population structure evident in the PCA was driven by a small number of genomic regions (eg such as inversions) we inspected the PC loading for the first two principle components.
 
 ```{r pc_loading,cache=TRUE,fig.retina=2,fig.show="hold", out.width="50%"}
 snpsigs <- read_table("data/hpc/pca/Adigitifera_smartpca.snpeigs",col_names = c("ID","chr","pos",paste0("PC",(1:20)))) 
@@ -148,14 +149,14 @@ read_Q <- function(filename) {
 }
 pop.labs <- c("AI","BR","AR","RS1","RS2","RS3")
 names(pop.labs) <- c("AI","BR","AR","RS1","RS2","RS3")
-p1 <- ggplot(read_Q("data/hpc/admixture/Adigitifera_ldpruned.2.Q"),aes(x=samples)) + geom_col(aes(group=samples,y=proportion,fill=cluster),show.legend = FALSE) + 
+p1 <- ggplot(read_Q("data/hpc/admixture/Adigitifera_ldpruned.2.Q")%>% filter(samples!="BR_5_121_S125_L004"),aes(x=samples)) + geom_col(aes(group=samples,y=proportion,fill=cluster),show.legend = FALSE) + 
   theme_minimal() + 
   facet_grid(~pop,switch = "x",scales = "free",space = "free") +
   scale_color_brewer(palette = "Set2") +
   theme(axis.text.x = element_blank(),panel.grid = element_blank(),strip.text.x = element_blank())+
   labs(y="Ancestry (K=2)", x="") 
 
-p2<-ggplot(read_Q("data/hpc/admixture/Adigitifera_ldpruned.3.Q"),aes(x=samples)) + geom_col(aes(group=samples,y=proportion,fill=cluster),show.legend = FALSE) + theme_minimal() +
+p2<-ggplot(read_Q("data/hpc/admixture/Adigitifera_ldpruned.3.Q")%>% filter(samples!="BR_5_121_S125_L004"),aes(x=samples)) + geom_col(aes(group=samples,y=proportion,fill=cluster),show.legend = FALSE) + theme_minimal() +
   facet_grid(~pop,switch = "x",scales = "free",space = "free",
              labeller = labeller(pop=pop.labs)) +
   scale_fill_brewer(palette = "Set2",labels= c("X1"="South Offshore","X2"="North Offshore", "X3" = "Inshore")) +
@@ -188,7 +189,7 @@ admix_vp <- read_Q("data/hpc/admixture/Adigitifera_ldpruned.3.Q") %>%
   labs(y="Ancestry (K=3)", x="") 
 
 
-ggsave(admix_vp,filename = "figures/admixture_vertical.png",width = 2,height = 6)
+#ggsave(admix_vp,filename = "figures/admixture_vertical.png",width = 2,height = 6)
 ```
 
 

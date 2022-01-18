@@ -43,8 +43,7 @@ p2<-ggplot(ad3,aes(x=samples)) +
         axis.title.y.right = element_text(angle=90))+ 
   labs(y="Ancestry (K=3)", x="") 
 
-p2
-ggsave(p2,filename = "Fig.1B.jpg",width = 6.5,height = 1.6)
+#ggsave(p2,filename = "Fig.1B.jpg",width = 6.5,height = 1.6)
 
 
 pca <- read.table("data/hpc/pca/Adigitifera_smartpca.evec",
@@ -56,7 +55,7 @@ sdev_eval <- sqrt(scan("data/hpc/pca/Adigitifera_smartpca.eval")[1:20])
 sum_eval <- sum(scan("data/hpc/pca/Adigitifera_smartpca.eval"))
 pve <- sdev_eval/sum_eval*100
 
-pca_plot <-   ggplot(pca %>% filter(sampleid!="BR_5_121:BR_5_121_S125_L004"), aes(-PC1,-PC2,color=pop)) +
+pca_plot <- ggplot(pca %>% filter(sampleid!="BR_5_121:BR_5_121_S125_L004"), aes(-PC1,-PC2,color=pop)) +
   geom_point(size=2.5,alpha=0.8,shape=16)  +
   geom_point(color="black",size=.3) +
   scale_color_startrek() + 
@@ -70,11 +69,10 @@ pca_plot <-   ggplot(pca %>% filter(sampleid!="BR_5_121:BR_5_121_S125_L004"), ae
         panel.grid = element_blank()) 
 #ggsave(pca_plot,filename = "Fig.1C.jpg",width = 3.2, height = 2.8)
 
+d2s_wa <- read_tsv("data/hpc/symbiont/d2s/wa_matrix.txt", col_names = F) %>% column_to_rownames("X1") %>% as.matrix() 
+colnames(d2s_wa) <- rownames(d2s_wa)
 
-t_wa <- read_tsv("../../symbiont/Symbiont_data/d2s/wa_matrix.txt", col_names = F) %>% column_to_rownames("X1") %>% as.matrix() 
-colnames(t_wa) <- rownames(t_wa)
-
-mds_wa <- t_wa %>% cmdscale() %>%  as.data.frame %>% rownames_to_column("id")%>% 
+mds_wa <- d2s_wa %>% cmdscale() %>%  as.data.frame %>% rownames_to_column("id")%>% 
   mutate(location=str_split( string = id,pattern = "_") %>% 
            map_chr(first), pop=case_when(location %in% c("AI","BR")~"inshore", location%in% c("RS1","RS2","RS3")~"southoffshore", location=="AR"~"northoffshore"))
 
@@ -90,4 +88,4 @@ mds_plot<- ggscatter(mds_wa, x="V1", y="V2",
           ellipse.type="convex",xlab = "", ylab="",ggtheme = theme_test(base_size = 14,base_line_size = NA),legend="none")
 #ggsave(mds_plot,filename = "Fig.1D.jpg",width = 3.2,height = 2.8)
 plot_grid(pca_plot, mds_plot, nrow = 1, align = "h", axis = "b", rel_heights = c(0.5,0.5), labels = c("C","D"))
-ggsave("Fig.2CD.jpg",width = 6.2, height = 2.8)
+#ggsave("Fig.2CD.jpg",width = 6.2, height = 2.8)

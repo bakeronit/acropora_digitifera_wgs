@@ -127,4 +127,5 @@ map_df(genoCov_files, read_coverage) %>% group_by(id) %>%   summarise(genome_cov
   knitr::kable(escape = F) 
 ```
 
+*`BR_5_121` is a mislabeled sample from Rowley Shoals.
 

@@ -11,6 +11,7 @@ library(wesanderson)
 library(cowplot)
 library(ComplexHeatmap)
 library(ggpubr)
+library(ggsci)
 ```
 
 Identification of genomic segments that have been inherited by descent (identity-by-descent; IBD) provides information on shared ancestry within the population and within an individual. In practice our ability to detect IBD haplotypes depends on the degree of relatedness between individuals (higher relatedness leading to longer and more IBD haplotypes).  To some extent it is also affected by the quality of the genome assembly, however, this is only an issue for long IBD segments (>1Mb). Although we don't have a chromosome-level reference genome, the version two of *A.digitifera* display significant improvement in N50 size, thus it is worth investigating the haplotype segments sharing pattern in population.
@@ -119,7 +120,7 @@ hbd <- read_tsv("data/hpc/ibdseq/1M_scaffolds.hbd",col_names = c("s1","h1","s2",
   mutate(loc = locations[str_replace(s1,"_merged","")]) %>% 
   mutate(roh_len = (end-start)/1e6)
 
-hbd %>% ggplot(aes(x=loc,y=roh_len)) + geom_violin(aes(fill=loc,color=loc))
+hbd %>% ggplot(aes(x=loc,y=roh_len)) + geom_violin(aes(fill=loc,color=loc)) + scale_fill_startrek() + scale_color_startrek()
 ```
 
 However, if we take the total length of ROH segments in each individual we find that individuals from inshore tend to have a much higher proportion of ROH in their genomes. 
@@ -141,8 +142,8 @@ hbd %>%
   xlab("") + ylab("Runs of Homozygosity: Total (Mb)") +
   theme_pubr() +
   theme(legend.position = "none", text = element_text(size=12), axis.text.x = element_text(size=12)) +
-  scale_color_manual(values = myCol)
-ggsave("figures/hbd.png",width = 3,height = 3)
+  scale_color_startrek()
+#ggsave("figures/hbd.png",width = 3,height = 3)
 ```
 
 ### Position of HBD segments
@@ -170,7 +171,7 @@ hbd_scaff <- read_tsv("data/hpc/ibdseq/hbd_midpoints.scaff.txt",col_names = c("s
 
 hbd_scaff %>% ggplot(aes(x=abs_pos)) + 
   geom_point(aes(y=loc,color=loc), position = position_jitter(width=0,height = 0.4),size=0.2) +
-  ylab("") + xlab("Genomic Position of HBD segment midpoint") + theme(legend.title = element_blank())
+  ylab("") + xlab("Genomic Position of HBD segment midpoint") + theme(legend.title = element_blank())+ scale_color_startrek()
 ```
 
 
