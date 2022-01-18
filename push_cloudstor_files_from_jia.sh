@@ -16,5 +16,5 @@
 #
 
 
-rclone copy -cu -P --files-from data.list . CloudStor:/acropora_digitifera_wgs/data_github
-rclone copy -cu -P --files-from data_large.list . CloudStor:/acropora_digitifera_wgs/data_github
+rclone copy -cu -P --files-from jia-data.list . CloudStor:/acropora_digitifera_wgs/data_github
+#rclone copy -cu -P --files-from data_large.list . CloudStor:/acropora_digitifera_wgs/data_github
