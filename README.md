@@ -1,4 +1,9 @@
-## Supplementary note
+## Population genetics of *Acropora digitifera* in North-Western Australia using whole genome sequencing
+
+This repository contains complete computational methods including source code, processed data outputs and explanatory notes.  It is an accompaniment to the paper;
+
+> Publication link TBA
+
 
 ### Table of Contents
 
