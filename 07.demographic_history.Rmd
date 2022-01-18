@@ -129,7 +129,8 @@ smc_bs <- rbind(map_df(1:20, ~read_bootstrap(pop="inshore",n=.x)),
 ```
 
 ```{r bootstrap-plot}
-ggplot() + geom_line(data=smc_main,aes(x=x,y=y,color=label),size=1,show.legend = FALSE) +
+
+smc_bootstrap_plot <- ggplot() + geom_line(data=smc_main,aes(x=x,y=y,color=label),size=1,show.legend = FALSE) +
   geom_line(data = smc_bs, aes(x=x,y=y,color=label,group=interaction(label,n)),alpha=0.1,show.legend = FALSE)+
   scale_x_log10(breaks=xbreaks, labels=xlabels)+
   scale_y_log10(breaks=ybreaks,labels=ylabels,limits=c(2e+3,2e+6)) + 
@@ -137,6 +138,7 @@ ggplot() + geom_line(data=smc_main,aes(x=x,y=y,color=label),size=1,show.legend =
   labs(x=expression(paste("Years Ago (g=5, ",mu, "=1.20e-8)")),
   y=expression(paste("Effective Population Size ",N[e]," (x", 10^4 ,")"))) 
   # + ggtitle("Historical effective population size estimated by SMC++ with 20 bootstraps")
+smc_bootstrap_plot
 ```
 
 **Figure 3: Historical effective population size estimated by SMC++ with 20 bootstraps**
@@ -193,37 +195,104 @@ msmc2 -t 12 -s -I 16,17,18,19,20,21,22,23 -o bootstrap_results/southoffshore boo
 
 ```{r msmc-plot}
 gen <- 5
-mu <- 1.8e-8 
-
-inshore_8hap <- read.table("data/hpc/demography/msmc_1/inshore_8hap.final.txt", header=TRUE) %>% add_column(pop="inshore")
-noffshore_8hap <-read.table("data/hpc/demography/msmc_1/noffshore_8hap.final.txt", header=TRUE) %>% add_column(pop="northoffshore")
-soffshore_8hap <-read.table("data/hpc/demography/msmc_1/soffshore_8hap.final.txt", header=TRUE) %>% add_column(pop="soffshore")
+mu <- 1.2e-8 
 
 #inshore_8hap <- read.table("data/hpc/demography/msmc_out/inshore_8hap.final.txt", header=TRUE) %>% add_column(pop="inshore")
 #noffshore_8hap <-read.table("data/hpc/demography/msmc_out/northoffshore_8hap.final.txt", header=TRUE) %>% add_column(pop="northoffshore")
 #soffshore_8hap <-read.table("data/hpc/demography/msmc_out/southoffshore_8hap.final.txt", header=TRUE) %>% add_column(pop="soffshore")
+inshore_8hap <- read.table("~/Dropbox/PhD/Chapters/Chapter I/demographic/msmc/final/inshore_8hap.final.txt", header=TRUE) %>% add_column(pop="inshore")
+noffshore_8hap <-read.table("~/Dropbox/PhD/Chapters/Chapter I/demographic/msmc/final/noffshore_8hap.final.txt", header=TRUE) %>% add_column(pop="northoffshore")
+soffshore_8hap <-read.table("~/Dropbox/PhD/Chapters/Chapter I/demographic/msmc/final/soffshore_8hap.final.txt", header=TRUE) %>% add_column(pop="soffshore")
 
 df_8hap <- rbind(inshore_8hap,noffshore_8hap,soffshore_8hap)
 
-ybreaks2 <- 2e+4*seq(1,5,by=0.1)
+# read_msmc_bs <- function(pop, basedir="data/hpc/demography/msmc_out/bootstrap_results") {
+#   bs_files <- list.files(basedir, paste0("msmc_",pop,"_bs_",".*.final.txt"), full.names = TRUE)
+#   data <- map_df(bs_files,function(fn) {
+#     read_tsv(fn) %>% add_column(pop=pop, bn=gsub(".*_(\\d+)\\.final\\.txt","\\1",x = fn)) %>% unite(bsid,bn,pop,remove = FALSE)
+#   })
+#   data
+# }
+# 
+# bs_in_data <- read_msmc_bs("in")
+# bs_no_data <- read_msmc_bs("no")
+# bs_so_data <- read_msmc_bs("so")
+# 
+# bs_data <- rbind(bs_in_data,bs_no_data,bs_so_data)
+# bs_data_av <- bs_data %>% group_by(pop,time_index) %>% summarise(left_time_boundary=mean(left_time_boundary),right_time_boundary=mean(right_time_boundary),lambda=mean(lambda))
+#ymax <- bs_data_av %>% mutate(y=(1/lambda)/2/mu) %>% pull(y) %>% max()
+#ymin <- bs_data_av %>% mutate(y=(1/lambda)/2/mu) %>% pull(y) %>% min()
+
+# ggplot(bs_data,aes(x=left_time_boundary/mu*gen,y=(1/lambda)/2/mu)) + 
+#   scale_x_log10(breaks=c(1e+4,1e+5,1e+6,1e+7), labels=c("10kya","100kya","1mya","10mya")) +
+#   #geom_step(aes(group=bsid,color=pop),alpha=0.04,size=1) +
+#   geom_step(data=bs_data_av, size=1,aes(color=pop))  +
+#   ylim(ymin,1.8e+5)+
+#   xlab("Years Ago") + 
+#   ylab(expression(paste("Effective Population Size ",N[e]))) + 
+#   theme_minimal() + theme(legend.title = element_blank(), legend.position = c(0.8,0.8)) + 
+#   theme(text=element_text(size=20), legend.title = element_blank())
+
+
+ybreaks2 <- 3e+4*seq(1,5,by=0.1)
 ylabels2 <- as.character(ybreaks2)
-ylabels2[!(ybreaks2%in%c(2e+4,4e+4,6e+4,8e+4,1e+5))] <- ''
+ylabels2[!(ybreaks2%in%c(3e+4,6e+4,9e+4,1.2e+5,1.5e+5))] <- ''
 ylabels2[ybreaks2%in%c(2e+4,4e+4,6e+4,8e+4,1e+5)] <- c("2","4","6","8","10")
+
 ggplot(df_8hap)+ 
-  scale_x_log10(breaks=xbreaks, labels=xlabels,limits=c(1e+3,1e+6)) + 
-  geom_rect(data=dtime,aes(xmin=start,xmax=end,fill=name),ymin=-Inf, ymax=Inf,alpha=0.2,show.legend = FALSE) +
-  scale_fill_manual(values = c("yellow","grey")) +
-  geom_text(data=dtime, aes(x=(end-start)/4, label=name),y=1e+5, size=4,fontface="bold") +
-  scale_y_continuous(breaks=ybreaks2,labels = ylabels2,limits = c(2e+4,1e+5)) +
+  scale_x_log10(breaks=c(1e+3,1e+4,1e+5,1e+6,1e+7), labels=c("1kya","10kya","100kya","1mya","10mya"), limits=c(1e3,3e6)) + 
+  #geom_rect(data=dtime,aes(xmin=start,xmax=end,fill=name),ymin=-Inf, ymax=Inf,alpha=0.2,show.legend = FALSE) +
+  #scale_fill_manual(values = c("yellow","grey")) +
+  #geom_text(data=dtime, aes(x=(end-start)/4, label=name),y=1e+5, size=4,fontface="bold") +
+  scale_y_log10(limits = c(5e+4,10000000)) +
   geom_step(aes(x=left_time_boundary/mu*gen,y=(1/lambda)/2/mu,color=pop),size=0.8) + 
   scale_color_startrek(labels=c("Inshore","North Offshore","South Offshore")) +
   #geom_step(data=bs_data_gbr_av, size=1,aes(color=pop)) +
-  xlab(expression(paste("Years Ago (g=5, ",mu, "=2.89e-8)"))) + 
+  xlab(expression(paste("Years Ago (g=5, ",mu, "=1.20e-8)"))) + 
   ylab(expression(paste("Effective Population Size ",N[e]," (x", 10^4 ,")")))  + 
-  theme_test() + theme(legend.title = element_blank(), legend.position = c(0.85,0.8))
+  theme_test() + theme(legend.title = element_blank(), legend.position = c(0.85,0.85))
 ```
 
 **Figure 4: Demographic history infered by MSMC**
+
+## Add climate data in plot
+```{r}
+climate_data <- read_tsv("data/hpc/demography/nature07158-s2.txt",skip = 14)
+library(cowplot)
+fn <-list.files(path="data/hpc/demography/psmc/psmc_plot_temp", pattern = "final_bp.*.txt",full.names = T)
+  #ggplot(aes(x=X1,y=X2)) + geom_step()+ scale_x_log10()
+read_single_psmc <- function(.x) {
+  bs_n <- gsub("data/hpc/demography/psmc/psmc_plot_temp/final_bp.(\\d+).txt","\\1",.x) %>% as.integer()
+  print(bs_n)
+  pop <- case_when(bs_n<=100~"inshore", bs_n>100 && bs_n<=201 ~ "northoffshore", bs_n>=202~"southoffshore")
+  print(pop)
+  tb<-read_tsv(.x,col_names = F) %>% select(X1,X2) %>% add_column(pop=pop,bs_n=bs_n)
+  tb
+}
+
+df <- map_df(.x=fn, .f = read_single_psmc)
+
+psmc_plot<-ggplot(df,aes(x=X1,y=X2,group=bs_n)) + geom_step(aes(color=pop),alpha=0.3) + geom_step(data=df %>% filter(bs_n %in% c(0,101,202)), color="black", size=.8) +
+  scale_x_log10(breaks=c(1e+4,1e+5,1e+6,1e+7), labels=c("10kya","100kya","1mya","10mya"), limits=c(1e4,3e6)) +
+  scale_color_startrek(guide=F) + theme_test() + labs(x="",y="")
+
+
+
+smc_plot <- ggplot() + geom_line(data=smc_main,aes(x=x,y=y,color=label),size=1,show.legend = FALSE) +
+  geom_line(data = smc_bs, aes(x=x,y=y,color=label,group=interaction(label,n)),alpha=0.1,show.legend = FALSE)+
+  scale_x_log10(breaks=c(1e+4,1e+5,1e+6,1e+7), labels=c("10kya","100kya","1mya","10mya"), limits=c(1e4,3e6))+
+  scale_y_log10(breaks=ybreaks,labels=ylabels,limits=c(2e+3,2e+6)) + 
+  scale_color_startrek() + theme_test() + 
+  labs(x=expression(paste("Years Ago (g=5, ",mu, "=1.20e-8)")),
+  y=expression(paste("Effective Population Size ",N[e]," (x", 10^4 ,")"))) 
+
+cp <- ggplot(climate_data %>% filter(Time>1),aes(x=Time*1e3,y=-Ice_tot)) + 
+  geom_line() + 
+  scale_x_log10(breaks=c(1e+4,1e+5,1e+6,1e+7), labels=c("10kya","100kya","1mya","10mya"), limits=c(1e4,3e6)) +
+  theme_minimal() +
+  ylab("Sea Level") + xlab("Years Ago")
+plot_grid(psmc_plot,msmc_plot,cp, ncol = 1, align = "hv", axis = "lr", rel_heights = c(0.3,0.3,0.3))
+```
 
 ## Reference
 
