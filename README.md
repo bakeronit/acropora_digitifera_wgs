@@ -8,7 +8,7 @@
 - [Phasing haplotypes](03.phasing.md)
 - [Building pseudo-chromosomes](x30.ragtag_scaffolding.md)
 
-**Population genetic analyses**
+**Coral population genetic analyses**
 - [Population genomics genetic statistics](04.popgen_stats.md)
 - [Population structure analysis](05.population_structure.md)
 - [IBD and HBD segments](06.ibd_hbd.md)
@@ -18,6 +18,9 @@
 - [GO Enrichment of genes under selection](11.GO_enrichment.md)
 - [GO Enrichment of genes under selection based on Interproscan GO term assignments](x40.GO_ipr_enrichment.md)
 - [Estimating the TMRCA for selective sweeps](17.dating_the_selection.md)
+
+**The symbiodiniacea profies**
+- [Dissecting the symbiont reads](23.symbionts.md)
 
 **Things waiting to be ordered**
 - [Gene function annotation](09.annotate_genes.md)
@@ -30,10 +33,11 @@
 - [outgroup analysis, check using JP a.digitifera](x10.outgroup_analysis.md)
 - [fineStructure analysis](x20.finestructure.md)
 - [Ira's smc plot with mutation rate range](x50.smc_files.md)
+- [host mitogenome haplotype](24.host_mitogenome.md)
 
 **Unwanted Rmd or not rendered Rmd**
 - [19.ldheatmap.Rmd](19.ldheatmap.Rmd): delete it?
-- [16.symbiont_profiles.Rmd](16.symbiont_profiles.Rmd): render it using the final results
+- [16.symbiont_profiles.Rmd](16.symbiont_profiles.Rmd): replaced by 23.symbiont.Rmd
 - [15.pcangsd_neutral.Rmd](15.pcangsd_neutral.Rmd)
 
 ### How to use this repository
