@@ -13,6 +13,16 @@ library(tidyverse)
 library(ggsci)
 ```
 
+## SNP data for Sequentially Markovian Coalescent (SMC) analyses
+We only used variations from scaffolds with a length greater than the N50 in [demography analyses], moreover, phased data in MSMC analysis. 
+
+Specifically, we used:
+
+- three individuals from each location in **PSMC analysis**.
+- eight haplotypes (4 samples) from each reef in **MSMC**.
+- All samples (unphased) except the mis-located sample from each location in **SMC++**.
+
+
 For both SMC++ and MSMC, we used SNPs from scaffolds with a length greater than 1Mbp which account for approximately 75% of genome size (N75=983,972, first 142 scaffolds). 
 
 ## 1. Mutation rate estimate
