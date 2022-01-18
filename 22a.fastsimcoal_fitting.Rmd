@@ -1,5 +1,5 @@
 ---
-title: "Demography model fitting with fastsimcoal"
+title: "Demographic model fitting with fastsimcoal"
 output: github_document
 ---
 
@@ -11,10 +11,10 @@ require(cowplot)
 library(plyr)
 ```
 
-We used `fastsimcoal` version 2.7 to estimate demographic parameters based on site frequency spectrum (SFS). 
+We used `fastsimcoal` version 2.7 to estimate demographic parameters based on the site frequency spectrum (SFS). 
 
-## SNPs filtering and SFS calculation
-We used fastsimcoal 2.7 to infer past demographics based on the genome-wide site frequency spectrum (SFS) (cite) by approximating the likelihood of an expected model with coalescent simulations. We used all samples from inshore (29), north offshore (20), and south offshore (25) Acropora digitifera populations. To minimise potential bias from linkage and selection, we only used autosomal non-genic SNPs, and filtered SNPs with an r2 > 0.3 which left us 257,314 sites. To utilise the mutation rate in branch length computation, we estimated the monomorphic sites based on the proportional number of mappability sites defined by the SNPable pipeline we used in MSMC analysis. With this dataset of autosomal SNPs, we  then used [easySFS](https://github.com/isaacovercast/easySFS) to generate the folded multidimensional allele frequency spectrum (jAFS) for three populations. 
+## SNP filtering and SFS calculation
+We used fastsimcoal 2.7 to infer past demographics by maximising a likelihood function based on the fit of a coalescent model to the genome-wide site frequency spectrum (SFS). We used all samples, except BR_5_121_S125_L004 (see [18.radseq_check](18.radseq_check.md) ) which was likely mislabelled from inshore (29), all from north offshore (20), and all from south offshore (25). To minimise potential bias from linkage and selection, we only used non-genic SNPs, and filtered SNPs with an r2 > 0.3 which left us with 257,314 sites. To utilise the mutation rate in branch length computation, we estimated the monomorphic sites based on the proportional number of mappable sites defined by the SNPable pipeline we used in MSMC analysis. With this set of SNPs, we  then used [easySFS](https://github.com/isaacovercast/easySFS) to generate the folded multidimensional allele frequency spectrum (jAFS) for three populations. 
 
 **Prepare dataset**
 ```bash
@@ -31,10 +31,12 @@ bcftools +prune -m 0.3 -e'F_MISSING>=0.01' -w 1000 Adigi.nongenic.vcf.gz -o Adig
 ```bash
 python easysfs.py -i Adigi.nongenic.r03nomiss.vcf.gz -p popfile.txt -a --GQ 20 --dtype int -o sfs --proj=58,40,52
 ```
-## Tested models
+## Model Selection
 
-### Divergence models
-We used a model-based approach to test whether the SFS data support our models of different splitting situations and firstly test the divergence topology. Among the four alternative models, the model with inshore split separately displays the best likelihoods values.
+We used a hierarchical approach to model selection, first testing alternative models for the tree topology (divergence), then alternative migration and growth scenarios based on the best topology.
+
+### Divergence
+We first tested alternative models of the divergence topology. Among the four alternative models, the model where inshore split first clearly displays the best likelihood values.
 
 ```{r}
 read_ll <- function(filename) {
@@ -55,11 +57,14 @@ ggplot(divergence_ll, aes(x=model,y=MaxEstLhood)) + geom_boxplot() +
 
 **Figure 1: The likelihood distribution of four divergence models**
 
-### Six completing models with growth rates.
-Next, we add growth rate in every population after splitting and test six scenarios regarding whether there are migrations. Parameters such as divergence time of offshore, inshore and the growth rate combined with the current and ancestral population size will be estimated during each test. For each model, we also performed 100 tims of independent runs.
+### Models with growth rate and migration.
+Next, we add growth rate in every population after splitting and test six scenarios regarding the timing of migration. Parameters such as divergence time of offshore, inshore and the growth rate combined with the current and ancestral population size will be estimated during each test. For each model, we also performed 100 tims of independent runs.
 The plot below displays six models we tested. 
 
-[tested_models](figures/tested_models.png)
+
+```{r}
+knitr::include_graphics("figures/tested_models.png")
+```
 
 **Figure 2: Graphic illustration of six alternative models**
  

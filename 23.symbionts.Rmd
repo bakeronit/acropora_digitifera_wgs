@@ -166,6 +166,7 @@ samtools view -b -f4 {sample}_dpmarked.bam | bedtools bamtofastq -i - -fq fastq/
 
 bwa mem -t 10 published_div.fasta {sample}}_1.fq {sample}_2.fq |samtools view -F 4 > {sample}.sam
 ```
+
 We then count the number of reads that are mapped to each ITS2 sequences and calcuated the proportion.
 
 ## 4. Distance based on D2S statistics of kmer
