@@ -1,5 +1,5 @@
 ---
-title: "Demography with FSC"
+title: "Simulated data under the best fitting demographic model"
 output: github_document
 ---
 
@@ -12,8 +12,8 @@ library(cowplot)
 
 FastSimCoal can fit a demographic model to SFS data and it can also be used to simulate data under a demographic model.  In our model selection process with FSC we determined the best model and obtained bootstrap estimates for its parameters (see [22a.fastsimcoal_fitting](22a.fastsimcoal_fitting.md)).  These were then used as priors to simulate data under the model.  An advantage of this is that it allows us to calculate many summary statistics other than just the SFS from the data, and determine whether these match or deviate from our real data. 
 
-**Parameter Estimates**
 
+**Table 1:** Parameter estimates for the best fitting model estimated by FastSimCoal. Lower and Upper bounds enclose 90% of the distribution of bootstrap values.  
 ```{r}
 read_tsv("data/hpc/demography/fastsimcoal/bootstrap_param.txt") %>%
   dplyr::mutate(bs_id=row_number()) %>% 
@@ -23,7 +23,7 @@ read_tsv("data/hpc/demography/fastsimcoal/bootstrap_param.txt") %>%
   knitr::kable()
 ```
 
-**Simulations**
+#### Simulations
 
 Using these parameters as priors we then run FSC to generate data as follows;
 
@@ -36,7 +36,13 @@ Where the file [3.out.growth_rate_SC.tpl](data/hpc/fastsimcoal/growth_rate_SC/3.
 
 ## Calculations based on simulated data
 
-Long runs of homozygosity were calculated using ibdseq in the same way as for real data .. ie as in [06.ibd_hbd](06.ibd_hbd.md)
+Simulated data was converted to a vcf file and then used to estimate long runs of homozygosity, inbreeding coefficients, Tajima's D and Admixture. All calculations followed the proceedures for real data as closely as possible.  Specifically;
+
+- Long runs of homozygosity were calculated using ibdseq in the same way as for real data .. ie as in [06.ibd_hbd](06.ibd_hbd.md)
+- PLINK was used to calculate heterozygosity statistics just as in [04.popgen_stats](04.popgen_stats.md)
+- `vk tajima` was used to calculate Tajima's D in sliding windows as in [04.popgen_stats](04.popgen_stats.md)
+- Admixture under the simulated model was assessed using `ADMIXTURE` in the same manner as for real data (as in [05.population_structure](05.population_structure.md)). Results are shown visualised for a single simulation run
+
 
 ```{r}
 read_hbd <- function(path){
@@ -73,7 +79,7 @@ hbd_plot <- hbd_data %>%
   dplyr::summarise(hbd_len = sum(roh_len)) %>% 
   ungroup() %>% 
   group_by(rep,loc) %>% 
-  dplyr::summarise(hbd_len=mean(hbd_len*(309/20))) %>% 
+  dplyr::summarise(hbd_len=mean(hbd_len*(309/300))) %>% 
   ggplot(aes(x=loc,y=hbd_len)) + 
     geom_boxplot(aes(color=loc),alpha=0.5) +
     geom_point(aes(x=loc,color=loc), position = position_jitter(w=0.1,h=0)) + 
@@ -85,8 +91,6 @@ hbd_plot <- hbd_data %>%
 ggsave(hbd_plot,filename = "figures/hbd_simulated.png",width = 3,height = 3)
 ```
 
-
-PLINK was used to calculate heterozygosity statistics just as in [04.popgen_stats](04.popgen_stats.md)
 
 ```{r}
 read_het <- function(path){
@@ -120,15 +124,13 @@ het_plot <- het_data %>%
 
 
 
-And `vk tajima` was used to calculate Tajima's D in sliding windows as in [04.popgen_stats](04.popgen_stats.md)
-
 ```{r}
 read_td <- function(path){
   name_parts <- basename(path) %>% str_match(pattern = "([0-9]+)_1.gen.vcf.gz_([A-Z]+)")
   rep <- name_parts[1,2]
   loc <- name_parts[1,3]
   
-  read_tsv(path,col_names = c("contig","start","end","tajima")) %>% 
+  read_tsv(path,col_names = c("contig","start","end","tajima"),show_col_types = FALSE) %>% 
     add_column(rep=rep) %>% 
     add_column(loc=loc)
 }
@@ -143,26 +145,39 @@ tajima_plot <- ggplot(td_data,aes(x=loc,y=tajima)) +
   scale_color_manual(values = myCol) + ylab("Tajima's D") + xlab("")
 ```
 
-Admixture under the simulated model was assessed using `ADMIXTURE` in the same manner as for real data (as in [05.population_structure](05.population_structure.md)). Since the simulated data only included 20 chromosomes of size 2Mb the number of SNPs used was much lower than in the real data after filtering, however, all individuals still had assignment values of almost 100% to the relevant cluster. Results are shown visualised for a single simulation run in the figure
 
 ```{r}
 
-fam <- read_table("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/admixture/1_1.fam",col_names = FALSE) %>% pull(X2)
+fam <- read_table("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/admixture/3.out.growth_rate_SC_1_1.fam",col_names = FALSE) %>% pull(X2)
 
-admix_q <- read_table("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/admixture/1_1_prune.3.Q",col_names = c("C1","C2","C3")) %>% 
+admix_q <- read_table("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/admixture/3.out.growth_rate_SC_ldpruned.3.Q",col_names = c("SO","IN","NO")) %>% 
   add_column(id=fam) %>% 
   tidyr::extract(id,into="loc",regex="^([A-Z]+)_",remove = FALSE) %>% 
-  pivot_longer(1:3)
+  pivot_longer(1:3) 
 
-admix_plot <- admix_q %>% 
+names(myCol) <- c("IN","SO","NO")
+
+admix_plot <- 
+  admix_q %>% 
   ggplot(aes(x=id)) +
   geom_col(aes(y=value,fill=name)) +
-  coord_flip()
+  scale_fill_manual(values = myCol) +
+    theme_pubr() +
+  coord_flip() +
+    theme(legend.position = "none", legend.title = element_blank(), axis.text.y = element_blank()) +
+    ylab("Admixture Proportion") + xlab("")
 
 ```
+
 
 
 ```{r}
 plot_grid(hbd_plot,het_plot,tajima_plot,admix_plot,nrow = 2)
 ```
 
+**Figure 1:** Population genetic statistics and structure calculated using simulated data under the best fitting model. Colour scheme matches the one used for real data in all plots. 
+
+
+In general the properties of simulated data reproduced key features of the real data.  For long runs of Homozygosity and inbreeding coefficients the trend that inshore samples had much higher values was reproduced but the magnitude of values overall was lower than for real data.  For Tajima's D all samples had positive values whereas in real data the values were all negative, however in both cases the inshore population had a higher value. Both positive and negative values of Tajima's D are indicators of a recent bottleneck, however the sign is very sensitive to the timing and strength of this bottleneck. 
+
+The admixture plot shows almost complete assignment of each individual to its location-based population cluster. This result (same as for real data) shows that the migration coefficients inferred under the demographic model are sufficiently low as to be consistent with the strong structure and limited admixture observed in real data. 
