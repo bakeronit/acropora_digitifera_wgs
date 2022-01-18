@@ -13,6 +13,7 @@ library(tidyverse)
 require(ComplexHeatmap)
 require(ggpubr)
 library(RColorBrewer)
+library(ggsci)
 ```
 ## 1. Kraken
 The relative abundance of major clades (genera) of Symbiodiniaceae was profiled using [kraken](https://ccb.jhu.edu/software/kraken/) version 1.1.1 [@Wood2014-qp] to classify raw reads from each sample.  To ensure that this made full use of available reads and also that it was not affected by biased database composition we restricted our analysis to taxa for which a complete reference genome was available. This included the following data;
@@ -111,10 +112,10 @@ library(cowplot)
 plot_grid(spg_plot,spg_plot_props, ncol = 1, align = "hv", axis = "lr", rel_heights = c(0.4,0.6))
 ```
 
-## 2. Mitogenome haplotype
+## 2. Symbiont mitogenome haplotype
 While we observed a high level of symbiont specificity in *Acropora digitifera* (all samples are dominated by *Cladocopium*), the genetic diversity within clade C are evaluated here.
 
-Firstly, reads were extracted from duplicates marked bam files and mapped to *Cladocopium* (C1) genome.
+Firstly, reads were extracted from duplicates marked bam files and mapped to *Cladocopium* (C1) genome. The symbiont mitogenome sequence was downloaded from [reefgenomics](http://symbs.reefgenomics.org/download/).
 
 ```bash
 samtools fastq -F 1024 {sample}_dpmarked.bam | bam mem -t 12 <mitogenome> - | \
@@ -154,19 +155,72 @@ trimal -in alignment.fasta -nomaps -nexus -out alignment.trimal.nex
 The alignments in Nexus-format were loaded in [popart](http://popart.otago.ac.nz/index.shtml) to generate haplotype networks using minimum spanning method.
 
 ```{r}
-## insert figure here
+knitr::include_graphics("figures/Symbiont_mitohaps.jpg")
 ```
 
+**Figure: The haplotype network of symbiont Cladocopium C1 mitochondiral in 41 coral samples**
 
 ## 3. ITS2 assignment for symbiont reads
-We firstly extracted reads that are not mappped to host genome and mapped them to the ITS2 sequences from [symportal](symportal.org) - published named sequences.
+We firstly extracted reads that are not mapped to host genome and mapped them to the ITS2 sequences from [symportal](symportal.org) - published named sequences.
 
 ```bash
 samtools view -b -f4 {sample}_dpmarked.bam | bedtools bamtofastq -i - -fq fastq/{sample}_1.fq -fq2 fastq/{sample}_2.fq
 
-bwa mem -t 10 published_div.fasta {sample}}_1.fq {sample}_2.fq |samtools view -F 4 > {sample}.sam
+bwa mem -t 10 published_div.fasta {sample}_1.fq {sample}_2.fq |samtools view -F 4 > {sample}.sam
 ```
-We then count the number of reads that are mapped to each ITS2 sequences and calcuated the proportion.
+We then count the number of reads that are mapped to each ITS2 sequences and calculated the proportion by dividing the number of reads to the total number of reads.
+
+```{r}
+samples <- read_tsv("data/hpc/pcangsd/samples.txt",col_names = c("sample_id","location","mapping_rate","mean_mapping_depth","genome_cov"))
+its <- read_tsv("data/hpc/symbiont/ITS2_reads_mapping/sample_it2_div.txt") %>% mutate(sample = str_replace(sample,"_merged","")) %>% 
+    mutate(sample_id = str_replace(sample,"_L004","")) %>% 
+    mutate(sample_id = str_replace(sample_id,"_S[0-9]+$","")) %>% 
+  left_join(samples,by="sample_id") %>% 
+  filter(!grepl(sample_id,pattern = "^BR_5_121"))
+
+its_matrix <- its %>% 
+  select(sample_id,prop,div) %>% 
+  pivot_wider(names_from = "div",values_from = prop,values_fill = 0) %>% 
+  column_to_rownames(var="sample_id") %>% as.matrix()
+
+keep_cols1 <- colSums(its_matrix) > 1.5
+
+keep_cols2 <-(its_matrix %>% apply(2,max))>0.2
+
+keep_cols <- keep_cols1 | keep_cols2
+
+library(ComplexHeatmap)
+library(colorspace)
+
+locations <- its %>% select(sample_id,location) %>% distinct() %>% pull(location)
+names(locations) <- its %>% select(sample_id,location) %>% distinct() %>% pull(sample_id)
+source("scripts/color_scheme.R")
+named_colors <- myCol
+names(named_colors) <- c("Inshore", "North Offshore", "South Offshore")
+
+ra <- rowAnnotation(location = locations[rownames(its_matrix)],
+                    col = list(location = named_colors),
+                    annotation_legend_param = list(title = ""),
+                    show_legend = FALSE,
+                    show_annotation_name = FALSE)
+
+library(circlize)
+library(cowplot)
+
+col_fun = colorRamp2(c(0.6, 0.3,0), sequential_hcl(n=7, palette = "Purples 3")[c(1,2,6)])
+
+hm <- Heatmap(its_matrix[,keep_cols],
+              right_annotation = ra,
+              col = col_fun,
+              show_row_names = FALSE, 
+              show_column_dend = FALSE,
+              heatmap_legend_param = list(title = "",title_gp = gpar(fontsize = 8)))
+
+
+
+hm_plot <- grid.grabExpr(draw(hm, padding = unit(c(2,2,2,10),"mm")))
+plot_grid(hm_plot)
+```
 
 ## 4. Distance based on D2S statistics of kmer
 To further make use of symbiont reads in our data, we applied [jackknifing pipeline](https://github.com/chanlab-genomics/jackknifing) to raw reads which extracts reads mapped to C1 genome and count kmers from sequences using jellyfish and calculated the D2 statistics based on kmers.
@@ -216,6 +270,7 @@ ggscatter(mds_wa, x="V1", y="V2",
           ellipse=TRUE,
           #palette = pal_startrek("uniform")(7),
           palette = pal_startrek("uniform")(7),
-          ellipse.type="convex",xlab = "", ylab="",ggtheme = theme_bw(base_size = 12,base_line_size = NA),legend="none")
+          ellipse.type="convex",xlab = "", ylab="",
+          ggtheme = theme_bw(base_size = 12,base_line_size = NA),legend="none")
 ```
 
