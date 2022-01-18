@@ -100,7 +100,8 @@ p1 + p2
 ```{r,fig.align='center',fig.retina=2}
 snpden <- read_tsv("data/hpc/vcf_filtering/Adigi.v2.filtered.snpden") %>% filter(SNP_COUNT>10) 
 ggplot(snpden) + geom_histogram(aes(x=SNP_COUNT,y=..density..),binwidth = 20,color="black",fill="darkblue") +
-  stat_function(fun = dnorm, colour="red",args = list(mean=mean(snpden$SNP_COUNT,na.rm=TRUE),sd=sd(snpden$SNP_COUNT,na.rm = TRUE))) + labs(x="SNP count per 10kb",y="Density") + theme_classic()
+  #stat_function(fun = dnorm, colour="red",args = list(mean=mean(snpden$SNP_COUNT,na.rm=TRUE),sd=sd(snpden$SNP_COUNT,na.rm = TRUE))) + 
+  labs(x="SNP count per 10kb",y="Density") + theme_classic()
 ```
 
 **Figure 2:** SNP distribution for all samples, the standard normal distribution and the real distribution are shown in the red line and blue vertical bars, respectively.
