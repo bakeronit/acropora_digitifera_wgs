@@ -1,0 +1,183 @@
+---
+title: "Simulated data under the best fitting demographic model"
+output: github_document
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message=FALSE,warning = FALSE)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+```
+
+FastSimCoal can fit a demographic model to SFS data and it can also be used to simulate data under a demographic model.  In our model selection process with FSC we determined the best model and obtained bootstrap estimates for its parameters (see [22a.fastsimcoal_fitting](22a.fastsimcoal_fitting.md)).  These were then used as priors to simulate data under the model.  An advantage of this is that it allows us to calculate many summary statistics other than just the SFS from the data, and determine whether these match or deviate from our real data. 
+
+
+**Table 1:** Parameter estimates for the best fitting model estimated by FastSimCoal. Lower and Upper bounds enclose 90% of the distribution of bootstrap values.  
+```{r}
+read_tsv("data/hpc/demography/fastsimcoal/bootstrap_param.txt") %>%
+  dplyr::mutate(bs_id=row_number()) %>% 
+  pivot_longer(-c(bs_id,MaxEstLhood,MaxObsLhood), names_to = "param", values_to = "value") %>% 
+  group_by(param) %>% 
+  dplyr::summarise(lb = quantile(value,probs=c(0.05)),ub = quantile(value,probs=c(0.95))) %>% 
+  knitr::kable()
+```
+
+#### Simulations
+
+Using these parameters as priors we then run FSC to generate data as follows;
+
+```bash
+../fsc27_linux64/fsc2702 -t 3.out.growth_rate_SC.tpl -n 1 -e 3.out.growth_rate_SC.est  -E 10 -G x -c 0
+```
+
+Where the file [3.out.growth_rate_SC.tpl](data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC.tpl) and specifies that the simulation should generate 20 independent chromosomes of length 2mb using a recombination rate of 3.2e-8 and mutation rate of 1.2e-8.  The outputs can be converted to vcf using the awk script [gen2vcf](data/hpc/fastsimcoal/gen2vcf.awk). 
+
+
+## Calculations based on simulated data
+
+Simulated data was converted to a vcf file and then used to estimate long runs of homozygosity, inbreeding coefficients, Tajima's D and Admixture. All calculations followed the proceedures for real data as closely as possible.  Specifically;
+
+- Long runs of homozygosity were calculated using ibdseq in the same way as for real data .. ie as in [06.ibd_hbd](06.ibd_hbd.md)
+- PLINK was used to calculate heterozygosity statistics just as in [04.popgen_stats](04.popgen_stats.md)
+- `vk tajima` was used to calculate Tajima's D in sliding windows as in [04.popgen_stats](04.popgen_stats.md)
+- Admixture under the simulated model was assessed using `ADMIXTURE` in the same manner as for real data (as in [05.population_structure](05.population_structure.md)). Results are shown visualised for a single simulation run
+
+
+```{r}
+read_hbd <- function(path){
+  name_parts <- basename(path) %>% str_match(pattern = "([0-9]+)_1.([0-9]+)")
+  rep <- name_parts[1,2]
+  chr <- name_parts[1,3]
+  
+  raw <- read_tsv(path,col_names = c("s1","h1","s2","h2","chr","start","end","LOD"),show_col_types = FALSE) 
+  if ( nrow(raw)>0){
+    raw <- raw %>% 
+    add_column(rep=rep) %>% 
+    extract(s1,into="loc",regex="([A-Z]+)",remove = FALSE) %>% 
+    mutate(roh_len = (end-start)/1e6)
+  } else 
+  {
+    raw <- NULL
+  }
+  raw
+}
+
+if ( !file.exists("cache/hbd_data.rds")){
+  hbd_data <- list.files("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/ibdseq/","*.hbd",full.names = TRUE) %>%
+    map_dfr(read_hbd)
+  write_rds(hbd_data,"cache/hbd_data.rds")
+} else {
+  hbd_data <- read_rds("cache/hbd_data.rds")
+}
+source("scripts/color_scheme.R")
+
+
+
+hbd_plot <- hbd_data %>% 
+  group_by(s1,loc,rep) %>% 
+  dplyr::summarise(hbd_len = sum(roh_len)) %>% 
+  ungroup() %>% 
+  group_by(rep,loc) %>% 
+  dplyr::summarise(hbd_len=mean(hbd_len*(309/300))) %>% 
+  ggplot(aes(x=loc,y=hbd_len)) + 
+    geom_boxplot(aes(color=loc),alpha=0.5) +
+    geom_point(aes(x=loc,color=loc), position = position_jitter(w=0.1,h=0)) + 
+  xlab("") + ylab("Runs of Homozygosity: Total (Mb)") +
+  theme_pubr() +
+  theme(legend.position = "none", text = element_text(size=8)) +
+  scale_color_manual(values = myCol)
+
+ggsave(hbd_plot,filename = "figures/hbd_simulated.png",width = 3,height = 3)
+```
+
+
+```{r}
+read_het <- function(path){
+  name_parts <- basename(path) %>% str_match(pattern = "([0-9]+)_1")
+  rep <- name_parts[1,2]
+  read_tsv(path,show_col_types = FALSE) %>% 
+    dplyr::rename(sample=`#IID`) %>% 
+    tidyr::extract(sample,into="location",regex="([A-Z]+)",remove = FALSE) %>% 
+    mutate(Ho= (OBS_CT-`O(HOM)`)/OBS_CT )  %>% 
+    mutate(He= (OBS_CT-`E(HOM)`)/OBS_CT ) %>% 
+    pivot_longer(cols = c(F,Ho,He), names_to = "stat", values_to = "value") %>% 
+    add_column(rep=rep)
+}
+
+
+
+het_data <- list.files("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/plink2/","*.het",full.names = TRUE) %>% 
+  map_dfr(read_het)
+
+
+het_plot <- het_data %>% 
+  filter(stat=="F") %>% 
+  group_by(rep,location,stat) %>% 
+  summarise(value=mean(value)) %>% 
+  ggplot(aes(x=location)) + 
+  geom_boxplot(aes(y=value, color=location)) + 
+  theme_pubr() +
+  theme(legend.position = "none", text = element_text(size=8)) +
+  scale_color_manual(values = myCol) + ylab("Inbreeding Coefficient, F") + xlab("")
+```
+
+
+
+```{r}
+read_td <- function(path){
+  name_parts <- basename(path) %>% str_match(pattern = "([0-9]+)_1.gen.vcf.gz_([A-Z]+)")
+  rep <- name_parts[1,2]
+  loc <- name_parts[1,3]
+  
+  read_tsv(path,col_names = c("contig","start","end","tajima"),show_col_types = FALSE) %>% 
+    add_column(rep=rep) %>% 
+    add_column(loc=loc)
+}
+
+td_data <- list.files("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/","*.td",full.names = TRUE) %>% 
+  map_dfr(read_td)
+
+tajima_plot <- ggplot(td_data,aes(x=loc,y=tajima)) + 
+  geom_boxplot(aes(color=loc)) + 
+  theme_pubr() +
+  theme(legend.position = "none", text = element_text(size=8)) +
+  scale_color_manual(values = myCol) + ylab("Tajima's D") + xlab("")
+```
+
+
+```{r}
+
+fam <- read_table("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/admixture/3.out.growth_rate_SC_1_1.fam",col_names = FALSE) %>% pull(X2)
+
+admix_q <- read_table("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/admixture/3.out.growth_rate_SC_ldpruned.3.Q",col_names = c("SO","IN","NO")) %>% 
+  add_column(id=fam) %>% 
+  tidyr::extract(id,into="loc",regex="^([A-Z]+)_",remove = FALSE) %>% 
+  pivot_longer(1:3) 
+
+names(myCol) <- c("IN","SO","NO")
+
+admix_plot <- 
+  admix_q %>% 
+  ggplot(aes(x=id)) +
+  geom_col(aes(y=value,fill=name)) +
+  scale_fill_manual(values = myCol) +
+    theme_pubr() +
+  coord_flip() +
+    theme(legend.position = "none", legend.title = element_blank(), axis.text.y = element_blank()) +
+    ylab("Admixture Proportion") + xlab("")
+
+```
+
+
+
+```{r}
+plot_grid(hbd_plot,het_plot,tajima_plot,admix_plot,nrow = 2)
+```
+
+**Figure 1:** Population genetic statistics and structure calculated using simulated data under the best fitting model. Colour scheme matches the one used for real data in all plots. 
+
+
+In general the properties of simulated data reproduced key features of the real data.  For long runs of Homozygosity and inbreeding coefficients the trend that inshore samples had much higher values was reproduced but the magnitude of values overall was lower than for real data.  For Tajima's D all samples had positive values whereas in real data the values were all negative, however in both cases the inshore population had a higher value. Both positive and negative values of Tajima's D are indicators of a recent bottleneck, however the sign is very sensitive to the timing and strength of this bottleneck. 
+
+The admixture plot shows almost complete assignment of each individual to its location-based population cluster. This result (same as for real data) shows that the migration coefficients inferred under the demographic model are sufficiently low as to be consistent with the strong structure and limited admixture observed in real data. 

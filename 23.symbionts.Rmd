@@ -222,6 +222,7 @@ hm_plot <- grid.grabExpr(draw(hm, padding = unit(c(2,2,2,10),"mm")))
 plot_grid(hm_plot)
 ```
 
+
 ## 4. Distance based on D2S statistics of kmer
 To further make use of symbiont reads in our data, we applied [jackknifing pipeline](https://github.com/chanlab-genomics/jackknifing) to raw reads which extracts reads mapped to C1 genome and count kmers from sequences using jellyfish and calculated the D2 statistics based on kmers.
 We decided the optimum kmer size to be 21 and used D2S statistics, eventually, we got a matrix of kmer distances for each pair of samples.
