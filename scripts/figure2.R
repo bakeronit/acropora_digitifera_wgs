@@ -62,7 +62,6 @@ cp <- ggplot(climate_data %>% filter(Time>1),aes(x=Time*1e3,y=-Ice_tot)) +
 #ggsave(cp,filename = "Fig.2B.jpg",width = 8.2,height = 2.6)
 
 
-## this needs to be fixed to plot bootstrap results
 bs_ll <- read_tsv("data/hpc/demography/fastsimcoal/bootstrap_param.txt") %>% pivot_longer(-c(MaxEstLhood),names_to = "param",values_to = "value")
   
 bs_plot <- bs_ll %>% filter(grepl(param,pattern = "^TDIV")) %>% 
