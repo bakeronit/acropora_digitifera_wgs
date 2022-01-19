@@ -24,7 +24,7 @@ This repository contains complete computational methods including source code, p
 - [Demographic model fitting using fastsimcoal](22a.fastsimcoal_fitting.md)
 - [Demographic model validation by simulation](22b.fastsimcoal_sim.md)
 
-**The symbiodiniacea profiles**
+**Symbiodiniaceae profiles**
 - [Dissecting the symbiont reads](23.symbionts.md)
 
 **Signatures of selection in the coral host**
