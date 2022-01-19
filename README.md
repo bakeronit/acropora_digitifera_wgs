@@ -18,7 +18,6 @@ This repository contains complete computational methods including source code, p
 - [Population structure analysis](05.population_structure.md)
 - [FineStructure analysis](x20.finestructure.md)
 - [Outgroup analysis using Japanese A. digitifera](x10.outgroup_analysis.md)
-- [Host mitogenome haplotype](24.host_mitogenome.md)
 - [IBD and HBD segments](06.ibd_hbd.md)
 - [Demographic history based on SMC](07.demographic_history.md)
 - [Demographic model fitting using fastsimcoal](22a.fastsimcoal_fitting.md)
