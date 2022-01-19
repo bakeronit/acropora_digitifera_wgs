@@ -2,8 +2,6 @@
 title: "Gene Ontology Enrichment analysis"
 output: 
   github_document:
-    toc: true
-    toc_depth: 3
 bibliography: bibliography.bib
 ---
 
@@ -199,7 +197,7 @@ rownames(jdm) <- names(go2gene_signif)
 colnames(jdm) <- names(go2gene_signif)
 ```
 
-We found a total of `r length(display_go)` GO terms enriched (p<0.001) across all three of the locations.  These are summarised in Figure 2.  
+We found a total of `r length(display_go)` GO terms enriched (p<0.001) across all three of the locations.  These are summarised in Figure 1.  
 
 ```{r, fig.height=12}
 n_regions_per_term <- function(term,focal_pop){
@@ -354,7 +352,7 @@ ggsave(leg_b,filename = "figures/go_legend.png",width = 6.75,height = 1)
 bpt
 ```
 
-**Figure 2: Enriched GO terms for genes intersecting with candidate loci under selection**. Length of bars indicates significance (longer is more significant) and colour indicates the ontology. Numerical labels indicate the number of genes putatively under selection. Dendrogram depicts relationships between GO terms based on numbers of shared annotated genes.  
+**Figure 1: Enriched GO terms for genes intersecting with candidate loci under selection**. Length of bars indicates significance (longer is more significant) and colour indicates the ontology. Numerical labels indicate the number of genes putatively under selection. Dendrogram depicts relationships between GO terms based on numbers of shared annotated genes.  
 
 
 ```{r}
@@ -372,9 +370,6 @@ gene_table_for_term <- function(goterm){
 
 rth_genes <- gene_table_for_term("GO:0009408")
 ```
-
-
-Interestingly, we found the genes under selection in inshore were enriched in response to heat `GO:0009408` (Figure 2). This included a total of `r nrow(rth_genes)` genes overlapping with `r (rth_genes$region_id %>% n_distinct())` distinct candidate regions. This included four copies of a HSP-16 homolog within a single region that was identified as significant in all three EHH statistics.
 
 ```{r}
 go_terms_in_plot <- jdm_included %>% rownames()

@@ -31,14 +31,14 @@ Using these parameters as priors we then run FSC to generate data as follows;
 ../fsc27_linux64/fsc2702 -t 3.out.growth_rate_SC.tpl -n 1 -e 3.out.growth_rate_SC.est  -E 10 -G x -c 0
 ```
 
-Where the file [3.out.growth_rate_SC.tpl](data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC.tpl) and specifies that the simulation should generate 20 independent chromosomes of length 2mb using a recombination rate of 3.2e-8 and mutation rate of 1.2e-8.  The outputs can be converted to vcf using the awk script [gen2vcf](data/hpc/fastsimcoal/gen2vcf.awk). 
+Where the file `3.out.growth_rate_SC.tpl` specifies that the simulation should generate 20 independent chromosomes of length 2mb using a recombination rate of 3.2e-8 and mutation rate of 1.2e-8.  The outputs can be converted to vcf using the awk script [gen2vcf](data/hpc/fastsimcoal/gen2vcf.awk). 
 
 
 ## Calculations based on simulated data
 
-Simulated data was converted to a vcf file and then used to estimate long runs of homozygosity, inbreeding coefficients, Tajima's D and Admixture. All calculations followed the proceedures for real data as closely as possible.  Specifically;
+Simulated data was converted to a vcf file and then used to estimate long runs of homozygosity, inbreeding coefficients, Tajima's D and admixture. All calculations followed the proceedures for real data as closely as possible.  Specifically;
 
-- Long runs of homozygosity were calculated using ibdseq in the same way as for real data .. ie as in [06.ibd_hbd](06.ibd_hbd.md)
+- Long runs of homozygosity were calculated using ibdseq in the same way as for real data (ie as in [06.ibd_hbd](06.ibd_hbd.md))
 - PLINK was used to calculate heterozygosity statistics just as in [04.popgen_stats](04.popgen_stats.md)
 - `vk tajima` was used to calculate Tajima's D in sliding windows as in [04.popgen_stats](04.popgen_stats.md)
 - Admixture under the simulated model was assessed using `ADMIXTURE` in the same manner as for real data (as in [05.population_structure](05.population_structure.md)). Results are shown visualised for a single simulation run
@@ -119,7 +119,7 @@ het_plot <- het_data %>%
   geom_boxplot(aes(y=value, color=location)) + 
   theme_pubr() +
   theme(legend.position = "none", text = element_text(size=8)) +
-  scale_color_manual(values = myCol) + ylab("Inbreeding Coefficient, F") + xlab("")
+  scale_color_manual(values = myCol) + ylab("Inbreeding Coefficient") + xlab("")
 ```
 
 

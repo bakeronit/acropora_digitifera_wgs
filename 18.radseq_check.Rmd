@@ -25,7 +25,7 @@ We then used the relatedness2 function in `vcftools` to calculate a pairwise rel
 vcftools --vcf allrad_merged.vcf --relatedness2
 ```
 
-A histogram of relatedness values shows that the majority of pairs are unrelated (PHI close to or less than 0).  The peak close to 0.5 represents samples with the maximum possible relatedness value for diploids.  We can therefore use PHI to determine the matches between RAD and WGS samples. 
+A histogram of relatedness values shows that the majority of pairs are unrelated (PHI close to or less than 0).  The small peak close to 0.5 represents samples with the maximum possible relatedness value for diploids (the expected value if the samples are the same, or for clones).  This peak captures all the pairs where a sample is paired with itself (is_same=TRUE). We can therefore use PHI to determine the matches between RAD and WGS samples and potentially trace any mislabelled samples.
 
 ```{r}
 r2_stats <- read_tsv("data/hpc/radseq_data/out.relatedness2")
@@ -61,7 +61,7 @@ sample_list2 <- readxl::read_excel("data/hpc/radseq_data/Complete_list_Adigi_Ash
 ```
 
 
-Our sample labelled `BR_5_121_S125_L004` matches sample with the ID 1439306 which matches genotype `r sample_list2["1439306"]`
+Our sample labelled `BR_5_121_S125_L004` matches sample with the ID 1439306 which matches the RAD-seq label of `r sample_list2["1439306"]`.  This sample is the same sample that we identified as having south offshore ancestry in our population structure analysis.  By matching it with the RAD-seq data here we can see that it was mislabelled as `BR_5_121_S125_L004` and based on its original RAD-seq label it is in fact a sample from Rowley Shoals (south offshore). 
 
 ```{r}
 r2_stats %>% 

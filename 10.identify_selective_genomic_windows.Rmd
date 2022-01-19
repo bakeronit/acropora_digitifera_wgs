@@ -2,8 +2,6 @@
 title: "Identify outlying regions in selection analysis"
 output: 
   github_document:
-    toc: true
-    toc_depth: 3
 bibliography: bibliography.bib
 ---
 
@@ -17,7 +15,7 @@ source("scripts/selscan.R")
 
 ## Windowed EHH tests
 
-[Previously](08.ehh_stats.md), we calculated iHS, XP-EHH and XP-nSL scores for all three populations and visualised their distribution across the genome via Manhattan plots. Since selective sweeps should have consistently outlying values of EHH statistics across a large linked region we calculated the fraction of SNPs in each non-overlapping 50kb window that contained  outlying, (|z-score|>2) scores. This follows the analysis of [@Voight2006] and was performed using the program `norm` included with selscan.  See [08.ehh_stats.md](08.ehh_stats.md) for details.
+[Previously](08.ehh_stats.md), we calculated iHS, XP-EHH and XP-nSL scores for all three populations and visualised their distribution across the genome via Manhattan plots. Since selective sweeps should have consistently outlying values of EHH statistics across a large linked region we calculated the fraction of SNPs in each non-overlapping 50kb window that contained  outlying, (|z-score|>2) scores. This follows the analysis of [@Voight2006] and was performed using the program `norm` included with selscan.  See [08.ehh_stats.md](08.ehh_stats.md) for details of the z-score calculation.
 
 Both the XP-EHH and XP-nSL statistics are designed to compare two populations.  We designed our contrasts so that for each comparison there was always one focal population while the remaining two populations were used as a reference.  This was based on the reasoning that it was unlikely a selective sweep would occur independently at the same locus in two separate populations.  In the selscan outputs populations are coded as A or B.  Our focal population was always "A" so that positive value of the statistic is associated with selection in the focal population.
 
@@ -57,7 +55,7 @@ windowed_ehh %>% ggplot(aes(x=nsnp,y=frac)) + geom_point() +
 
 Our main interest in this study is in selective sweeps that occurred after the split between populations.  For this reason we excluded regions where the iHS test was also significant at 1% level in the other two populations. This step was not necessary for the XP-EHH and XP-nSL tests because these work by comparing levels of EHH in the focal population against the reference and will therefore identify sweeps that exist only in the focal population by design. 
 
-After excluding the shared iHS significant signals, less than 1% of genomic regions were identified as candidates in three populations.
+After excluding shared iHS significant signals, less than 1% of genomic regions were identified as candidates in three populations.
 
 ```{r bed-conversion, cache=TRUE,results='hide'}
 inshore_bed <- windowed_ihs %>% 
@@ -147,10 +145,13 @@ southoffshore_candidate_regions <- consolidate_intervals("southoffshore")
 
 ### Annotating candidate regions
 
-To facilitate downstream analyses we annotated candidate regions by; 
-  1. Identifying overlapping genes
-  2. Information from `selscan` used to assess the region (fraction of extreme values, stats in which the region was in the 1st percentile)
+To facilitate downstream analyses we annotated candidate regions by
 
+  - Identifying overlapping genes
+  - Information from `selscan` used to assess the region (fraction of extreme values, stats in which the region was in the 1st percentile)
+  - Gene names from Uniprot
+  
+The complete list of these annotated candidate regions is available as a supplementary table in the paper and also as the file `data/hpc/annotation/uniprot_gene_annot.tsv` in this repository (available after data download)
 
 ```{r results='hide'}
 # Annotate regions with gene information
@@ -278,7 +279,6 @@ candidate_regions_genes_ehh <- c("inshore","northoffshore","southoffshore") %>%
   map_dfr(add_ehh_raw_annotation,raw_ehh_stats,candidate_regions_genes_ehhwin)
 
 ```
-These annotated candidate windows form the basis for [Supplementary Table S9](https://docs.google.com/spreadsheets/d/1d587-tYfD6Q5bRmBB0XYaKZRE-bmCqnhyQjpemAkvro/edit?usp=sharing) in the paper. We save them so that later we can [investigate their function](11.GO_enrichement.md) via GO enrichment analysis.
 
 ```{r}
 candidate_regions_genes_ehh %>% write_rds("cache/candidate_regions_genes_ehh.rds")
@@ -317,14 +317,14 @@ supp_table9 <- candidate_regions_genes_ehh %>%
 
 write_tsv(supp_table9,"cache/supp_table9.tsv") # For upload to google sheets  
 
-supp_table9 %>% 
-  select(-starts_with("max")) %>%  
-  knitr::kable(escape = F) 
+# supp_table9 %>% 
+#   select(-starts_with("max")) %>%  
+#   knitr::kable(escape = F) 
 ```
 
 
 
-```{r}
+```{r, include=FALSE}
 candidate_regions_genes_ehh <-  read_rds("cache/candidate_regions_genes_ehh.rds")
 
 candidate_regions_genes_ehh %>% 
@@ -336,7 +336,7 @@ candidate_regions_genes_ehh %>%
   facet_wrap(~stats) + coord_flip()
 ```
 
-```{r}
+```{r, include=FALSE}
 candidate_regions_genes_ehh %>% 
   ggplot() + 
   geom_density(aes(x=frac,color=pop))

@@ -1,5 +1,5 @@
 ---
-title: "Selective sweep based on extended haplotype homozygosity"
+title: "Selective sweep detection based on extended haplotype homozygosity"
 output: github_document
 ---
 
@@ -11,11 +11,9 @@ library(cowplot)
 source("scripts/selscan.R")
 ```
 
-We applied iHS, XP-nSL, and XP-EHH scans on scaffolds with more than 10 phased SNPs (464 scaffolds).The newer version of selscan can use physical distance instead of genetic distance in scan.
-
 We applied extended haplotype homozygosity (EHH) based methods to detect genomic regions under recent positive selection. The tool [selscan](https://github.com/szpiech/selscan) was used to scan for such regions by calculating three EHH-based statistics, iHS, XP-EHH, and XP-nSL.  While iHS is calculated for each population individually the XP (cross population) type statistics both consider pairs of populations.
 
-The phased vcf file produced by SHAPEIT was used in all selscan runs. Several subsets of this file were created in order to facilitate scans within and between various combinations of populations. All such subsetting was performed using bcftools version 1.9 as follows.
+Since there is no recombination or linkage map available for *A. digitifera* we used use physical distance instead of genetic distance in all scans. The phased vcf file produced by SHAPEIT was used in all selscan runs, and scans were performed on scaffolds with more than 10 phased SNPs (464 scaffolds). Several subsets of this file were created in order to facilitate scans within and between various combinations of populations. All such subsetting was performed using bcftools version 1.9 as follows.
 
 ```bash
 bcftools view -S {pop} -r {chr} Adigi.v2.indv74_phased.vcf.gz | bgzip > {pop}.{chr}.vcf.gz
@@ -57,7 +55,7 @@ The outputs from `norm` are provided in two types of files.  One set of files ha
 
 ## Visualisation of scores genome-wide
 
-Scores for all EHH based scans can be visualized across the genome using the [pseudo-chromosome level coordinates](11.ragtag_scaffolding.md). Translation to these coordinates was performed as follows;
+Scores for all EHH based scans can be visualized across the genome using the [pseudo-chromosome level coordinates](x30.ragtag_scaffolding.md). Translation to these coordinates was performed as follows;
 
 ```bash
 python translate_coords.py {pop}.ihs.50bins.norm ragtag.scaffolds.agp > {pop}.ihs.50bins.norm.ragtag.txt 
@@ -143,15 +141,16 @@ ehh_stats %>%
   facet_wrap(~pop, ncol=1)
 ```
 
-**Figure 1: Manhattan plot of standardised |iHS| across the genome in three populations. ** *Semi-transparent black points show the locations of the top 1% of 50kb windows based on the proportion of extreme |iHS| values within the window. Regions with many closely spaced extreme windows will appear darker*
+
+**Figure 1: Manhattan plot of standardised |iHS| across the genome in three populations. ** Semi-transparent black points show the locations of the top 1% of 50kb windows based on the proportion of extreme |iHS| values within the window. Regions with many closely spaced extreme windows will appear darker
 
 ## Genome-wide distribution of XP-EHH and XP-nSL statistics
 
-Although the iHS statistic is sensitive to recent positive selection while accounting for local variation in recombination rate it loses power for sweeps that have resulted in fixation or near fixation of the selected allele. XP-EHH and XP-nSL statistics address this issue by comparing long haplotypes in one population with alleles in a related population.  Our three *Acropora digitifera* populations in WA are ideal for this because they diverged only recently and have similar demographic histories. 
+Although the iHS statistic is sensitive to recent positive selection while accounting for local variation in recombination rate it loses power for sweeps that have resulted in fixation or near fixation of the selected allele. XP-EHH and XP-nSL statistics address this issue by comparing haplotypes in one population with those in a related population.  Our three *Acropora digitifera* populations in WA are ideal for this because they diverged only recently and have similar demographic histories. 
 
 The following plots consider each focal population separately.  Due to large number of loci, we only plot the loci with score > 2.  Note that only positive scores are considered because we used combined haplotypes from both remaining populations as the reference.  Positive scores in the XP* statistics will correspond to selection in the focal population only.
 
-First we examine the inshore population, plotting all available EHH statistics.  This seems to show considerable concordance between peaks in XP-EHH and XP-nSL but much less with iHS. 
+First we examine the inshore population, plotting all available EHH statistics.  This seems to show considerable concordance between peaks in XP-EHH and XP-nSL but slightly less with iHS. 
 
 ```{r, fig.align='center', fig.height=6}
 plot_stats_for_pop <- function(stat_data){
