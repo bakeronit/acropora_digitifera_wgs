@@ -13,8 +13,8 @@ This repository contains complete computational methods including source code, p
 - [Phasing haplotypes](03.phasing.md)
 - [Building pseudo-chromosomes](x30.ragtag_scaffolding.md)
 
-**Coral population genetic analyses**
-- [Population genomics genetic statistics](04.popgen_stats.md)
+**Population genetics of the coral host**
+- [Basic population genetic statistics](04.popgen_stats.md)
 - [Population structure analysis](05.population_structure.md)
 - [IBD and HBD segments](06.ibd_hbd.md)
 - [Demographic history based on SMC](07.demographic_history.md)

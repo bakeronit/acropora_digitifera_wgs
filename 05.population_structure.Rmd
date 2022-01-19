@@ -14,21 +14,19 @@ library(patchwork)
 source(file = "scripts/color_scheme.R")
 ```
 
-## Prepare data for population structure analysis
+## Data preparation for population structure analysis
 
-We performed further filtering steps for [population genetic analysis](04.popgen_stats.Rmd).
+In addition to filters already outlined in [02.quality_control](02.quality_control.md), we performed further filtering steps for population structure analysis (PCA, ADMIXTURE) as follows;
 
 1.To avoid potential errors from sequencing, we only included sites with minor allele count greater than or equal to two.
 
-2.Sites with hardy-Weinberg equilibrium p-value < 1e-4.
+2.Sites in violation of Hardy-Weinberg equilibrium were removed at p-value < 1e-4.
 
 3.To minimize the effect of SNPs in high likage disequilibrium (LD) region, we filtered out SNPs based on pairwise LD using PLINK v1.9 with the parameter '--indep-pairwise 50 10 0.1'.
 
-Starting with a fully filtered VCF, we performed linkage pruning and prepared data for PCA, ADMIXTURE analysis.
-
 ### LD pruning
 
-Because plink will only take common chromosome id like in human, we firstly created a map file for *Acropora digitifera*.
+Because plink will only take common chromosome ids like in human, we first created a map file for *Acropora digitifera*. Note that the common workaround of using the flag `--allow-extra-chr` does not work in this instance because downstream analyses (ADMIXTURE) require numeric scaffold ids.
 
 ```bash
 bcftools view -H Adigi.DPg90gdp3gq30.vcf.gz | \
@@ -36,7 +34,7 @@ bcftools view -H Adigi.DPg90gdp3gq30.vcf.gz | \
   awk '{print $0"\t"$0 }' > Adigi.DPg90gdp3gq30.chrom-map.txt
 ```
 
-Next, we used Plink1 to convert our vcf file to plink format which included sites with a minor allele count greater than or equal to two and excluded sites with a p-value for exact test for Hardy-Weinberg Equilibrium below 1e-4. Eventually, we pruned SNPs in highly linked regions.
+Next, we converted our vcf file to plink format which included sites with a minor allele count greater than or equal to two and excluded sites with a p-value for exact test for Hardy-Weinberg Equilibrium below 1e-4. Additionally, we pruned SNPs in highly linked regions.
 
 ```bash
 plink --vcf Adigi.v2.filtered.vcf.gz --out Adigitifera \
@@ -49,14 +47,15 @@ plink --bfile Adigitifera --indep-pairwise 50 10 0.1 --out Adigitifera \
 plink --bfile Adigitifera --extract Adigitifera.prune.in \
     --recode12 --allow-extra-chr --out Adigitifera_ldpruned
 ```
-We then start with our PCA analysis and Admixture analysis with **919,129** SNPs.
+This left a total of **919,129** SNPs for PCA and Admixture analysis
 
 ### Principal Component Analysis
-**Is there genetic structure in Kimberley corals?**
 
-`smartpca` has a design flaw that it won't work with chromosome id other than small numbers (1-22,X,Y). So we used an [in-house script](scripts/fix_mapfile_for_smartpca.py) to fix the map file and run smartpca with default parameters.
+We used `smartpca` from the Eigensoft suite for this task. 
 
-```{r smartpca,fig.retina=2,fig.show="hold",fig.height=3.6, out.width="100%",fig.cap="Two plots depict the first vs second principal components (PC1 vs PC2) and PC2 vs PC3, which stratified by sample site location (red-like dots: Inshore, green-like dots from south offshore, blue dots: north offshore)."}
+`smartpca` has a design flaw that it won't work with chromosome ids other than small numbers (1-22,X,Y). So we used an [in-house script](scripts/fix_mapfile_for_smartpca.py) to fix the map file and run smartpca with default parameters.
+
+```{r smartpca}
 pca <- read.table("data/hpc/pca/Adigitifera_smartpca.evec",
                        comment = "#",sep="",
                        col.names =c("sampleid",paste0("PC",1:20),"location"))
@@ -94,10 +93,12 @@ p2 <- ggplot(pca %>% filter(sampleid!="BR_5_121:BR_5_121_S125_L004")%>% arrange(
 p1 + p2
 ```
 
+**Figure 1:** Plots depict the first vs second principal components (PC1 vs PC2) and PC2 vs PC3, stratified by sample site location (red-like dots: Inshore, green-like dots from south offshore, blue dots: north offshore).  
 
-Corals from different regions were well separated as inshore, offshore north, and offshore south, except one sample from Beagle reef was clustered with offshore south. In the right plot, inshore samples were tightly congregated compared to two offshore groups. Therefore, our samples from six locations form three clusters which correspond to three geographic regions we called inshore, offshore north, and offshore south.
 
-This analysis revealed that one sample from Beagle Reef (inshore), `BR_5_121` had offshore ancestry despite being collected from inshore.  We excluded this sample from subsequent analyses of demography and selection.
+Corals from different regions were well separated as inshore, north offshore, and south offshore, except one sample from Beagle reef was clustered with south offshore. In the right plot, inshore samples were tightly congregated compared to two offshore groups. Therefore, our samples from six locations form three clusters which correspond to three geographic regions we called inshore,north offshore, and south offshore.
+
+This analysis revealed that one sample from Beagle Reef (inshore), `BR_5_121` had offshore ancestry despite being collected from inshore.  This sample is the sample that we later identified as being mislabelled (see [here](18.radseq_check.md)). We excluded this sample from subsequent analyses of demography and selection.
 
 ### PC loadings
 To check whether population structure evident in the PCA was driven by a small number of genomic regions (eg such as inversions) we inspected the PC loading for the first two principle components.
@@ -116,9 +117,7 @@ At a high level this seems to suggest that population structure reflects variati
 
 ### Admixture analysis
 
-**Is there any mixture in samples?**
-
-Using the unlinked SNPs in plink format we created before, we run `ADMIXTURE` with default parameters and 10-fold cross-validation. The postulated number of ancestral population K was set from 1 to 6 and get results on cross-validation error across values of K.
+Using the unlinked SNPs in plink format, we ran `ADMIXTURE` with default parameters and 10-fold cross-validation. The postulated number of ancestral population K was set from 1 to 6 and results of the cross-validation error were inspected across this range of values of K.
 
 >`ADMIXTURE` will need genotypes coded as 0,1,2 (instead of A,T,G,C).
 
@@ -129,7 +128,7 @@ do
   awk -v K=$K '$1=="CV"{print K, $4}' log.${K}.out >> CV.txt
 done
 ```
-The cross-validation error suggests the lowest cross-validation error is with K=1 which is a common situation when population differentiation is subtle. We then check results for K=2,3.
+The cross-validation error suggests the lowest cross-validation error is with K=1 which is a common situation when population differentiation is subtle. Since our PCA results clearly pointed toward at least K=3 we then checked admixture proportions for K=2 and 3.  
 
 ```{r admixture, fig.width=5.2, fig.height=3.8,fig.retina=2,out.extra='style="float:left"'}
 samples <- scan("data/hpc/admixture/sample_order.txt", character())

@@ -2,7 +2,53 @@
 
 # Simulated data under FSC model
 
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC.est 
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC.tpl
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/admixture/3.out.growth_rate_SC_1_1.fam
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/admixture/3.out.growth_rate_SC_ldpruned.3.Q
 
+cache/hbd_data.rds
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/plink2/10_1.het
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/plink2/1_1.het
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/plink2/2_1.het
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/plink2/3_1.het
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/plink2/4_1.het
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/plink2/5_1.het
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/plink2/6_1.het
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/plink2/7_1.het
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/plink2/8_1.het
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/plink2/9_1.het
+
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_10_1.gen.vcf.gz_IN_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_10_1.gen.vcf.gz_NO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_10_1.gen.vcf.gz_SO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_1_1.gen.vcf.gz_IN_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_1_1.gen.vcf.gz_NO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_1_1.gen.vcf.gz_SO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_2_1.gen.vcf.gz_IN_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_2_1.gen.vcf.gz_NO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_2_1.gen.vcf.gz_SO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_3_1.gen.vcf.gz_IN_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_3_1.gen.vcf.gz_NO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_3_1.gen.vcf.gz_SO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_4_1.gen.vcf.gz_IN_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_4_1.gen.vcf.gz_NO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_4_1.gen.vcf.gz_SO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_5_1.gen.vcf.gz_IN_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_5_1.gen.vcf.gz_NO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_5_1.gen.vcf.gz_SO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_6_1.gen.vcf.gz_IN_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_6_1.gen.vcf.gz_NO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_6_1.gen.vcf.gz_SO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_7_1.gen.vcf.gz_IN_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_7_1.gen.vcf.gz_NO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_7_1.gen.vcf.gz_SO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_8_1.gen.vcf.gz_IN_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_8_1.gen.vcf.gz_NO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_8_1.gen.vcf.gz_SO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_9_1.gen.vcf.gz_IN_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_9_1.gen.vcf.gz_NO_1based.td
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_9_1.gen.vcf.gz_SO_1based.td
 
 # Kraken profiling
 
@@ -378,6 +424,7 @@ data/hpc/phasing/compare_imputation_with_af.txt
 
 # popgen
 
+data/hpc/popgen/plink2.het
 data/hpc/popgen/southoffshore.filtered_windowed.td
 data/hpc/popgen/inshore_northoffshore_per_snp_fst.weir.fst
 data/hpc/popgen/southoffshore.ld

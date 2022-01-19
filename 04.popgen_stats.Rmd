@@ -1,66 +1,29 @@
 ---
 title: "Population genetic statistics"
-output: github_document
+output:
+  github_document:
+    pandoc_args: --webtex
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(tidyverse)
 library(ggpubr)
+library(cowplot)
 ```
-
-### Number of unique SNPs in populations
-We counted the number of SNPs specific to each population. These are variants that are only exist in one population and are homozygous in other samples.
-
-```bash
-bcftools view -S ^{pop}.txt Adigi.v2.filtered.vcf.gz | bcftools filter -i 'AC=0 || AC=AN'
-```
-
-|Population    | Sample size | SNP count    |
-|--------------|-------------|--------------|
-|Inshore       |     30      |  1,289,789   |
-|Offshore North|     20      |  1,424,388   |
-|Offshore South|     25      |  1,510,524   |
-| Total        |     75      |  9,656,554   |
-
-### Number of privately fixed SNPs 
-Here our objective was to count SNPs with a very high allele frequency (fixed or nearly fixed) in one population, but absent in both other populations. For this we first used PLINK to create separate allele frequency summaries for each population as follows;
-
-```bash
-plink2 --vcf Adigi.v2.filtered.vcf.gz --allow-extra-chr --freq 'cols=chrom,pos,ref,alt,altfreq'  --pheno populations.txt --loop-cats 'site' 
-```
-
-where the file `populations.txt` has a format like;
-
-```bash
-#IID  site
-AI_1_001_S102_L004 IN
-AI_1_008_merged IN
-AI_1_021_S97_L004 IN
-```
-
-This generates an `afreq` file for each population with the allele frequencies at each SNP.  We used `paste` to combine these three files and then an awk script [priv.awk](data/hpc/private_alleles/priv.awk).  
-
-```bash
-paste plink2.IN.afreq plink2.NO.afreq plink2.SO.afreq | awk '{print $1,$2,$4,$5,$6,$12,$18}' | awk -v mv=1.0 -f priv.awk > 1.0.priv
-paste plink2.IN.afreq plink2.NO.afreq plink2.SO.afreq | awk '{print $1,$2,$4,$5,$6,$12,$18}' | awk -v mv=0.9 -f priv.awk > 0.9.priv
-```
-
-Note that the awk script accepts an argument `mv` that determines the threshold allele frequency for "fixation".  The script always requires that the allele be absent (freq=0) in the other populations.
-
-When the threshold is set at complete fixation just a single SNP is identified at `BLFC01000154.1 282919` which is fixed in Inshore and absent elsewhere.  This SNP is surrounded by other SNPs with very high (but not quite fixed) frequencies and is located within a gene `adig_s0150.g21` that has a blast hit to Peroxidasin and is on one of our identified putative selective sweeps. See [17.dating_the_selection](17.dating_the_selection.md) for the estimated age of this sweep.
-
-If the threshold is set lower to 0.9 far more SNPs (95) are identified but all are in the inshore population and all are concentrated in just four loci. Two of these fall within putative sweeps and two fall just outside them within 50kb. 
 
 ### Observed and expected heterozygosity
-We used plink2 to calculate heterozygosity per sample as
+We used plink2 to calculate heterozygosity per sample using the command;
 
 ```bash
 plink2 --vcf Adigi.v2.filtered.vcf.gz --allow-extra-chr --het
 ```
 
+As part of this calculation PLINK provides the observed and expected heterozygosity (Ho,He) as well as the inbreeding coefficient F which is calculated as $1-\frac{Ho}{He}$
+
+
 ```{r}
-het_data <- read_tsv("data/hpc/popgen/plink2.het") %>% 
+het_data <- read_tsv("data/hpc/popgen/plink2.het", show_col_types = FALSE) %>% 
   rename(sample=`#IID`) %>% 
   filter(sample!="BR_5_121_S125_L004") %>% 
   mutate(location= case_when(
@@ -78,20 +41,46 @@ het_data <- read_tsv("data/hpc/popgen/plink2.het") %>%
 ```{r}
 source("scripts/color_scheme.R")
 
-het_data %>% 
+f_plot <- het_data %>% 
   filter(stat=="F") %>% 
   ggplot(aes(x=location,y=value)) + 
   geom_boxplot(aes(color=location),alpha=0.5) + 
   geom_point(aes(x=location,color=location), position = position_jitter(w=0.1,h=0)) + 
   theme_pubr() + 
-  theme(legend.position = "none", text = element_text(size=12) , axis.text.x = element_text(size=12)) +
+  theme(legend.position = "bottom",legend.title = element_blank(), text = element_text(size=12) , axis.text.x = element_text(size=12)) +
   scale_color_manual(values = myCol) + 
-  xlab("") + ylab("Inbreeding coeffient, F")
+  xlab("") + ylab("Inbreeding Coeffient")
+
+
+het_plot <- het_data %>% 
+  filter(stat!="F") %>% 
+  ggplot(aes(x=location,y=value)) + 
+  geom_boxplot(aes(fill=stat,color=stat),alpha=0.5) + 
+#  geom_point(aes(x=location,color=stat), position = position_jitter(w=0.1,h=0)) + 
+  theme_pubr() + 
+  theme(legend.position = "bottom",legend.title = element_blank(), text = element_text(size=12) , axis.text.x = element_text(size=12)) +
+#  scale_color_manual(values = myCol) + 
+  xlab("") + ylab("Heterozygosity")
+
+plot_grid(f_plot,het_plot,labels=c("A","B"))
 ```
+
+**Figure 1:** Summary of heterozygosity and inbreeding coefficients in each of the populations.  Note that the Inbreeding coefficient (A) captures deviations from expectation (ie between He and Ho) (B).
 
 
 ```{r}
-ggsave("figures/inbreeding.png",width = 3,height = 3)
+# Plot for saving only
+f_plot_out <- het_data %>% 
+  filter(stat=="F") %>% 
+  ggplot(aes(x=location,y=value)) + 
+  geom_boxplot(aes(color=location),alpha=0.5) + 
+  #geom_point(aes(x=location,color=location), position = position_jitter(w=0.1,h=0)) + 
+  theme_pubr() + 
+  theme(legend.position = "none",text = element_text(size=12) , axis.text.x = element_text(size=12)) +
+  scale_color_manual(values = myCol) + 
+  xlab("") + ylab("Inbreeding Coeffient")
+
+ggsave(f_plot_out,filename = "figures/inbreeding.png",width = 3,height = 3)
 ```
 
 
@@ -157,7 +146,7 @@ awk '{if ($4<0.3) print $0}' {pop}.windows.missing.txt |\
 
 **Tajima's D**
 
-Similarly, we used `vk tajima` in [VCF-kit](https://vcf-kit.readthedocs.io/en/latest/) to calculate the genome-wide tajima'D.
+Similarly, we used `vk tajima` in [VCF-kit](https://vcf-kit.readthedocs.io/en/latest/) to calculate the genome-wide Tajima's D.
 
 ```bash
 bcftools view -S {pop} Adigi.v2.filtered.vcf.gz |\
@@ -170,13 +159,19 @@ cut -f1,2,3 |\
 grep -Fwf - {pop}_1based.td > {pop}.filtered_windowed.td
 ```
 
-```{r pi, fig.retina=2, fig.show="hold", out.width="50%",cache=TRUE}
+```{r pi, cache=TRUE}
 read_pi <- function(pop) {
  read_tsv(paste0("data/hpc/popgen/",pop,".filtered_windowed.pi"),col_names = c("chr","start","end","n","pi")) %>% add_column(pop=pop) 
 }
 
-ggplot(rbind(read_pi("inshore"),read_pi("northoffshore"),read_pi("southoffshore"))) + geom_boxplot(aes(x=pop,y=pi,fill=pop)) + ggsci::scale_fill_startrek() + theme_classic() +
-  theme(legend.position = "none") + labs(x="",y="Pi") + scale_x_discrete(labels=c("Inshore","Offshore North","Offshore South"))
+pi_plot <- rbind(read_pi("inshore"),read_pi("northoffshore"),read_pi("southoffshore")) %>% 
+ggplot() + 
+  geom_boxplot(aes(x=pop,y=pi,fill=pop)) + 
+  ggsci::scale_fill_startrek() + 
+  theme_classic() +
+  theme(legend.position = "none") + 
+  labs(x="",y="Pi") + 
+  scale_x_discrete(labels=c("IN","NO","SO"))
 
 
 read_td <- function(pop) {
@@ -184,16 +179,20 @@ read_td <- function(pop) {
     add_column(pop=pop)
 }
 
-ggplot(rbind(read_td("inshore"),read_td("northoffshore"),read_td("southoffshore"))) +
-  geom_boxplot() + 
-  ggsci::scale_fill_startrek() + theme_test(base_size = 14) + 
+td_plot <- rbind(read_td("inshore"),read_td("northoffshore"),read_td("southoffshore")) %>% 
+ggplot() +
+  geom_boxplot(aes(x=pop,y=td,fill=pop)) + 
+  ggsci::scale_fill_startrek() + 
+  theme_test(base_size = 14) + 
   scale_y_continuous(limits = c(-3,2)) +
-theme(legend.position = "none") + 
+  theme(legend.position = "none") + 
   labs(x="",y="Tajima's D") + 
   scale_x_discrete(labels=c("IN","NO","SO"))
+
+plot_grid(pi_plot,td_plot)
 ```
 
-**Figure:** The left boxplot shows the values of $\theta_{\pi}$ and the right plot displays the Tajima's D values in three populations.
+**Figure: 2** The left boxplot shows the values of $\theta_{\pi}$ and the right plot displays the Tajima's D values in three populations.
 
 ### Linkage disequilibrium decay distribution
 We used plink to calculated the $r^2$ of every pairs of SNPs in inshore, offshore north, offshore south. Because of unequal sample sizes in three populations, we randomly sample down to 20 individuals in inshore and offshore south.
@@ -218,9 +217,9 @@ summarise_ld <- function(filename) {
   df
 }
 
-noffshore_ld <- summarise_ld("data/hpc/popgen/northoffshore.ld") %>% add_column(location="north offshore")
-soffshore_ld <- summarise_ld("data/hpc/popgen/southoffshore.ld") %>% add_column(location="south offshore")
-inshore_ld <- summarise_ld("data/hpc/popgen/inshore.ld") %>% add_column(location="inshore")
+noffshore_ld <- summarise_ld("data/hpc/popgen/northoffshore.ld") %>% add_column(location="NO")
+soffshore_ld <- summarise_ld("data/hpc/popgen/southoffshore.ld") %>% add_column(location="SO")
+inshore_ld <- summarise_ld("data/hpc/popgen/inshore.ld") %>% add_column(location="IN")
 
 
 ggplot(rbind(inshore_ld,noffshore_ld,soffshore_ld),aes(mean_dist/1000,mean_r2)) + geom_point(size = 1,aes(color=location)) + ggsci::scale_color_startrek(labels = c("Inshore", "Offshore North","Offshore South")) +
@@ -229,5 +228,49 @@ ggplot(rbind(inshore_ld,noffshore_ld,soffshore_ld),aes(mean_dist/1000,mean_r2)) 
         legend.title = element_blank()) + labs(x="Pairwise distance in Kb", y="LD (" ~ r^2 ~ ")")
 ```
 
-**Figure:** The plot depicts the interval distance against the LD $r^2$ value. Red, blue, green dots represent values calculated based on inshore, offshore North, offshore South.
+**Figure: 3** The plot depicts the interval distance against the LD $r^2$ value. Red, blue, green dots represent values calculated based on inshore, offshore North, offshore South.
 
+
+
+### Number of privately fixed SNPs 
+Here our objective was to count SNPs with a very high allele frequency (fixed or nearly fixed) in one population, but absent in both other populations. For this we first used PLINK to create separate allele frequency summaries for each population as follows;
+
+```bash
+plink2 --vcf Adigi.v2.filtered.vcf.gz --allow-extra-chr --freq 'cols=chrom,pos,ref,alt,altfreq'  --pheno populations.txt --loop-cats 'site' 
+```
+
+where the file `populations.txt` has a format like;
+
+```bash
+#IID  site
+AI_1_001_S102_L004 IN
+AI_1_008_merged IN
+AI_1_021_S97_L004 IN
+```
+
+This generates an `afreq` file for each population with the allele frequencies at each SNP.  We used `paste` to combine these three files and then an awk script [priv.awk](data/hpc/private_alleles/priv.awk).  
+
+```bash
+paste plink2.IN.afreq plink2.NO.afreq plink2.SO.afreq | awk '{print $1,$2,$4,$5,$6,$12,$18}' | awk -v mv=1.0 -f priv.awk > 1.0.priv
+paste plink2.IN.afreq plink2.NO.afreq plink2.SO.afreq | awk '{print $1,$2,$4,$5,$6,$12,$18}' | awk -v mv=0.9 -f priv.awk > 0.9.priv
+```
+
+Note that the awk script accepts an argument `mv` that determines the threshold allele frequency for "fixation".  The script always requires that the allele be absent (freq=0) in the other populations.
+
+When the threshold is set at complete fixation just a single SNP is identified at `BLFC01000154.1 282919` which is fixed in Inshore and absent elsewhere.  This SNP is surrounded by other SNPs with very high (but not quite fixed) frequencies and is located within a gene `adig_s0150.g21` that has a blast hit to Peroxidasin and is on one of our identified putative selective sweeps. See [17.dating_the_selection](17.dating_the_selection.md) for the estimated age of this sweep.
+
+If the threshold is set lower to 0.9 far more SNPs (95) are identified but all are in the inshore population and all are concentrated in just four loci. Two of these fall within putative sweeps and two fall just outside them within 50kb. A full list of these loci is available as the file [0.9.priv](data/hpc/private_alleles/0.9.priv)
+
+### Number of unique SNPs in populations
+We counted the number of SNPs specific to each population. These are variants that only exist in one population and are homozygous in other samples.
+
+```bash
+bcftools view -S ^{pop}.txt Adigi.v2.filtered.vcf.gz | bcftools filter -i 'AC=0 || AC=AN'
+```
+
+|Population    | Sample size | SNP count    |
+|--------------|-------------|--------------|
+|Inshore       |     30      |  1,289,789   |
+|Offshore North|     20      |  1,424,388   |
+|Offshore South|     25      |  1,510,524   |
+| Total        |     75      |  9,656,554   |
