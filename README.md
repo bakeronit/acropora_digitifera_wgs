@@ -31,7 +31,6 @@ This repository contains complete computational methods including source code, p
 - Selection analysis based on [EHH](08.ehh_stats.md) and [allele frequency](12.pcangsd_selection.md)
 - [Identification of the top 1% of regions putatively under selection](10.identify_selective_genomic_windows.md)
 - [GO Enrichment of genes under selection](11.GO_enrichment.md)
-- [GO Enrichment of genes under selection based on Interproscan GO term assignments](x40.GO_ipr_enrichment.md)
 - [Estimating the TMRCA for selective sweeps](17.dating_the_selection.md)
 
 
@@ -49,7 +48,7 @@ This repository contains complete computational methods including source code, p
 - [15.pcangsd_neutral.Rmd](15.pcangsd_neutral.Rmd)
 - [Combined EHH scan candidate in inshore](20.inshore_candidate_genes.md)
 - [Jia's old GO enrichment analysis](21.functional_enrichment.md)
-
+- [GO Enrichment of genes under selection based on Interproscan GO term assignments](x40.GO_ipr_enrichment.md)
 - [Ira's smc plot with mutation rate range](x50.smc_files.md)
 
 

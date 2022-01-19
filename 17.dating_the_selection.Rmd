@@ -299,7 +299,7 @@ gnjt2 + geom_facet(panel="Haplotypes",data = hh_gg2 %>% filter(allele==1),
 
 ### Summary of manual checks
 
-Manual check results are recorded [here](https://docs.google.com/spreadsheets/d/1HW_6cVteoJjQEhHLmL5XaNKmcBYcX7PG40uz-mWE-ew/edit?usp=sharing) and are downloaded to the file `sweep_regions.xlsx`.  These manual checks include a check for QC as well as a check on the status of the selected allele (0/1). We process this to produce an input file for the `startmrca` analysis, and after writing it to disk we run the MCMC on the HPC. 
+Manual check results are recorded [here](https://docs.google.com/spreadsheets/d/1HW_6cVteoJjQEhHLmL5XaNKmcBYcX7PG40uz-mWE-ew/edit?usp=sharing) and are downloaded to the file `sweep_regions.xlsx`.  These manual checks include a check for QC as well as a check on the status of the selected allele (0/1). We process this to produce an input file for the `startmrca` analysis, and after writing it to disk we run the MCMC. 
 
 ```{r}
 if (!file.exists("cachec/sweep_regions.rds")){
@@ -320,9 +320,14 @@ manual_sweeps <- sweeps_gs4 %>%
   write_tsv("data/hpc/startmrca/sweep_regions_checked.tsv")
 ```
 
-```bash
-bash 03_run_tmrca.sh
-```
+## Running STARTMRCA
+
+After completing manual checks on putative sweep loci we ran startmrca on each of them as follows;
+
+- We used `vcftools` to extract a phased vcf file specific to the region under analysis (1Mb region centered on the focal allele)
+- We then used the script [03_run_tmrca.sh](data/hpc/startmrca/03_run_tmrca.sh) which itself calls [run_startmrca.R](data/hpc/startmrca/run_startmrca.R). 
+
+This process was run for all regions.  Notet that the `run_startmrca` script uses a chain length of 20000, 
 
 # Results
 
@@ -330,7 +335,7 @@ Preliminary results are shown below for all loci passing QC.  The dates shown ar
 
 One of the main things that can be seen here is that relatively few loci pass the QC checks for use with startmrca.  This limits the analysis a little but we are able to see dating estimates for several loci involved in enriched go terms.  The broad pattern of timing is also interesting because it shows a peak in the number of loci dating to around 6kya which approximately matches the time when sea levels reached similar heights to what they are today.
 
-```{r}
+```{r, include=FALSE}
 estimate_tmrca <- function(result){
   result %>% 
   mutate(n=row_number()) %>% 
@@ -522,7 +527,7 @@ ggsave("figures/sweep_dates_wide4.png", width = 4.75,height = 4)
 ```
 
 
-```{r, results='hide'}
+```{r, include=FALSE}
 hap_names2pops <- function(hn){
   pops <- rep("IN",length(hn))
   sos <- grepl("RS[123]",hn)
@@ -616,7 +621,7 @@ ggsave(phaps,filename = "figures/haplengths.png",width = 2,height = 3.5)
 
 
 
-```{r}
+```{r, include=FALSE}
 #ptimeline <- ggdraw(p1)
 ptimeline <- p1
 
@@ -643,5 +648,8 @@ ggsave("figures/sweep_dates_wide.png",width = 6.75,height=4)
 
 
 
+```{r}
+knitr::include_graphics("figures/sweep_dates_wide.png")
+```
 
 
