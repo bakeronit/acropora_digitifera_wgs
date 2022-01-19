@@ -1,5 +1,14 @@
 # Data listing for medium sized (<50Mb) data files
 
+# Annotation
+
+data/hpc/annotation/all_ipr.tsv
+data/hpc/annotation/Adigitifera_uniprot_blastp.outfmt6
+data/hpc/annotation/Adigitifera_uniprot_blastx.outfmt6
+data/hpc/annotation/uniprot-yourlist.tab
+data/hpc/annotation/uniprot_gene_annot.tsv
+data/hpc/annotation/allgenes_ids_extracted_from_gff.txt
+
 # Simulated data under FSC model
 
 data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC.est 
