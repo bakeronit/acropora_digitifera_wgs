@@ -19,6 +19,7 @@ This repository contains complete computational methods including source code, p
 - [IBD and HBD segments](06.ibd_hbd.md)
 - [Demographic history based on SMC](07.demographic_history.md)
 - [Demographic model fitting using fastsimcoal](22a.fastsimcoal_fitting.md)
+- [Demographic model validation by simulation](22b.fastsimcoal_sim.md)
 - Selection analysis based on [EHH](08.ehh_stats.md) and [allele frequency](12.pcangsd_selection.md)
 - [GO Enrichment of genes under selection](11.GO_enrichment.md)
 - [GO Enrichment of genes under selection based on Interproscan GO term assignments](x40.GO_ipr_enrichment.md)
