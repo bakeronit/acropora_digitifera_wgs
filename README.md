@@ -16,35 +16,42 @@ This repository contains complete computational methods including source code, p
 **Population genetics of the coral host**
 - [Basic population genetic statistics](04.popgen_stats.md)
 - [Population structure analysis](05.population_structure.md)
+- [FineStructure analysis](x20.finestructure.md)
+- [Outgroup analysis using Japanese A. digitifera](x10.outgroup_analysis.md)
+- [Host mitogenome haplotype](24.host_mitogenome.md)
 - [IBD and HBD segments](06.ibd_hbd.md)
 - [Demographic history based on SMC](07.demographic_history.md)
 - [Demographic model fitting using fastsimcoal](22a.fastsimcoal_fitting.md)
 - [Demographic model validation by simulation](22b.fastsimcoal_sim.md)
+
+**The symbiodiniacea profiles**
+- [Dissecting the symbiont reads](23.symbionts.md)
+
+**Signatures of selection in the coral host**
 - Selection analysis based on [EHH](08.ehh_stats.md) and [allele frequency](12.pcangsd_selection.md)
+- [Identification of the top 1% of regions putatively under selection](10.identify_selective_genomic_windows.md)
 - [GO Enrichment of genes under selection](11.GO_enrichment.md)
 - [GO Enrichment of genes under selection based on Interproscan GO term assignments](x40.GO_ipr_enrichment.md)
 - [Estimating the TMRCA for selective sweeps](17.dating_the_selection.md)
 
-**The symbiodiniacea profies**
-- [Dissecting the symbiont reads](23.symbionts.md)
 
-**Things waiting to be ordered**
-- [Gene function annotation](09.annotate_genes.md)
-- [EHH windowed scan, how I get the top 1% genomics region from iHS, XP-xxx](10.identify_selective_genomic_windows.md)
+**Miscellaneous**
+- [Functional annotation of genes](09.annotate_genes.md)
+- [Checking the mislocated sample using radseq data](18.radseq_check.md)
 - [Pcangsd_popgen_stats, Fst/TajimasD using ANGSD](13.popgen_stats_angsd.md)
 - [Trend that EHH candidate region with high pbs and high tajimasD](14.ehh_pbs_pcangsd.md)
-- [Checkind the mislocated sample using radseq data](18.radseq_check.md)
-- [Combined EHH scan candidate in inshore](20.inshore_candidate_genes.md)
-- [Jia's old GO enrichment analysis](21.functional_enrichment.md)
-- [outgroup analysis, check using JP a.digitifera](x10.outgroup_analysis.md)
-- [fineStructure analysis](x20.finestructure.md)
-- [Ira's smc plot with mutation rate range](x50.smc_files.md)
-- [host mitogenome haplotype](24.host_mitogenome.md)
+
+
 
 **Unwanted Rmd or not rendered Rmd**
 - [19.ldheatmap.Rmd](19.ldheatmap.Rmd): delete it?
 - [16.symbiont_profiles.Rmd](16.symbiont_profiles.Rmd): replaced by 23.symbiont.Rmd
 - [15.pcangsd_neutral.Rmd](15.pcangsd_neutral.Rmd)
+- [Combined EHH scan candidate in inshore](20.inshore_candidate_genes.md)
+- [Jia's old GO enrichment analysis](21.functional_enrichment.md)
+
+- [Ira's smc plot with mutation rate range](x50.smc_files.md)
+
 
 ### How to use this repository
 All of the sections above are provided as processed markdown files. Clicking the link should display a web readable page with text, a few select commands and plots and tables. The code used to generate these pages is provided in the corresponding .Rmd file. If you would like to run the code in these files yourself you will need to;
