@@ -36,7 +36,7 @@ python easysfs.py -i Adigi.nongenic.r03nomiss.vcf.gz -p popfile.txt -a --GQ 20 -
 We used a hierarchical approach to model selection, first testing alternative models for the tree topology (divergence), then alternative migration and growth scenarios based on the best topology.
 
 ### Divergence
-We first tested alternative models of the divergence topology. Among the four alternative models, the model where inshore split first clearly displays the best likelihood values.
+We first tested alternative models of the divergence topology. Among the four alternative models, the model where inshore split first clearly displays the best likelihood and AIC values.
 
 ```{r}
 read_ll <- function(filename) {
@@ -48,63 +48,73 @@ divergence_ll <- list.files("data/hpc/demography/fastsimcoal/divergence",pattern
 divergence_ll <- divergence_ll %>% left_join(n_parameter) %>% 
   dplyr::mutate(aic=2*n-2*(MaxEstLhood/log10(exp(1))), delta_ll= MaxObsLhood-MaxEstLhood) 
   
-divergence_ll %>% group_by(model) %>% slice_max(MaxEstLhood,n=1) %>% select(model, run, n, MaxEstLhood, aic)
+#divergence_ll %>% group_by(model) %>% slice_max(MaxEstLhood,n=1) %>% select(model, run, n, MaxEstLhood, aic) %>% knitr::kable()
 
-ggplot(divergence_ll, aes(x=model,y=MaxEstLhood)) + geom_boxplot() +
+ggplot(divergence_ll, aes(x=model,y=aic)) + geom_boxplot() +
   labs(x="Topology",y="AIC") + scale_x_discrete(labels=c("split_IN"="(IN,(NO,SO))","split_NO"="(NO,(IN,SO))","split_poly"="(IN,NO,SO)","split_SO"="(SO,(NO,IN))"))
-
 ```
 
-**Figure 1: The likelihood distribution of four divergence models**
+**Figure 1:** The AIC distribution of four divergence models. Plot shows the best AIC value from each of 100 independent runs for each model.
 
 ### Models with growth rate and migration.
-Next, we add growth rate in every population after splitting and test six scenarios regarding the timing of migration. Parameters such as divergence time of offshore, inshore and the growth rate combined with the current and ancestral population size will be estimated during each test. For each model, we also performed 100 tims of independent runs.
-The plot below displays six models we tested. 
 
+Since our population genetic statistics and SMC++ analyses all point toward a bottleneck and recent population growth we added a growth phase to all populations after splitting. We then generated 6 alternative models based on the relative timing of migration as shown in the diagram below. 
 
 ```{r}
 knitr::include_graphics("figures/tested_models.png")
 ```
 
-**Figure 2: Graphic illustration of six alternative models**
+**Figure 2: Graphic illustration of six alternative models.  Each model is given a long name and a short code in brackets. **
  
 **Model comparison**
 
-When we checking model parameters of `growth_rate_SC2` and `growth_rate_AM2 (early migration)` in runs, we found that these two models are converged toward `growth_rate_SC`  or we should call it `growth_rate_contemperary_IM (IMc)`. As, the `TMIG` had been pushing to the lower bound of the parameter in simulation (100 generation) in `grwoth_rate_SC2` whle `TMIG` ended up extremely close to `TDIV1` (the divergence time of two offshore populations).
+For each of the six models, we performed 100 independent runs and examined the distribution of parameter values and AIC values from the maximum likelihood estimate of each run. 
+
+In two of our models we allowed the migration phase to start independently of population splits (TMIG) (though constrained to be after TDIV1), however we found that these two models converged toward a simpler model, "Contemporary continuous migration IMc" (coded as `growth_rate_SC` internally). This can be seen in the parameter plot below where we see that the parameter `TMIG` converges to TMIG=TDIV1 for the model "Secondary contact SC" and converges to 0 for the model "Early migration EM".  Both scenarios reduce to the model "IMc" in this situation. 
 
 ```{r}
-gr_ll <- list.files("data/hpc/demography/fastsimcoal/final",pattern = ".*fixed\\.param",full.names = T) %>% map_df(read_ll) %>% left_join(n_parameter) %>% 
-  dplyr::mutate(aic=2*n-2*(MaxEstLhood/log10(exp(1))), delta_ll= MaxObsLhood-MaxEstLhood,Tdiff=TDIV1-TMIG)
-model.labs <- c("SI","IM","IMc","SC","EM","AM")
-names(model.labs) <- gr_ll$model %>% unique
+gr_ll <- list.files("data/hpc/demography/fastsimcoal/final",pattern = ".*fixed\\.param",full.names = T) %>% 
+  map_df(read_ll) %>% 
+  left_join(n_parameter) %>% 
+  dplyr::mutate(aic=2*n-2*(MaxEstLhood/log10(exp(1))), delta_ll= MaxObsLhood-MaxEstLhood,Tdiff=TDIV1-TMIG) %>% 
+  mutate(model.lab = case_when(
+      model == "0.growth_rate_SI" ~ "SI",
+      model == "1.growth_rate_IM" ~ "IM",
+      model == "3.growth_rate_SC" ~ "IMc",
+      model == "4.growth_rate_SC2" ~ "SC",
+      model == "6.growth_rate_AM2" ~ "EM",
+      model == "7.growth_rate_AM" ~ "AM"
+      )
+  )
 
-gr_ll %>% pivot_longer(-c(MaxEstLhood,model,run),names_to = "param",values_to = "value") %>% 
+gr_ll %>% 
+  pivot_longer(-c(MaxEstLhood,model,run, model.lab),names_to = "param",values_to = "value") %>% 
   filter(param %in% c("TDIV1","TMIG","Tdiff") & model %in% c("4.growth_rate_SC2","6.growth_rate_AM2")) %>% 
   ggplot(aes(x=param,y=value)) +
   geom_violin()+
-  geom_jitter(size=1) + facet_wrap(~model,scales = "free", labeller = labeller(model=model.labs)) +
+  geom_jitter(size=1) + 
+  facet_wrap(~model.lab,scales = "free") +
   labs(x="",y="Time in generations") + scale_x_discrete(limits=c("TDIV1","TMIG","Tdiff"),labels=c("Tdiff"="TDIV1-TMIG"))
 ```
 
-**Figure 3: The parameters esimtated in SC and EM**
+**Figure 3: Estimated population split times and migration time (TMIG) in two models where the migration time (TMIG) represents migration onset (SC) or termination (EM)**
 
-Thus, we decided to keep only `growth_rate_SI`,`growth_rate_IM`,`growth_rate_contemparary_IM`, and `growth_rate_AM` four alternative models to compare.
+
+Model selection analysis based on AIC for all six models clearly showed that the strict isolation model and ancient migration models were not supported (highest AIC).  Other models, EM, IM, IMc and SC all had a similar distribution of AIC values however since SC and EM effectively reduce to IMc this left only the IM and IMc models as potential candidates for the best model. We decided to proceed with `IMc` as the best model on the basis that it is simpler (one less parameter) than `IM` and had a better overall weighted AIC value. 
+
 
 ```{r}
-gr_ll %>% filter(grepl(model,pattern = "^[0,1,3,7]")) %>%  
-  ggplot(aes(x=model,y=MaxEstLhood)) + geom_violin(trim = FALSE,fill="gray") + 
- stat_summary(fun.data=mean_sdl, mult=1, 
+gr_ll %>% 
+  ggplot(aes(x=model.lab,y=aic)) + 
+  geom_violin(trim = FALSE,fill="gray") + 
+  stat_summary(fun.data=mean_sdl, mult=1, 
                  geom="pointrange", color="darkred",size=.6,fatten=2) +
-  theme_test(base_size = 14) + labs(y="log10(Lhood)",x="") +
-  scale_x_discrete(labels=c("SI","IM","IMc","AM"))
-  
-
-gr_ll %>% filter(grepl(model,pattern = "^[0,1,3,7]")) %>% group_by(model) %>% slice_max(MaxEstLhood,n=1) %>% ungroup %>% mutate(min_aic=min(aic),delta_aic=aic-min(aic), exps=exp(-delta_aic/2), waic=exps/sum(exps))
+  theme_test(base_size = 14) + labs(y="AIC",x="")
 ```
-Apparently, models with contemporary migration are better than model `SI` and `AM`. However, we couldn't decide a clear win between `IM` and `IMc`. We thus used the weighted AIC to decided `IMc` as the best model and used `IMc` to estimate confidence interval using parametric bootstrapping.
 
 
-We simulated 100 datasets for bootstrap, by modifying the FREQ to DNA in parameter estimate file (`3.growth_rate_SC_maxL.par`) which maximise the likelihood. simulate 257,314 DNA fragments with size of 24bp.
+
+To obtain confidence intervals for the parameters in `IMc` we used a parametric bootstrapping approach. For this, we simulated 100 datasets by modifying the FREQ to DNA in parameter estimate file (`3.growth_rate_SC_maxL.par`) which maximise the likelihood. simulate 257,314 DNA fragments with size of 24bp.
 
 ```bash
 fsc27 -i 3.growth_rate_SC_boot.par -n100 -j -m -s0 -x -I --foldedSFS -q -c12 -B12
