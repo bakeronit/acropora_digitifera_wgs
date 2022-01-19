@@ -15,7 +15,7 @@ require(ggpubr)
 library(RColorBrewer)
 library(ggsci)
 ```
-## 1. Kraken
+## Genus level analysis using Kraken
 The relative abundance of major clades (genera) of Symbiodiniaceae was profiled using [kraken](https://ccb.jhu.edu/software/kraken/) version 1.1.1 [@Wood2014-qp] to classify raw reads from each sample.  To ensure that this made full use of available reads and also that it was not affected by biased database composition we restricted our analysis to taxa for which a complete reference genome was available. This included the following data;
 
 - Clade A: *Symbiodinium microadriadicum* [from genbank](https://www.ncbi.nlm.nih.gov/assembly/GCA_001939145.1)
@@ -112,19 +112,23 @@ library(cowplot)
 plot_grid(spg_plot,spg_plot_props, ncol = 1, align = "hv", axis = "lr", rel_heights = c(0.4,0.6))
 ```
 
-## 2. Symbiont mitogenome haplotype
-While we observed a high level of symbiont specificity in *Acropora digitifera* (all samples are dominated by *Cladocopium*), the genetic diversity within clade C are evaluated here.
+# Diversity within the dominant genus, *Cladocopium*
 
-Firstly, reads were extracted from duplicates marked bam files and mapped to *Cladocopium* (C1) genome. The symbiont mitogenome sequence was downloaded from [reefgenomics](http://symbs.reefgenomics.org/download/).
+While the kraken analysis clearly showed that all Western Australian samples are dominated by *Cladocopium*, this is a large and diverse genus.  We therefore undertook additional analyses to search for patterns of symbiont diversity at lower taxonomic levels. 
+
+
+## Symbiont mitogenome haplotypes
+
+Firstly, reads were extracted from duplicate marked bam files and mapped to the *Cladocopium* (C1) genome. The symbiont mitogenome sequence was downloaded from [reefgenomics](http://symbs.reefgenomics.org/download/).
 
 ```bash
 samtools fastq -F 1024 {sample}_dpmarked.bam | bam mem -t 12 <mitogenome> - | \
 samtools view -b -F 4 > {sample}_mito.bam
 ```
 
-While the mapping coverage in symbiont mitochondrial genome was much lower and much more uneven. We thus filtered samples with less than 20X average mapping depth which left 41 samples for following analysis of symbiont haplotype network.
+The mapping coverage in the symbiont mitochondrial genome was generally low and uneven. We thus filtered samples with less than 20X average mapping depth (excluding regions with no reads mapped). This left 41 samples for which it was possible to generate a symbiont haplotype network.
 
-We then used bcftools to make genotype call, we filtered snps near 3 bp around indels and exclude snp with less than 10 quality score, a depth of twice bigger than the average depth or less than three.
+We then used bcftools to make genotype calls and then filtered these calls for quality as follows; snps were excluded if they were within 3 bp around indels, if they had less than 10 quality score, and if their coverage depth was twice bigger than the average depth or less than three.
 
 ```bash
 mean_cov=$(sample depth {sample}_mito.bam | awk '{sum += $3}END{print sum/NR}')
@@ -138,14 +142,14 @@ bcftools filter -Oz --SnpGap 3 --IndelGap 5 \
 -e " %QUAL<10 || DP > $max_dp || DP<3" - > {sample}_mito.vcf.gz
 ```
 
-Next, a consensus sequence was generated for each sample with uncalled loci set to be "-" in order to avoid bias in reference assembly.
+Next, a consensus sequence was generated for each sample by applying the relevant filtered variant file to the mitochondrial reference sequence. Uncalled loci were set to be "-".
 
 ```bash
 cat <mitogenome> | bcftools consensus -a - -e 'type="indel"' {sample}_mito.vcf.gz |\
 bioawk -c fastx -v samp={sample} '{printf(">%s\n%s\n", samp, $seq)}' > {sample}_consensus.fa
 ```
 
-Finally, all consensus sequences were concatenated into on "alignment" file and trimAl was used to remove position with gaps and output in NEXUS format.
+Finally, all consensus sequences were concatenated into on "alignment" file and trimAl was used to remove positions with gaps and output in NEXUS format.
 
 ```bash
 cat *_consensus.fa > alignment.fasta
@@ -158,9 +162,9 @@ The alignments in Nexus-format were loaded in [popart](http://popart.otago.ac.nz
 knitr::include_graphics("figures/Symbiont_mitohaps.jpg")
 ```
 
-**Figure: The haplotype network of symbiont Cladocopium C1 mitochondiral in 41 coral samples**
+**Figure 2:** The haplotype network of symbiont Cladocopium C1 mitochondiral in 41 coral samples
 
-## 3. ITS2 assignment for symbiont reads
+## ITS2 assignment for symbiont reads
 We firstly extracted reads that are not mapped to host genome and mapped them to the ITS2 sequences from [symportal](symportal.org) - published named sequences.
 
 ```bash
@@ -223,7 +227,7 @@ plot_grid(hm_plot)
 ```
 
 
-## 4. Distance based on D2S statistics of kmer
+## Distance based on D2S statistics
 To further make use of symbiont reads in our data, we applied [jackknifing pipeline](https://github.com/chanlab-genomics/jackknifing) to raw reads which extracts reads mapped to C1 genome and count kmers from sequences using jellyfish and calculated the D2 statistics based on kmers.
 We decided the optimum kmer size to be 21 and used D2S statistics, eventually, we got a matrix of kmer distances for each pair of samples.
 
