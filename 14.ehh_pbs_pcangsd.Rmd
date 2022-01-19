@@ -175,7 +175,7 @@ plot_grid(top_row,p_pi,p_D,ncol=1)
 
 
 
-```{r}
+```{r, results='hide'}
 pbs_bed <- pbsdata %>%
   mutate(start=midPos-5000,end=midPos+5000) %>%
   unite("ID",chr,midPos,sep = ":", remove = FALSE) %>%
@@ -203,7 +203,7 @@ pbs_extreme_loci <- pbsdata %>%
 ```
 
 
-```{r}
+```{r, results='hide'}
 #map_ehh_regions_to_scaffolds
 
 # Read the translated equivalent of ehh_bed (translated with command below)
@@ -228,7 +228,7 @@ ehh_sweep_manhattan_data <- ehh_sweeps_scaff %>%
 ```
 
 
-```{r}
+```{r, results='hide'}
 dated_loci <- read_rds("cache/dated_loci.rds")
 
 pop_names <- c("inshore"="Inshore","northoffshore"="North Offshore","southoffshore"="South Offshore")
@@ -277,6 +277,9 @@ mh_plot <- pbs_manhattan_data %>%
 ggsave(mh_plot,filename = "figures/pbs_ehh_manhattan.png",width = 6.75,height = 3)
 ```
 
+```{r}
+knitr::include_graphics("figures/pbs_ehh_manhattan.png")
+```
 
-
+**Figure 2:** Manhattan plots showing the coincidence of extreme values of the population branch statistic (PBS) and regions under selection identified by EHH based scans.  PBS estimates for each population are shown as points with the other two considered as outgroups. Points are shown in black and grey to indicate transitions between alternating pseudo-chromosomes via mapping to the A. millepora assembly from Fuller et al (Fuller et al. 2020). The purple shaded baseline shows the location of regions identified as candidates for positive selection using EHH-based scans.  Blue points indicate windows where outlying PBS values (>0.2) are coincident with EHH scans.
 
