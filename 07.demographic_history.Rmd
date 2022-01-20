@@ -200,11 +200,9 @@ Eventually, we made the pairwise plot using `smc plot` tool with a five year gen
 ```{r split, fig.show="hold", out.width="33%"}
 library(png)
 library(knitr)
-split_plot_cubic <- list.files(path = "figures/smc_split_cubic",pattern = "*.split.png" ,full.names = TRUE)
-include_graphics(split_plot_cubic)
-```
+#split_plot_cubic <- list.files(path = "figures/smc_split_cubic",pattern = "*.split.png" ,full.names = TRUE)
+#include_graphics(split_plot_cubic)
 
-```{r split2, fig.show="hold", out.width="33%"}
 split_plot_pw <- list.files(path = "figures/smc_split_piecewise",pattern = "*.split.png" ,full.names = TRUE)
 include_graphics(split_plot_pw)
 ```
