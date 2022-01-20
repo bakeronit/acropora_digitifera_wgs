@@ -1,38 +1,22 @@
 ---
-title: "fineStructure"
+title: "Haplotype-based population structure with fineStructure"
 output: github_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(tidyverse)
 ```
 
-With phased vcf file, we performed chromopainter and finestructure and tree inferences.
+We used [fineStructure](https://people.maths.bris.ac.uk/~madjl/finestructure/finestructure_info.html) to look for fine-scale patterns of population structure based on our phased genotype data. 
 
-The phased haps format files from shapeit were converted into chromopainter format with `impute2chromopainter.pl` per scaffold. To use linked mode, we generated uniform recombination rate map files using `makeuniformrecfile.pl`.
+For this analysis we used the phased haps format files from shapeit. These were converted into chromopainter format with `impute2chromopainter.pl` per scaffold. To use linked mode, we generated uniform recombination rate map files using `makeuniformrecfile.pl`.  These steps are captured in the snakemake script [0.prepare_chromopainter.smk](data/hpc/fineStructure/0.prepare_chromopainter.smk)
 
-In chromopainter EM parameter estimate, we used 30% of samples (20) and estimated Ne and mu were used to run chromopainter. Next, fineStructure was run with 2000000 iterations of which half was assigned to burn in iteration and half to sampling iteration and -z 1000 as default. The sample relationship tree was built in step4 with 100,000 iterations.
 
-```bash
-fs adigitifera.cp -n -phasefiles phase_files/*.phase -recom/* \
--idfile samples.id -hpc 1 -s1indfrac 0.3 -s3iters 2000000 -go
-cat adigitifera/commandfiles/commandfile1.txt | parallel -j 20
 
-fs adigitifera.cp -go
-cat adigitifera/commandfiles/commandfile2.txt | parallel -j 20
+In the chromopainter EM parameter estimation step we used 30% of samples (20). Next, fineStructure was run with 2000000 iterations of which half were assigned to burn in iteration and half to sampling iteration. These steps are captured in [1.fs_computation.sh](data/hpc/fineStructure/1.fs_computation.sh)
 
-fs adigitifera.cp -go
-cat adigitifera/commandfiles/commandfile3.txt | parallel -j 2
-
-fs adigitifera.cp -go
-cat adigitifera/commandfiles/commandfile4.txt | parallel -j 2
-
-fs adigitifera.cp -go
-fs fs -X -Y -e X2 adigitifera_linked.chunkcounts.out adigitifera_linked_tree.xml \
-adigitifera_linked.mapstate.csv
-fs fs -X -Y -e X2 adigitifera_linked.chunkcounts.out adigitifera_linked_mcmc.xml \
-adigitifera_linked.meancoincidence.csv
-```
+This process produces a finestructure tree xml file which we parsed using the R code provided as part of the fineStructure program to produce a standard `phylo` object.  This was then plotted using ggtree to produce the finestructure tree shown below. 
 
 ```{r}
 source("data/hpc/fineStructure/FinestructureRcode/FinestructureLibrary.R")
@@ -43,9 +27,7 @@ some.colorsEnd<-MakeColorYRP(final=c(0.2,0.2,0.2)) # as above, but with a dark g
 chunkfile<-"data/hpc/fineStructure/adigitifera_linked.chunkcounts.out" ## chromopainter chunkcounts file
 mcmcfile<-"data/hpc/fineStructure/adigitifera_linked_mcmc.xml" ## finestructure mcmc file
 treefile<-"data/hpc/fineStructure/adigitifera_linked_tree.xml" ## finestructure tree file
-```
 
-```{r}
 ###### READ IN THE CHUNKCOUNT FILE
 dataraw<-as.matrix(read.table(chunkfile,row.names=1,header=T,skip=1)) # read in the pairwise coincidence 
 
@@ -57,51 +39,38 @@ mcmcdata<-as.data.frame.myres(mcmcxml) ## convert this into a data frame
 
 treexml<-xmlTreeParse(treefile) ## read the tree as xml format
 ttree<-extractTree(treexml) ## extract the tree into ape's phylo format
-## If you dont want to plot internal node labels (i.e. MCMC posterior assignment probabilities)
-## now is a good time to remove them via:
-#     ttree$node.label<-NULL
-## Will will instead remove "perfect" node labels
-ttree$node.label[ttree$node.label=="1"] <-""
-## And reduce the amount of significant digits printed:
-ttree$node.label[ttree$node.label!=""] <-format(as.numeric(ttree$node.label[ttree$node.label!=""]),digits=2)
-
-tdend<-myapetodend(ttree,factor=1) # convert to dendrogram format
-
 ```
 
+```{r, fig.width=6,fig.height=8}
+library(ggtree)
 
-```{r}
-#pdf(file="data/hpc/fineStructure/FullDendrogram.pdf",height=6,width=14)
-par(mar=c(6,0,2,0),mfrow=c(1,1))
-plot(tdend,horiz=FALSE,nodePar=list(cex=0,lab.cex=0.6),edgePar=list(p.lwd=0.1,t.srt=90,t.off=-0.5),axes=F)
-#dev.off()
+tree_data <- data.frame(sample_id=ttree$tip.label) %>% 
+  tidyr::extract(sample_id,into="site",regex="([^_]*)",remove = FALSE) %>% 
+  tidyr::extract(sample_id,into="sample_label",regex="([^_]*_[^_]*_[^_]*)_",remove = FALSE) %>% 
+  mutate(loc = case_when(
+    site=="AI" ~ "IN",
+    site=="BR" ~ "IN",
+    site=="AR" ~ "NO",    
+    site=="RS1" ~ "SO",
+    site=="RS2" ~ "SO",
+    site=="RS3" ~ "SO",
+  )) %>% 
+  filter(sample_id!="BR_5_121_S125_L004")
+
+source("scripts/color_scheme.R")
+
+ttree %>% 
+  drop.tip("BR_5_121_S125_L004") %>% 
+  ggtree() %<+% tree_data + 
+  geom_tippoint(aes(color=loc)) +
+  geom_tiplab(aes(label=sample_label),align = F) +
+  theme(legend.position = "bottom", legend.title = element_blank()) +
+  scale_color_manual(values=myCol) +
+  xlim(NA,4)
+  
+ggsave("figures/fine_structure_tree.png",width = 4,height = 8)
 ```
 
+All nodes in this tree had bootstrap support of 0.99 or better. The tree clearly distinguishes our three locations as distinct clades, but also identifies some structure within these clades.  Two small clades (RS1_M11_840, RS1-2_422) and (BR-4-088, BR-4-077) were identified which contained samples with relatively low sequencing depth and presumably reflect small biases due to genotyping error that fineStructure is able to identify as structure.  Within the inshore samples however there did seem to be a genuine split between the two inshore locations AI (Adele Island) and BR (Beagle Reef).  
 
-```{r}
-fullorder<-labels(tdend) # the order according to the tree
-#mcmcmatrixraw<-as.matrix(read.csv(meancoincidencefile,row.names=1)) # read in the pairwise coincidence file we created earlier
-#mcmcmatrix<-mcmcmatrixraw[fullorder,fullorder] 
-#mapstatematrix<-groupingAsMatrix(mapstatelist)[fullorder,fullorder] # map state for reference
-
-
-########################
-## COANCESTRY MATRIX
-
-datamatrix<-dataraw[fullorder,fullorder] # reorder the data matrix
-```
-
-
-```{r, include=FALSE}
-library(ComplexHeatmap)
-
-
-Heatmap(datamatrix, cluster_rows = FALSE, cluster_columns = FALSE, show_row_names = FALSE, show_column_names = FALSE)
-
-```
-
-
-
-
-**Figure:** Co-ancestry matrix with the tree showing inferred relationships between samples.
-![img](figures/fs_co-ancestry_matrix.png)
+Although this split was clearly evident from the fineStructure tree it was not evident in PCA analyses (smartpca, PCAngsd), nor was it visible in patterns of IBD sharing. Since these differences between AI and BR were evidently small relative to the differences between major geographically defined populations (IN, NO, SO) we chose to ignore them for our other analyses.  

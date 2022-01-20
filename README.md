@@ -28,6 +28,7 @@ This repository contains complete computational methods including source code, p
 
 **Signatures of selection in the coral host**
 - Selection analysis based on [EHH](08.ehh_stats.md) and [allele frequency](12.pcangsd_selection.md)
+- [Comparison between EHH and allele-frequency-based approaches](14.ehh_pbs_pcangsd.md)
 - [Identification of the top 1% of regions putatively under selection](10.identify_selective_genomic_windows.md)
 - [GO Enrichment of genes under selection](11.GO_enrichment.md)
 - [Estimating the TMRCA for selective sweeps](17.dating_the_selection.md)
@@ -36,20 +37,6 @@ This repository contains complete computational methods including source code, p
 **Miscellaneous**
 - [Functional annotation of genes](09.annotate_genes.md)
 - [Checking the mislocated sample using radseq data](18.radseq_check.md)
-- [Pcangsd_popgen_stats, Fst/TajimasD using ANGSD](13.popgen_stats_angsd.md)
-- [Trend that EHH candidate region with high pbs and high tajimasD](14.ehh_pbs_pcangsd.md)
-
-
-
-**Unwanted Rmd or not rendered Rmd**
-- [19.ldheatmap.Rmd](19.ldheatmap.Rmd): delete it?
-- [16.symbiont_profiles.Rmd](16.symbiont_profiles.Rmd): replaced by 23.symbiont.Rmd
-- [15.pcangsd_neutral.Rmd](15.pcangsd_neutral.Rmd)
-- [Combined EHH scan candidate in inshore](20.inshore_candidate_genes.md)
-- [Jia's old GO enrichment analysis](21.functional_enrichment.md)
-- [GO Enrichment of genes under selection based on Interproscan GO term assignments](x40.GO_ipr_enrichment.md)
-- [Ira's smc plot with mutation rate range](x50.smc_files.md)
-
 
 ### How to use this repository
 All of the sections above are provided as processed markdown files. Clicking the link should display a web readable page with text, a few select commands and plots and tables. The code used to generate these pages is provided in the corresponding .Rmd file. If you would like to run the code in these files yourself you will need to;
