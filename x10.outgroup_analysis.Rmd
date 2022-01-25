@@ -54,7 +54,7 @@ pcangsd.py -beagle all.beagle.gz -selection -snp_weights -pcadapt -admix -tree -
 
 Using the resulting covariance matrix we visualise population structure using a PCA as follows
 
-```{r pcangsd-pca-2}
+```{r pcangsd-pca-2, fig.height=3.6}
 covmat <- read_table2("data/hpc/pcangsd/jpwa.cov",col_names = FALSE) %>% 
   as.matrix()
 
@@ -225,4 +225,4 @@ In addition to the PCAngsd and UCE analyses above we created a haplotype network
 
 The resulting haplotype network is shown below. Note how the vast majority of samples share a haplotype and how those haplotypes that differ are (a) spread among locations and (b) mostly attributable to a single mutation from the common haplotype.
 
-![host_mito_network](data/hpc/mito_mapping/AllSamplesMitoConsensus_PopArt.svg)
+![host_mito_network](figures/host_mitohap.jpg)
