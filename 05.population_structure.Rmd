@@ -10,7 +10,7 @@ library(ggsci)
 library(stringi)
 library(purrr)
 library(patchwork)
-#library(PCAviz)
+library(PCAviz)
 source(file = "scripts/color_scheme.R")
 ```
 
@@ -130,7 +130,7 @@ done
 ```
 The cross-validation error suggests the lowest cross-validation error is with K=1 which is a common situation when population differentiation is subtle. Since our PCA results clearly pointed toward at least K=3 we then checked admixture proportions for K=2 and 3.  
 
-```{r admixture, fig.width=5.2, fig.height=3.8,fig.retina=2,out.extra='style="float:left"'}
+```{r admixture, fig.width=5.2, fig.height=6,fig.retina=2,out.extra='style="float:left"'}
 samples <- scan("data/hpc/admixture/sample_order.txt", character())
 read_Q <- function(filename) {
   tb <- read_table(filename,col_names = FALSE) %>% 
@@ -162,7 +162,21 @@ p2<-ggplot(read_Q("data/hpc/admixture/Adigitifera_ldpruned.3.Q")%>% filter(sampl
   theme(axis.text.x = element_blank(),panel.grid = element_blank())+
   labs(y="Ancestry (K=3)", x="") 
 
-p1/p2
+p3<-ggplot(read_Q("data/hpc/admixture/Adigitifera_ldpruned.4.Q")%>% filter(samples!="BR_5_121_S125_L004"),aes(x=samples)) + geom_col(aes(group=samples,y=proportion,fill=cluster),show.legend = FALSE) + theme_minimal() +
+  facet_grid(~pop,switch = "x",scales = "free",space = "free",
+             labeller = labeller(pop=pop.labs)) +
+  scale_fill_brewer(palette = "Set2") +
+  theme(axis.text.x = element_blank(),panel.grid = element_blank())+
+  labs(y="Ancestry (K=4)", x="") 
+
+p4<-ggplot(read_Q("data/hpc/admixture/Adigitifera_ldpruned.5.Q")%>% filter(samples!="BR_5_121_S125_L004"),aes(x=samples)) + geom_col(aes(group=samples,y=proportion,fill=cluster),show.legend = FALSE) + theme_minimal() +
+  facet_grid(~pop,switch = "x",scales = "free",space = "free",
+             labeller = labeller(pop=pop.labs)) +
+  scale_fill_brewer(palette = "Set2") +
+  theme(axis.text.x = element_blank(),panel.grid = element_blank())+
+  labs(y="Ancestry (K=5)", x="") 
+
+p1/p2/p3/p4
 ```
 
 

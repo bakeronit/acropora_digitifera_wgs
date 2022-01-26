@@ -3,11 +3,12 @@ title: "Variant calling and quality control"
 output: github_document
 ---
 
-```{r setup, include=FALSE}
+```{r, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(tidyverse)
-library(patchwork)
+library(cowplot)
 library(stringi)
+library(ggpubr)
 ```
 
 Variant calling was performed according to [GATK4 best practices](https://gatk.broadinstitute.org/hc/en-us/sections/360007226651-Best-Practices-Workflows) for germline short variant discovery using a reproducible and scalable pipeline written with [snakemake](https://github.com/bakeronit/snakemake-gatk4-non-model).  This pipeline makes some minor adaptations to the standard workflow to workaround issues for non-model organisms such as the lack of a reliable reference SNP database for base quality recalibration. 
@@ -77,25 +78,61 @@ bcftools filter -e 'AC=0 || AC==AN' --threads 20 Adigi.v2.DPg90gdp3gq30.Fis0.05_
 
 We then checked how many genotypes were missing in each sample and how this relates to overall sample sequencing depth
 
-```{r,fig.align='center',fig.retina=2,fig.height=10,fig.width=12}
+```{r}
 idepth <- read_tsv("data/hpc/vcf_filtering/Adigi.v2.filtered.idepth")
 imiss <- read_tsv("data/hpc/vcf_filtering/Adigi.v2.filtered.imiss")
-df <- left_join(idepth,imiss) %>%  mutate(INDV = case_when(
-    grepl('merged$',INDV) ~ stri_reverse(INDV) %>% str_split("_",2) %>% map(last) %>% unlist %>% stri_reverse,
-    TRUE ~stri_reverse(INDV) %>% str_split("_",3) %>% map(last) %>% unlist %>% stri_reverse))
-df$INDV <- factor(df$INDV,levels = df %>% arrange(F_MISS) %>% select(INDV) %>% unlist)
+
+df <- left_join(idepth,imiss) %>%  
+  tidyr::extract(INDV,into="site",regex="([^_]*)",remove = FALSE) %>% 
+  tidyr::extract(INDV,into="sample_label",regex="([^_]*_[^_]*_[^_]*)_",remove = FALSE) %>% 
+  mutate(loc = case_when(
+    site=="AI" ~ "IN",
+    site=="BR" ~ "IN",
+    site=="AR" ~ "NO",    
+    site=="RS1" ~ "SO",
+    site=="RS2" ~ "SO",
+    site=="RS3" ~ "SO",
+  )) %>% 
+  arrange(F_MISS) %>% 
+  dplyr::mutate(rn = row_number())
+  
+ # mutate(INDV = case_when(
+#    grepl('merged$',INDV) ~ stri_reverse(INDV) %>% str_split("_",2) %>% map(last) %>% unlist %>% stri_reverse,
+#    TRUE ~stri_reverse(INDV) %>% str_split("_",3) %>% map(last) %>% unlist %>% stri_reverse))
+
+#df$INDV <- factor(df$INDV,levels = df %>% arrange(F_MISS) %>% select(INDV) %>% unlist)
+```
 
 
-p1 <- ggplot(df) + geom_col(aes(x=INDV,y=F_MISS)) +
-  coord_flip() + labs(x="",y="% of genotypes missing")
-p2 <- ggplot(df) + geom_col(aes(x=INDV,y=MEAN_DEPTH)) + 
-  coord_flip() + labs(x="",y="Mean depth") + 
-  theme(axis.text.y  = element_blank(),
-        axis.ticks.y = element_blank())
-p1 + p2
+```{r,fig.align='center',fig.retina=2,fig.height=10,fig.width=12}
+source("scripts/color_scheme.R")
+
+#df_long <- pivot_longer(df,cols=c("F_MISS","MEAN_DEPTH"),names_to="stat")
+
+p1 <- ggplot(df) + geom_col(aes(x=reorder(sample_label,rn),y=F_MISS,fill=loc)) +
+#  coord_flip() + 
+  labs(x="",y="Proportion of genotypes missing") + 
+  scale_fill_manual(values=myCol) + 
+#  facet_wrap(~stat, scales = "free_x") +
+  theme_pubr() + theme(legend.position = "none",axis.text.x = element_text(angle=90,size=8))
+
+p2 <- ggplot(df) + geom_col(aes(x=reorder(sample_label,rn),y=MEAN_DEPTH,fill=loc)) +
+#  coord_flip() + 
+  labs(x="",y="Mean Sequencing Depth") + 
+  scale_fill_manual(values=myCol) + 
+#  facet_wrap(~stat, scales = "free_x") +
+  theme_pubr() + 
+  theme(axis.text.x = element_blank(), legend.position = "none")
+
+plot_grid(p2,p1,nrow = 2,labels = c("A","B"))
 ```
 
 **Figure 1:** The statistics of average coverage depth and percentage of missing genotypes in all samples.
+
+```{r}
+ggsave("figures/qcplot_suppfig1.png",width = 12,height = 8)
+```
+
 
 ```{r,fig.align='center',fig.retina=2}
 snpden <- read_tsv("data/hpc/vcf_filtering/Adigi.v2.filtered.snpden") %>% filter(SNP_COUNT>10) 
