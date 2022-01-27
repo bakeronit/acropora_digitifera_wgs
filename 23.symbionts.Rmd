@@ -218,12 +218,14 @@ hm <- Heatmap(its_matrix[,keep_cols],
               col = col_fun,
               show_row_names = FALSE, 
               show_column_dend = FALSE,
-              heatmap_legend_param = list(title = "",title_gp = gpar(fontsize = 8)))
+              column_names_side = "top",
+              heatmap_legend_param = list(title = "",title_gp = gpar(fontsize = 12)))
 
 
 
 hm_plot <- grid.grabExpr(draw(hm, padding = unit(c(2,2,2,10),"mm")))
 plot_grid(hm_plot)
+#ggsave(hm_plot,filename = "its2-hm.pdf", height = 4, width = 6)
 ```
 
 
