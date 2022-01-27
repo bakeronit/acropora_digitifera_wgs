@@ -382,14 +382,15 @@ botmin <- main_data %>%
 g.labs <- c("generation: 3 years", "generation: 5 years", "generation: 7 years")
 names(g.labs) <- c("g3", "g5", "g7")
 
-botmin %>% 
+bot_plot <- botmin %>% 
   unite(col = "gid",mu,g,remove = FALSE) %>% 
   ggplot(aes(x=botx,y=label)) + 
     geom_point(aes(group=gid,color=mu)) +
     geom_line(aes(group=gid,color=mu)) +
   scale_color_hue(labels = c("1.2e-8", "1.86e-8","2.89e-8")) +
   facet_wrap(~g, ncol = 1,labeller = labeller(g = g.labs)) + 
-  labs(x="Years ago",y ="", color="Mutation rate")
+  labs(x="Years ago",y ="", color="Mutation rate") + 
+  theme(legend.position = "none")
 ```
 
 **The variance in splitting time**
@@ -411,15 +412,21 @@ split_time <- split_data %>%
     mutate(max_x=max(x)) %>% ungroup() %>% 
     group_by(split,mu,g) %>% summarise(t=min(max_x))
 
-split_time %>% 
+split_plot <- split_time %>% 
   unite(col = "gid",mu,g,remove = FALSE) %>% 
   ggplot(aes(x=t,y=split)) + 
     geom_point(aes(group=gid,color=mu)) +
     geom_line(aes(group=gid,color=mu)) +
-  scale_color_hue(labels = c("1.2e-8", "1.86e-8","2.89e-8")) +
+  scale_color_hue(labels = c("1.2e-8", "1.86e-8","2.89e-8")) + 
+  scale_y_discrete(labels=c("split. IN-NO","split. IN-SO","split. NO-SO")) +
   facet_wrap(~g, ncol = 1,labeller = labeller(g = g.labs)) + 
   labs(x="Years ago",y ="", color="Mutation rate")
 
+
+
+plot_grid(bot_plot,split_plot, nrow = 1, label_size = 12,align = "h", axis = "b", rel_widths = c(0.37,0.63), labels = c("A","B"))
+#ggsave("fig-s10.pdf",width = 6.8,height = 3.6)
+#ggsave("fig-s10.jpg",width = 6.8,height = 3.6)
 ```
 
 
