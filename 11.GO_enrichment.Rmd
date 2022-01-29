@@ -143,11 +143,6 @@ if ( !file.exists("cache/topgo_results_all.rds") ){
   write_rds(topgo_results_all,"cache/topgo_results_all.rds")
   write_tsv(topgo_results_all,"cache/topgo_results_all.tsv") # This table should be in Supp Info
 
-  # dated_loci <- read_rds("cache/dated_loci.rds")
-  # dated_inshore_topgo <- candidate_genes_table %>% unite("locus_id",chr,start,end,remove=FALSE) %>% filter(locus_id %in% names(dated_loci)) %>% go_enrich_all_ontologies("inshore")
-  # dated_northoffshore_topgo <- candidate_genes_table %>% unite("locus_id",chr,start,end,remove=FALSE) %>% filter(locus_id %in% names(dated_loci)) %>% go_enrich_all_ontologies("northoffshore")  
-  # dated_southoffshore_topgo <- candidate_genes_table %>% unite("locus_id",chr,start,end,remove=FALSE) %>% filter(locus_id %in% names(dated_loci)) %>% go_enrich_all_ontologies("southoffshore")
-
   } else {
   topgo_results_all <- read_rds("cache/topgo_results_all.rds")
 }
@@ -197,8 +192,6 @@ rownames(jdm) <- names(go2gene_signif)
 colnames(jdm) <- names(go2gene_signif)
 ```
 
-We found a total of `r length(display_go)` GO terms enriched (p<0.001) across all three of the locations.  These are summarised in Figure 1.  
-
 ```{r, fig.height=12}
 n_regions_per_term <- function(term,focal_pop){
   candidate_regions_table %>%
@@ -243,7 +236,31 @@ number_of_sig_regions <- candidate_regions_table %>%
   pull(n_sig,name = pop)
 
 total_bg_regions <- regions_genes_go$region_id %>% n_distinct()
+```
 
+```{r supp-table}
+supp_table6A <- topgo_results_all %>% 
+  filter(classic <0.001) %>% 
+  mutate(n_regions = map2_int(GO.ID,pop,n_regions_per_term),
+         n_region_bg = map_int(GO.ID,n_regions_bg_per_term),
+         n_region_expected = number_of_sig_regions[pop]*n_region_bg/total_bg_regions) %>% 
+  mutate(p.region = pmap_dbl(list(total_bg_regions,number_of_sig_regions[pop],n_region_bg,n_regions),enrich_test)) %>% 
+  filter(n_regions>2) %>% 
+  dplyr::select(-uniprot_ids,-protein_names,-n_region_expected) %>% 
+  dplyr::rename("Num Sweeps"=n_regions,"Num Background Regions"=n_region_bg,"Region p-value"=p.region)
+
+  
+supp_table6B <- supp_table6A %>% 
+  separate_rows(geneids,sep = ";") %>% 
+  left_join(uniprot_gene_annot,by=c("geneids"="geneid")) %>% 
+  dplyr::select(GO.ID,Term,ontology,pop,geneid=geneids,uniprot_id,"Protein name"=protein)
+  
+write_tsv(supp_table6A,"cache/supp_table6a.tsv")
+write_tsv(supp_table6B,"cache/supp_table6b.tsv")
+```
+
+
+```{r, fig.height=12}
 bar_go1 <- topgo_results_all %>% 
   group_by(GO.ID) %>% 
   summarise(max_sig=max(Significant),minwf=min(WeightFisher)) %>% 
@@ -280,6 +297,11 @@ pg_go <- pg_go1 %>%
   mutate(n_region_bg = ifelse(is.na(n_region_bg), n_regions_bg_per_term(GO.ID), n_region_bg)) %>% 
   mutate(p.region = ifelse(is.na(p.region), enrich_test(total_bg_regions, number_of_sig_regions[pop],n_region_bg, n_regions), p.region)) 
 ```
+
+
+
+
+We found a total of `r pg_go %>% filter(classic<0.001) %>% filter(n_regions>2) %>% pull(GO.ID) %>% unique() %>% length()` GO terms enriched (p<0.001) across all three of the locations.  These are summarised in Figure 1.  
 
 
 ```{r, fig.height=12}

@@ -336,14 +336,14 @@ Preliminary results are shown below for all loci passing QC.  The dates shown ar
 One of the main things that can be seen here is that relatively few loci pass the QC checks for use with startmrca.  This limits the analysis a little but we are able to see dating estimates for several loci involved in enriched go terms.  The broad pattern of timing is also interesting because it shows a peak in the number of loci dating to around 6kya which approximately matches the time when sea levels reached similar heights to what they are today.
 
 ```{r, include=FALSE}
-estimate_tmrca <- function(result){
-  result %>% 
-  mutate(n=row_number()) %>% 
-  mutate(kept = as.factor(V4)) %>% 
-  slice_tail(n=1000) %>% 
-  slice_sample(n=100) %>% 
-    summarise(tmrca_mean = mean(V1), var = var(V1))
-}
+# estimate_tmrca <- function(result){
+#   result %>% 
+#   mutate(n=row_number()) %>% 
+#   mutate(kept = as.factor(V4)) %>% 
+#   slice_tail(n=1000) %>% 
+#   slice_sample(n=100) %>% 
+#     summarise(tmrca_mean = mean(V1), var = var(V1))
+# }
 
 read_chain <- function(path){
   tmp <- read_rds(path) 
@@ -356,11 +356,11 @@ read_chain <- function(path){
 tmrca_data <- list.files("data/hpc/startmrca/results/","*.rds", full.names = TRUE) %>% 
   map_dfr(read_chain)
 
-tmrca_estimates <- tmrca_data %>% 
-  group_by(locus) %>% 
-  slice_tail(n=10000) %>% 
-  slice_sample(n=1000) %>% 
-  summarise(tmrca_mean = mean(V1), var = var(V1))
+# tmrca_estimates <- tmrca_data %>% 
+#   group_by(locus) %>% 
+#   slice_tail(n=10000) %>% 
+#   slice_sample(n=1000) %>% 
+#   summarise(tmrca_mean = mean(V1), var = var(V1))
 
 # Annotate the regions table
 uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv") %>% 
@@ -421,10 +421,12 @@ pd <- tmrca_data %>%
   group_by(locus) %>% 
   mutate(n=row_number()) %>% 
   slice_tail(n=1000) %>% 
-  mutate(tmrca_mean = mean(V1*5)) %>% 
+  mutate(tmrca_mean = mean(V1*5), tmrca_sd = sqrt(var(V1*5))) %>% 
   ungroup() %>% 
   left_join(sweeps_gs4 %>% dplyr::select(locus=sweep_id,allele=manual_allele,note,qc_pass)) %>% 
   add_go_flags(go_terms_signif) 
+
+
 
 pdgo <- pd %>% 
   filter(qc_pass==1) %>% 
@@ -457,6 +459,23 @@ library(ggrepel)
 library(ggpubr)
 source("scripts/color_scheme.R")
 
+protein_names <- sweep_regions_go %>% 
+  group_by(sweep_id) %>% 
+  summarise(protein_names = paste(unique(protein), collapse = ";"))
+
+# Export to Supp table 7
+supp_table7 <- pd %>% 
+  filter(qc_pass==1) %>%
+  group_by(locus) %>% 
+  slice_sample(n=1) %>% 
+  ungroup() %>% 
+  arrange(tmrca_mean) %>% 
+  mutate(label=row_number()) %>% 
+  select(label,locus,chr,start,end,pop,genes,tmrca_mean,tmrca_sd) %>% 
+  left_join(protein_names,by=c("locus"="sweep_id"))
+
+write_tsv(supp_table7,"cache/supp_table7.tsv")
+
 dated_loci <- pd %>% 
   filter(qc_pass==1) %>% 
   dplyr::select(locus,tmrca_mean) %>% 
@@ -464,9 +483,10 @@ dated_loci <- pd %>%
   arrange(tmrca_mean) %>% 
   mutate(label=row_number()) %>% 
   pull(label,name = locus)
+  
 
 # Save this list of dated loci for other figures
-write_rds(dated_loci,"cache/dated_loci.rds")
+write_rds(dated_loci ,"cache/dated_loci.rds")
 
 add.alpha <- function(col, alpha=1){
   if(missing(col))
