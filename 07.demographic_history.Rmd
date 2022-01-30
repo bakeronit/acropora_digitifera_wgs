@@ -390,7 +390,7 @@ bot_plot <- botmin %>%
   scale_color_hue(labels = c("1.2e-8", "1.86e-8","2.89e-8")) +
   facet_wrap(~g, ncol = 1,labeller = labeller(g = g.labs)) + 
   labs(x="Years ago",y ="", color="Mutation rate") + 
-  theme(legend.position = "none")
+  theme(legend.position = "none",plot.margin = margin(0,0,0,0))
 ```
 
 **The variance in splitting time**
@@ -420,13 +420,14 @@ split_plot <- split_time %>%
   scale_color_hue(labels = c("1.2e-8", "1.86e-8","2.89e-8")) + 
   scale_y_discrete(labels=c("split. IN-NO","split. IN-SO","split. NO-SO")) +
   facet_wrap(~g, ncol = 1,labeller = labeller(g = g.labs)) + 
-  labs(x="Years ago",y ="", color="Mutation rate")
+  labs(x="Years ago",y ="", color="Mutation rate") + 
+  theme(plot.margin = margin(0,0,0,0))
 
 
 
 plot_grid(bot_plot,split_plot, nrow = 1, label_size = 12,align = "h", axis = "b", rel_widths = c(0.37,0.63), labels = c("A","B"))
-#ggsave("fig-s10.pdf",width = 6.8,height = 3.6)
-#ggsave("fig-s10.jpg",width = 6.8,height = 3.6)
+#ggsave("fig-s10.pdf",width = 6.75,height = 3.6)
+#ggsave("fig-s10.jpg",width = 6.75,height = 3.6)
 ```
 
 
