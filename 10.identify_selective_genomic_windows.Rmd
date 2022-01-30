@@ -306,20 +306,24 @@ For the purposes of making a human viewable table in supp info we also attach ge
 
 uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv")
 
-supp_table9 <- candidate_regions_genes_ehh %>% 
+supp_table4 <- candidate_regions_genes_ehh %>% 
   separate_rows(genes,sep=";") %>% 
   left_join(uniprot_gene_annot, by = c("genes"="geneid") ) %>% 
   group_by(chr,start,end,pop,frac,stats,max_ihs_pos,max_ihs,max_xpehh_pos,max_xpehh,max_xpnsl_pos,max_xpnsl) %>% 
-  summarise(protein_names = paste(unique(protein), collapse = ";")) %>% 
+  summarise(protein_names = paste(unique(protein), collapse = ";"), gene_ids = paste(unique(genes),collapse = ";")) %>% 
   mutate(pop=case_when(pop=="inshore"~"Inshore", pop=="northoffshore"~"North Offshore", pop=="southoffshore"~"South Offshore")) %>% 
-  rename("Start"=start, "End"=end,"Population"=pop,"Genes in this window"=protein_names,"Fraction with z-score > 2"=frac) %>% 
+  rename(Scaffold=chr,Start=start, End=end,Population=pop,"Gene names in this window"=protein_names,"Gene ids in this window"=gene_ids,"Fraction with z-score > 2"=frac) %>% 
   ungroup()
 
-write_tsv(supp_table9,"cache/supp_table9.tsv") # For upload to google sheets  
+write_tsv(supp_table4,"cache/supp_table4.tsv") # For upload to google sheets  
 
-# supp_table9 %>% 
-#   select(-starts_with("max")) %>%  
-#   knitr::kable(escape = F) 
+supp_table5 <- candidate_regions_genes_ehh %>% 
+  separate_rows(genes,sep=";") %>% 
+  left_join(uniprot_gene_annot, by = c("genes"="geneid") ) %>%
+  rename(Scaffold=chr,Start=start, End=end,Population=pop, "Gene ID"=genes,"Fraction with z-score > 2"=frac, "Protein name"=protein,"go_swissprot"=go) %>% 
+  select(-genename) 
+
+write_tsv(supp_table5,"cache/supp_table5.tsv")
 ```
 
 
