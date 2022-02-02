@@ -266,7 +266,7 @@ hn2 <- hap.names(hh2)
 plot(furcation2,hap.names = hap_names2pops(hn2),cex=0.5,cex.lab=0.3)
 ```
 
-By examining a tree based on the innermost 400 variants we see that in the inshore population there does seem to be a highly abundant haplotype that is likely to represent the haplotype carrying the selected allele.  Things are not completely clear-cut however because there are several related haplotypes that differ by a small but non-trivial number of mutations as well as other haplotypes in inshore that show evidence of recombination with background haplotypes.  The model "star-like" pattern required by `startmrca` therefore seems to be valid for a subset of the inshore haplotypes with the focal allele, but not all. 
+By examining a tree based on the innermost 400 variants we see that in the inshore population there does seem to be a highly abundant haplotype that is likely to represent the haplotype carrying the selected allele.  Things are not completely clear-cut however because there are several related haplotypes that differ by a small but non-trivial number of mutations as well as other haplotypes in inshore that show evidence of recombination with background haplotypes.  These suggest that our choice of the representative SNP (ie a proxy for the locus of the beneficial allele) might not be correct.  Just based on the alleles at this proxy locus starTMRCA will not be able to distinguish between the selected haplotypes and other haplotypes in inshore. l 
 
 
 ```{r}
@@ -316,7 +316,8 @@ if (!file.exists("cachec/sweep_regions.rds")){
 ```{r, exec=FALSE}
 manual_sweeps <- sweeps_gs4 %>% 
   mutate(allele=manual_allele) %>% 
-  dplyr::select(-manual_allele,-note,-qc_pass,-bamnote) %>% 
+  filter(qc_pass==1) %>% 
+  dplyr::select(-manual_allele,-note,-qc_pass) %>% 
   write_tsv("data/hpc/startmrca/sweep_regions_checked.tsv")
 ```
 
@@ -336,15 +337,6 @@ Preliminary results are shown below for all loci passing QC.  The dates shown ar
 One of the main things that can be seen here is that relatively few loci pass the QC checks for use with startmrca.  This limits the analysis a little but we are able to see dating estimates for several loci involved in enriched go terms.  The broad pattern of timing is also interesting because it shows a peak in the number of loci dating to around 6kya which approximately matches the time when sea levels reached similar heights to what they are today.
 
 ```{r, include=FALSE}
-# estimate_tmrca <- function(result){
-#   result %>% 
-#   mutate(n=row_number()) %>% 
-#   mutate(kept = as.factor(V4)) %>% 
-#   slice_tail(n=1000) %>% 
-#   slice_sample(n=100) %>% 
-#     summarise(tmrca_mean = mean(V1), var = var(V1))
-# }
-
 read_chain <- function(path){
   tmp <- read_rds(path) 
   tmp$t.chain %>% 
@@ -354,65 +346,57 @@ read_chain <- function(path){
 }
 
 tmrca_data <- list.files("data/hpc/startmrca/results/","*.rds", full.names = TRUE) %>% 
-  map_dfr(read_chain)
-
-# tmrca_estimates <- tmrca_data %>% 
-#   group_by(locus) %>% 
-#   slice_tail(n=10000) %>% 
-#   slice_sample(n=1000) %>% 
-#   summarise(tmrca_mean = mean(V1), var = var(V1))
+  map_dfr(read_chain) %>% 
+  filter(locus %in% manual_sweeps$sweep_id)
 
 # Annotate the regions table
 uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv") %>% 
   mutate(go=go_ipr) %>% 
   dplyr::select(-go_ipr)
 
-topgo_results_all <- read_rds("cache/topgo_results_all.rds")
+#topgo_results_all <- read_rds("cache/topgo_results_all.rds")
 
 
-sweep_regions_go <- sweep_regions %>% 
+sweep_regions_annot <- sweep_regions %>% 
   separate_rows(genes,sep=";") %>% 
   left_join(uniprot_gene_annot, by = c("genes"="geneid") ) %>% 
   separate_rows(go,sep=";") %>% 
   mutate(go = str_trim(go))
 
-sweep_regions_go %>% write_tsv("cache/sweep_regions_go.tsv")
+#sweep_regions_annot %>% write_tsv("cache/sweep_regions_annot.tsv")
 
 genes_of_interest <- data.frame(name=c(
-  "DNAJ - Sacsin",
   "DNAJ - HSP40",
   "HSP70",
-  "HSP16",
-  "Peroxidasin"),
+  "Peroxidasin",
+  "Daxx"),
   id=c(
-    "adig_s0061.g32",
     "adig_s0038.g95",
     "adig_s0017.g68",
-    "adig_s0120.g14",
-    "adig_s0150.g21"
+    "adig_s0150.g21",
+    "adig_s0062.g74"
   )
 )
 
-sweep_regions_of_interest <- sweep_regions_go %>% 
+sweep_regions_of_interest <- sweep_regions_annot %>% 
   left_join(genes_of_interest,by=c("genes"="id")) %>% 
   filter(!is.na(name))
 
-go_terms_signif <- list("metal ion homeostasis"=c("GO:0006875","GO:0055076"),
-                        
-                     "GPCR activity"=c("GO:0004930", "GO:0007186"),
-#                     "ion transport"="GO:0006811",
-                     "transcription factor activity"=c("GO:0000981"))
+# go_terms_signif <- list("metal ion homeostasis"=c("GO:0006875","GO:0055076"),
+#                      "GPCR activity"=c("GO:0004930", "GO:0007186"),
+# #                     "ion transport"="GO:0006811",
+#                      "transcription factor activity"=c("GO:0000981"))
             
 
-add_go_flags <- function(data,go_terms_signif){
-  for(goname in names(go_terms_signif)){
-    goregions <- sweep_regions_go %>% 
-      filter(go %in% go_terms_signif[[goname]]) %>% 
-      pull(sweep_id) %>% unique()
-    data <- data %>% mutate({{goname}} := locus %in% goregions)
-  }
-  data
-}
+# add_go_flags <- function(data,go_terms_signif){
+#   for(goname in names(go_terms_signif)){
+#     goregions <- sweep_regions_annot %>% 
+#       filter(go %in% go_terms_signif[[goname]]) %>% 
+#       pull(sweep_id) %>% unique()
+#     data <- data %>% mutate({{goname}} := locus %in% goregions)
+#   }
+#   data
+# }
   
 pd <- tmrca_data %>% 
   left_join(sweep_regions,by=c("locus"="sweep_id")) %>% 
@@ -423,18 +407,19 @@ pd <- tmrca_data %>%
   slice_tail(n=1000) %>% 
   mutate(tmrca_mean = mean(V1*5), tmrca_sd = sqrt(var(V1*5))) %>% 
   ungroup() %>% 
-  left_join(sweeps_gs4 %>% dplyr::select(locus=sweep_id,allele=manual_allele,note,qc_pass)) %>% 
-  add_go_flags(go_terms_signif) 
+  left_join(sweeps_gs4 %>% dplyr::select(locus=sweep_id,allele=manual_allele,note,qc_pass)) 
+#%>% 
+#  add_go_flags(go_terms_signif) 
 
 
 
-pdgo <- pd %>% 
-  filter(qc_pass==1) %>% 
-  pivot_longer(names(go_terms_signif),names_to = "go") %>% 
-  filter(value==TRUE) %>% 
-  group_by(locus,go,pop) %>% 
-  summarise(tmrca_mean = dplyr::first(tmrca_mean)) %>% 
-  ungroup() #%>% 
+# pdgo <- pd %>% 
+#   filter(qc_pass==1) %>% 
+#   pivot_longer(names(go_terms_signif),names_to = "go") %>% 
+#   filter(value==TRUE) %>% 
+#   group_by(locus,go,pop) %>% 
+#   summarise(tmrca_mean = dplyr::first(tmrca_mean)) %>% 
+#   ungroup() #%>% 
 #  filter(!((go=="iron ion") & (pop == "inshore"))) %>% 
 #  filter(!((go=="ion transport") & (pop=="inshore"))) 
 
@@ -459,7 +444,7 @@ library(ggrepel)
 library(ggpubr)
 source("scripts/color_scheme.R")
 
-protein_names <- sweep_regions_go %>% 
+protein_names <- sweep_regions_annot %>% 
   group_by(sweep_id) %>% 
   summarise(protein_names = paste(unique(protein), collapse = ";"))
 
@@ -484,53 +469,43 @@ dated_loci <- pd %>%
   mutate(label=row_number()) %>% 
   pull(label,name = locus)
   
-
-# Save this list of dated loci for other figures
-write_rds(dated_loci ,"cache/dated_loci.rds")
-
-add.alpha <- function(col, alpha=1){
-  if(missing(col))
-    stop("Please provide a vector of colours.")
-  apply(sapply(col, col2rgb)/255, 2, 
-                     function(x) 
-                       rgb(x[1], x[2], x[3], alpha=alpha))  
-}
+# 
+# # Save this list of dated loci for other figures
+# write_rds(dated_loci ,"cache/dated_loci.rds")
+# 
+# add.alpha <- function(col, alpha=1){
+#   if(missing(col))
+#     stop("Please provide a vector of colours.")
+#   apply(sapply(col, col2rgb)/255, 2, 
+#                      function(x) 
+#                        rgb(x[1], x[2], x[3], alpha=alpha))  
+# }
 
 pd1 <- pd %>% 
   filter(qc_pass==1) %>% 
   mutate(locus_label = as.character(dated_loci[locus])) %>% 
   ggplot(aes(x=t_years,y=reorder(locus_label,tmrca_mean))) + 
-#  ggplot(aes(x=t_years,y=reorder(locus_label,tmrca_mean))) + 
   geom_violin(aes(fill=pop,color=pop)) + 
-  # geom_label_repel(data= pdgo %>% mutate(locus_label = as.character(dated_loci[locus])),
-  #                  aes(x=tmrca_mean,y=locus_label,label=go), 
-  #                  direction = "both",nudge_x = 5000, xlim=c(8000,NA), 
-  #                  force=10, size = 2,max.overlaps = 1000,
-  #                  label.padding = 0.15, label.size = 0.5,segment.size=0.3, segment.alpha = 1) +
-  
   geom_label_repel(data= pd_gi %>% 
                      mutate(locus_label = as.character(dated_loci[locus])),
                    aes(x=tmrca_mean,y=locus_label,label=name),
                    direction = "both",nudge_x = 5000, xlim=c(8000,NA),
                    force=10, size = 2,max.overlaps = 1000,
                    label.padding = 0.15, label.size = 0.5,segment.size=0.3, segment.alpha = 1) +
-  
   ylab("Sweep Locus") + xlab("TMRCA / Years since present") +
   scale_fill_manual(values=myCol,labels=c("Inshore","North Offshore","South Offshore")) +
   scale_color_manual(values=myCol) +  
     theme_pubr() +
   guides(color="none")+
   theme(legend.title = element_blank(), 
-        axis.text.y = element_text(size=5),
-#        axis.text.y = element_blank(),
-        axis.text.x = element_text(size=6),
-        legend.text = element_text(size=6),
-        axis.title.x = element_text(size=7),
-        axis.title.y= element_text(size=7),
+        axis.text.y = element_text(size=8),
+        axis.text.x = element_text(size=8),
+        legend.text = element_text(size=8),
+        axis.title.x = element_text(size=10),
+        axis.title.y= element_text(size=10),
         legend.position = "none")
 
 pdax <- axis_canvas(pd1,axis="x") +
-#  geom_histogram(data=pdmeans,aes(x=tmrca_mean),alpha=0.2,binwidth = 2000) +
   geom_histogram(data=pdmeans_pass,aes(x=tmrca_mean,fill=pop),binwidth = 1000) +
     scale_fill_manual(values=myCol,labels=c("Inshore","North Offshore","South Offshore")) 
 
@@ -538,12 +513,7 @@ p1 <- insert_xaxis_grob(pd1,pdax,grid::unit(.15, "null"), position = "top")
 
 ggdraw(p1)
 
-ggsave("figures/sweep_dates_wide.png", width = 6.75,height = 4)
 ggsave("figures/sweep_dates_wide4.png", width = 4.75,height = 4)
-#ggsave("figures/sweep_dates_narrow.png", width = 6.5,height = 10)
-#ggsave("figures/sweep_dates.png", width = 10,height = 7)
-
-
 ```
 
 
@@ -593,7 +563,7 @@ make_hldata <- function(locus_name){
 to_label <- as.data.frame(dated_loci) %>% 
   rownames_to_column("locus") %>% 
   dplyr::rename(dated_locus_number=dated_loci) %>% 
-  filter(dated_locus_number %in% c(1,8,29,39)) #%>% 
+  filter(dated_locus_number %in% c(1,7,18,25)) #%>% 
 #  mutate(dated_locus_number=as.character(dated_locus_number))
 
 if (!file.exists("cache/furcation_data.rds")){
@@ -628,7 +598,9 @@ phaps <- hldata %>%
   facet_wrap(~reorder(dated_locus_number,dplyr::desc(dated_locus_number)),ncol = 1) +
   theme(axis.text.y = element_blank(),
         axis.ticks.y = element_blank(),
-        text = element_text(size=6),
+        text = element_text(size=8),
+        axis.title.x = element_text(size=10),
+        axis.title.y= element_text(size=10),
         legend.position = "none", 
         strip.background = element_blank(),
         strip.text = element_text(size=10)) +
@@ -637,9 +609,6 @@ phaps <- hldata %>%
 
 ggsave(phaps,filename = "figures/haplengths.png",width = 2,height = 3.5)
 ```
-
-
-
 
 ```{r, include=FALSE}
 #ptimeline <- ggdraw(p1)
