@@ -223,7 +223,7 @@ all_thetas <- list.files("data/hpc/thetastat/",pattern = ".pestPG",full.names = 
 ```
 
 
-```{r td-pi-boxplot}
+```{r td-pi-boxplot, fig.height=3.6}
 library(cowplot)
 
 pip <- ggplot(all_thetas,aes(x=population,y=tP/50000)) + 

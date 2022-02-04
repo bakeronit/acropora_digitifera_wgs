@@ -13,7 +13,7 @@ read_ehh_stat <- function(path){
   }
   
   info <- parse_path_info(path)
-  read_tsv(path,col_names = c("chr","chr_pos","norm_value"),show_col_types = FALSE) %>% 
+  read_tsv(path,col_names = c("chr","chr_pos","norm_value")) %>% 
     mutate(pval = pnorm(abs(norm_value))) %>% 
     add_column(stat=info[2]) %>% 
     add_column(pop=info[1])
@@ -25,7 +25,7 @@ read_windowed_xpstats <- function(path){
   stat_name <- path %>% basename() %>% str_extract("xp[a-z]{3}")
   info <- c(scan_name,stat_name)
 
-  read_tsv(path,col_names = c("chr","start","end","nsnp","fracA","fracB","percentileA","percentileB","max","min"),show_col_types = FALSE) %>% 
+  read_tsv(path,col_names = c("chr","start","end","nsnp","fracA","fracB","percentileA","percentileB","max","min")) %>% 
     mutate(pval = pnorm(abs(max))) %>% 
     add_column(stat=info[2]) %>% 
     add_column(pop=info[1])
@@ -33,5 +33,5 @@ read_windowed_xpstats <- function(path){
 
 read_windowed_ihs <- function(path) {
   pop <- path %>% basename() %>% str_match("[a-z]+shore") %>% as.character()
-  read_tsv(path, col_names = c("chr","start","end","nsnp","frac","percentile","sd"),show_col_types = FALSE) %>% add_column(pop=pop)
+  read_tsv(path, col_names = c("chr","start","end","nsnp","frac","percentile","sd")) %>% add_column(pop=pop)
 }
