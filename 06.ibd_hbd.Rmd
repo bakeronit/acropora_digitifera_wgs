@@ -56,7 +56,7 @@ population<-case_when(substr(ids,1,2)=="AR" ~ "NO",
           substr(ids,1,2)=="RS" ~"SO")
 
 ha=HeatmapAnnotation(bar = population,
-                     show_legend = TRUE,show_annotation_name = FALSE,
+                     show_legend = FALSE,show_annotation_name = FALSE,
     col = list(bar = c("IN" = "#CC0C00", "NO" = "#5C88DA", "SO" = "#84BD00")))
 
 pal <- wes_palette("Zissou1", 500, type = "continuous")
@@ -65,12 +65,12 @@ hm <- Heatmap(log(relatedness), column_labels = shortid,
         clustering_distance_columns="euclidean",
         show_column_dend = FALSE,
         show_column_names = FALSE,
-#        row_labels = shortid[rownames(relatedness)],
+        row_labels = shortid[rownames(relatedness)],
         show_row_dend = FALSE,
-        show_row_names = FALSE,
+        show_row_names = TRUE,
         row_names_gp = gpar(fontsize = 5),
         name="relatedness",
-        heatmap_legend_param = list(title = "",title_gp = gpar(fontsize = 8)),
+        heatmap_legend_param = list(title = "-log10(phi)",title_gp = gpar(fontsize = 8)),
         top_annotation = ha,
         show_heatmap_legend = TRUE,
         col = pal)
