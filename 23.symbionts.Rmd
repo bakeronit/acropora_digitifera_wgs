@@ -77,8 +77,8 @@ library(ggrepel)
 library(ggpubr)
 
 spg_plot <- ggplot(symbiodinium_data ,aes(x=clade_name,y=read_count/1e6)) + 
-  geom_boxplot(aes(color=clade_name)) + 
-  facet_wrap(~reorder(sample_group,sample_group_order),nrow = 1)  + theme_pubclean() +
+  geom_boxplot(aes(color=clade_name), outlier.size = 0.5) + 
+  facet_wrap(~reorder(sample_group,sample_group_order),nrow = 1)  + theme_pubclean(base_size = 12) +
   ylab("Read Count (Millions)") + xlab("") +
   theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(),
         legend.position = "none", legend.title = element_blank())
@@ -98,7 +98,7 @@ spg_plot_props <- ggplot(gp_symb_data ,aes(x=clade_name,y=proportion)) +
   geom_point(aes(color=clade_name), position = position_jitterdodge(jitter.height = 0.01, jitter.width = 0.8), size=0.5) +
 #  geom_point(data=DI11,aes(color=clade_name), size=2) +  
 #  geom_label_repel(data=DI11,aes(label=sample), nudge_x = 2, point.padding = 0.5, arrow = arrow(length = unit(0.2,"cm")), size=2.5) +
-  facet_wrap(~reorder(sample_group,sample_group_order),nrow = 1) + theme_pubclean() +
+  facet_wrap(~reorder(sample_group,sample_group_order),nrow = 1) + theme_pubclean(base_size = 12) +
     xlab("") + ylab("Read Proportion") + 
   theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(),
         legend.position = "bottom", legend.title = element_blank())
@@ -110,6 +110,7 @@ Irrespective of whether absolute read counts or proportion of reads is used the 
 # Combine plots 
 library(cowplot)
 plot_grid(spg_plot,spg_plot_props, ncol = 1, align = "hv", axis = "lr", rel_heights = c(0.4,0.6))
+#ggsave("fig-s8.jpg",width = 6.2,height = 4.6)
 ```
 
 # Diversity within the dominant genus, *Cladocopium*
