@@ -1,5 +1,5 @@
 library(tidyverse)
-library()
+library(ggsci)
 ## to plot figure 2
 
 ### smc plot
@@ -65,7 +65,9 @@ cp <- ggplot(climate_data %>% filter(Time>1),aes(x=Time*1e3,y=-Ice_tot)) +
   ylab("Sea Level")
 ggsave(cp,filename = "Fig.2B.pdf",width = 6.6,height = 2)
 
-bs_ll <- read_tsv("data/hpc/demography/fastsimcoal/bootstrap_param.txt") %>% pivot_longer(-c(MaxEstLhood),names_to = "param",values_to = "value")
+bs_ll <- read_tsv("data/hpc/demography/fastsimcoal/final2705/bootstrap_params.txt") %>% 
+  filter(TDIV1<9000)%>%
+  pivot_longer(-c(MaxEstLhood),names_to = "param",values_to = "value")
   
 bs_plot <- bs_ll %>% filter(grepl(param,pattern = "^TDIV")) %>% 
   ggplot(aes(x=param,y=value*5)) +geom_boxplot(aes(fill=param),size=.3,outlier.size = .5) +
@@ -85,9 +87,9 @@ ggsave(abc, filename="Fig2ABC.pdf",width = 6.6, height = 6.8)
 ##D
 summarise_ld <- function(filename) {
   df <- read_table2(filename) %>% select(-X8) %>% as_tibble %>% 
-    mutate(dist = BP_B-BP_A) %>% arrange(dist) %>%
-    mutate(distc = cut(dist,seq(min(dist)-1,max(dist)+1,by=200))) %>% 
-    group_by(distc) %>% summarise(mean_dist=mean(dist),mean_r2=mean(R2))
+    dplyr::mutate(dist = BP_B-BP_A) %>% arrange(dist) %>%
+    dplyr::mutate(distc = cut(dist,seq(min(dist)-1,max(dist)+1,by=200))) %>% 
+    group_by(distc) %>% dplyr::summarise(mean_dist=mean(dist),mean_r2=mean(R2))
   df
 }
 
@@ -122,7 +124,7 @@ ggsave(ld_plot,filename = "Fig.2D.pdf",width = 2.4,height = 1.9)
 # #ggsave(td_plot,filename = "Fig.2E.jpg", width = 2.7, height = 2.5)
 
 het_data <- read_tsv("data/hpc/popgen/plink2.het") %>% 
-  rename(sample=`#IID`) %>% 
+  dplyr::rename(sample=`#IID`) %>% 
   filter(sample!="BR_5_121_S125_L004") %>% 
   mutate(location= case_when(
     grepl("^AI",sample) ~ "IN",
@@ -167,7 +169,7 @@ hbd <- read_tsv("data/hpc/ibdseq/1M_scaffolds.hbd",
 
 hbd_plot <- hbd %>% 
   group_by(s1,loc) %>% 
-  summarise(hbd_len = sum(roh_len)) %>% 
+  dplyr::summarise(hbd_len = sum(roh_len)) %>% 
   ggplot(aes(x=loc,y=hbd_len)) + 
   geom_boxplot(aes(color=loc),alpha=0.5, outlier.size = .2) +
   geom_point(aes(x=loc,color=loc), position = position_jitter(w=0.1,h=0),size=.2) + 

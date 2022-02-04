@@ -64,17 +64,20 @@ sum_eval <- sum(scan("data/hpc/pca/Adigitifera_smartpca.eval"))
 pve <- sdev_eval/sum_eval*100
 
 pca_plot <- ggplot(pca %>% filter(sampleid!="BR_5_121:BR_5_121_S125_L004"), aes(-PC1,-PC2,color=pop)) +
-  geom_point(size=2.5,alpha=0.8,shape=16)  +
-  geom_point(color="black",size=.3) +
+  geom_point(size=2,alpha=0.8,shape=16)  +
+  geom_point(color="black",size=.2) +
   scale_color_startrek() + 
-  labs(x=paste0("PC1(", signif(pve[1],3),"%)"), y=paste0("PC2(", signif(pve[2],3),"%)")) +
+  labs(x=paste0("PC1 (", signif(pve[1],3),"%)"), y=paste0("PC2 (", signif(pve[2],3),"%)")) +
   theme_test(base_size = 12) +
   theme(legend.title = element_blank(),
-        legend.position = c(0.70,0.8),
+        legend.position = c(0.70,0.2),
+        legend.text = element_text(size=8),
+        legend.key.size = unit(.4, "cm"),
+        legend.background = element_rect(fill=alpha('white', 0)),
         #legend.box = "horizontal",
         #legend.direction = "horizontal",
         panel.grid = element_blank()) 
-#ggsave(pca_plot,filename = "Fig.1C.pdf",width = 3.4, height = 3)
+#ggsave(pca_plot,filename = "Fig.1C.pdf",width = 2.5, height = 2.)
 
 d2s_wa <- read_tsv("data/hpc/symbiont/d2s/wa_matrix.txt", col_names = F) %>% 
   column_to_rownames("X1") %>% as.matrix() 
@@ -84,7 +87,7 @@ mds_wa <- d2s_wa %>% cmdscale() %>%  as.data.frame %>% rownames_to_column("id")%
   mutate(location=str_split( string = id,pattern = "_") %>% 
            map_chr(first), pop=case_when(location %in% c("AI","BR")~"inshore",
                                          location%in% c("RS1","RS2","RS3")~"southoffshore", 
-                                         location=="AR"~"northoffshore"))
+                                         location=="AR"~"northoffshore")) %>% mutate(V1=-V1)
 
 mds_plot<- ggscatter(mds_wa, x="V1", y="V2", 
           #color="groups",
@@ -99,7 +102,7 @@ mds_plot<- ggscatter(mds_wa, x="V1", y="V2",
           ggtheme = theme_test(base_size = 12,base_line_size = NA),legend="none",
           xlab="Dimension 1", ylab="Dimension 2")
 
-#ggsave(mds_plot,filename = "Fig.1D.pdf",width = 3.4,height = 3)
+#ggsave(mds_plot,filename = "Fig.1D.pdf",width = 2.5,height = 2.2)
 
-plot_grid(pca_plot, mds_plot, nrow = 1, label_size = 12,align = "h", axis = "b", rel_heights = c(0.5,0.5), labels = c("C","D"))
-#ggsave("Fig.1CD.pdf",width = 6.6, height = 3)
+plot_grid(pca_plot, mds_plot, nrow = 1, label_size = 12,align = "h", axis = "b", rel_heights = c(0.5,0.5), labels = c("D","E"))
+#ggsave("Fig.1DE.pdf",width = 4.8, height = 2.2)
