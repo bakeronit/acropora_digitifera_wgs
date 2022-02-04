@@ -4,7 +4,7 @@ output: github_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,fig.retina=2)
 library(tidyverse)
 ```
 
@@ -63,12 +63,12 @@ ttree %>%
   drop.tip("BR_5_121_S125_L004") %>% 
   ggtree() %<+% tree_data + 
   geom_tippoint(aes(color=loc)) +
-  geom_tiplab(aes(label=sample_label),align = F) +
+  geom_tiplab(aes(label=sample_label),align = F,size=2.5,hjust=-.1) +
   theme(legend.position = "bottom", legend.title = element_blank()) +
   scale_color_manual(values=myCol) +
   xlim(NA,4)
   
-ggsave("figures/fine_structure_tree.png",width = 4,height = 8)
+#ggsave(filename = "figures/fig-s3.jpg",width = 6.2,height = 7.8)
 ```
 
 All nodes in this tree had bootstrap support of 0.99 or better. The tree clearly distinguishes our three locations as distinct clades, but also identifies some structure within these clades.  Two small clades (RS1_M11_840, RS1-2_422) and (BR-4-088, BR-4-077) were identified which contained samples with relatively low sequencing depth and presumably reflect small biases due to genotyping error that fineStructure is able to identify as structure.  Within the inshore samples however there did seem to be a genuine split between the two inshore locations AI (Adele Island) and BR (Beagle Reef).  
