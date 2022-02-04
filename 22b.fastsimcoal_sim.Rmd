@@ -15,7 +15,7 @@ FastSimCoal can fit a demographic model to SFS data and it can also be used to s
 
 **Table 1:** Parameter estimates for the best fitting model estimated by FastSimCoal. Lower and Upper bounds enclose 90% of the distribution of bootstrap values.  
 ```{r}
-read_tsv("data/hpc/demography/fastsimcoal/bootstrap_param.txt") %>%
+read_tsv("data/hpc/demography/fastsimcoal/final2705/bootstrap_params.txt") %>%
   dplyr::mutate(bs_id=row_number()) %>% 
   pivot_longer(-c(bs_id,MaxEstLhood,MaxObsLhood), names_to = "param", values_to = "value") %>% 
   group_by(param) %>% 
