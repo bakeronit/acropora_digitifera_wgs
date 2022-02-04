@@ -23,7 +23,7 @@ As part of this calculation PLINK provides the observed and expected heterozygos
 
 
 ```{r}
-het_data <- read_tsv("data/hpc/popgen/plink2.het", show_col_types = FALSE) %>% 
+het_data <- read_tsv("data/hpc/popgen/plink2.het") %>% 
   rename(sample=`#IID`) %>% 
   filter(sample!="BR_5_121_S125_L004") %>% 
   mutate(location= case_when(
@@ -38,7 +38,7 @@ het_data <- read_tsv("data/hpc/popgen/plink2.het", show_col_types = FALSE) %>%
 ```
 
 
-```{r}
+```{r, fig.height=3.6, fig.retina=2}
 source("scripts/color_scheme.R")
 
 f_plot <- het_data %>% 
@@ -80,7 +80,7 @@ f_plot_out <- het_data %>%
   scale_color_manual(values = myCol) + 
   xlab("") + ylab("Inbreeding Coeffient")
 
-ggsave(f_plot_out,filename = "figures/inbreeding.png",width = 3,height = 3)
+#ggsave(f_plot_out,filename = "figures/inbreeding.png",width = 3,height = 3)
 ```
 
 
@@ -159,16 +159,16 @@ cut -f1,2,3 |\
 grep -Fwf - {pop}_1based.td > {pop}.filtered_windowed.td
 ```
 
-```{r pi, cache=TRUE}
+```{r pi, cache=TRUE, fig.height=3.6, fig.retina=2}
 read_pi <- function(pop) {
  read_tsv(paste0("data/hpc/popgen/",pop,".filtered_windowed.pi"),col_names = c("chr","start","end","n","pi")) %>% add_column(pop=pop) 
 }
 
 pi_plot <- rbind(read_pi("inshore"),read_pi("northoffshore"),read_pi("southoffshore")) %>% 
 ggplot() + 
-  geom_boxplot(aes(x=pop,y=pi,fill=pop)) + 
+  geom_boxplot(aes(x=pop,y=pi,fill=pop),outlier.size = .5) + 
   ggsci::scale_fill_startrek() + 
-  theme_classic() +
+  theme_test(base_size = 12) +
   theme(legend.position = "none") + 
   labs(x="",y="Pi") + 
   scale_x_discrete(labels=c("IN","NO","SO"))
@@ -181,15 +181,16 @@ read_td <- function(pop) {
 
 td_plot <- rbind(read_td("inshore"),read_td("northoffshore"),read_td("southoffshore")) %>% 
 ggplot() +
-  geom_boxplot(aes(x=pop,y=td,fill=pop)) + 
+  geom_boxplot(aes(x=pop,y=td,fill=pop),outlier.size = .5) + 
   ggsci::scale_fill_startrek() + 
-  theme_test(base_size = 14) + 
+  theme_test(base_size = 12) + 
   scale_y_continuous(limits = c(-3,2)) +
   theme(legend.position = "none") + 
   labs(x="",y="Tajima's D") + 
   scale_x_discrete(labels=c("IN","NO","SO"))
 
 plot_grid(pi_plot,td_plot)
+#ggsave("fig-s11.jpg",height = 2.6,width = 5.6)
 ```
 
 **Figure: 2** The left boxplot shows the values of $\theta_{\pi}$ and the right plot displays the Tajima's D values in three populations.
