@@ -72,7 +72,7 @@ For each of the six models, we performed 100 independent runs and examined the d
 
 In two of our models we allowed the migration phase to start independently of population splits (TMIG) (though constrained to be after TDIV1), however we found that these two models converged toward a simpler model, "Contemporary continuous migration IMc" (coded as `growth_rate_SC` internally). This can be seen in the parameter plot below where we see that the parameter `TMIG` converges to TMIG=TDIV1 for the model "Secondary contact SC" and converges to 0 for the model "Early migration EM".  Both scenarios reduce to the model "IMc" in this situation. 
 
-```{r}
+```{r, fig.height=3.6}
 #gr_ll <- list.files("data/hpc/demography/fastsimcoal/final",pattern = ".*fixed\\.param",full.names = T) %>% 
 gr_ll <- list.files("data/hpc/demography/fastsimcoal/final2705",pattern = ".*\\.param",full.names = T) %>%
   map_df(read_ll) %>% 
@@ -110,7 +110,7 @@ gr_ll %>%
   geom_violin(trim = FALSE,fill="gray") + 
   stat_summary(fun.data=mean_sdl, mult=1, 
                  geom="pointrange", color="darkred",size=.6,fatten=2) +
-  theme_test(base_size = 14) + labs(y="AIC",x="")
+  theme_test(base_size = 12) + labs(y="AIC",x="")
 
 ```
 
