@@ -30,45 +30,36 @@ angsd sites index sites.txt
 
 ### Population Branch Statistics
 
-The population branch statistic is designed to measure [@Yi2010-br] the degree to which allele frequencies at a specific locus in one population have differentiated from other populations.  Using ANGSD we calculate this statistic in 50kb wide sliding windows and report it for each focal population 
+The population branch statistic is designed to measure [@Yi2010-br] the degree to which allele frequencies at a specific locus in one population have differentiated from other populations.  We used plink2 to calculate pairwise Fst values for all pairs of populations and then used these to calculate population branch statistics. 
+
+To plot these values as a Manhattan plot we first convert coordinates into chromosomes using RagTag
 
 ```{r}
-pbsdata <- read_tsv("data/hpc/thetastat/fst.slidingwindow.tsv",col_types = cols()) %>% 
-  select(chr,midPos,Nsites,starts_with("PBS")) %>% 
+pbsdata <- read_tsv("data/hpc/selection2/pbs/plink2.pbs_scaff.tsv",col_types = cols(),col_names = c("chr","pos","PBS_IN","PBS_NO","PBS_SO")) %>% 
   pivot_longer(starts_with("PBS"),names_to = "population",values_to="PBS")
 ```
 
-To plot these values as a Manhattan plot we first convert coordinates into chromosomes
-
-```bash
-cd data/hpc/ragtag
-./translate_coords.py <(cut -f2,3 ../thetastat/fst.slidingwindow.tsv | grep -v 'midPos') ragtag_output/ragtag.scaffolds.agp > ../thetastat/fst.slidingwindow.scafpos.tsv --keep
-```
-
-```{r pbs-manhattan-plot, cache=TRUE}
-chr_positions <- read_tsv("data/hpc/thetastat/fst.slidingwindow.scafpos.tsv", col_types = cols(),
-                          col_names = c("scaffold","scaffold_pos","chr","chr_pos")) %>% 
-  unite("old_pos",scaffold,scaffold_pos,sep=":") %>% 
-  unite("new_pos",chr,chr_pos,sep=":")
-
-pbsdata_chr <- pbsdata %>% 
-  unite("old_pos",chr,midPos,sep=":") %>% 
-  left_join(chr_positions,by="old_pos") %>% 
-  separate(new_pos, into=c("scaffold","position"), sep = ":",convert=TRUE)
-
+```{r pbs-manhattan-plot}
 lengths <- read_tsv("data/hpc/pcangsd/all.lengths.scaf.txt",col_names = c("scaffold","length"))
-offsets <- lengths %>% arrange(desc(length)) %>% mutate(offset=cumsum(length)-length) %>% 
-  mutate(scaffold_num = row_number())
+offsets <- lengths %>% arrange(desc(length)) %>% 
+  dplyr::mutate(offset=cumsum(length)-length) %>% 
+  dplyr::mutate(scaffold_num = row_number())
 
-manhattan_data <- pbsdata_chr %>% 
-  left_join(offsets,by="scaffold") %>% 
-  mutate(abs_pos = position+offset) 
+manhattan_data <- pbsdata %>% 
+  left_join(offsets,by=c("chr"="scaffold")) %>% 
+  mutate(abs_pos = pos+offset) 
 
-manhattan_data$population <- factor(manhattan_data$population,labels=c("PBS0"="Inshore","PBS1"="North Offshore","PBS2"="South Offshore"))
 
-manhattan_data %>% 
+mh_high <- manhattan_data %>% 
+  filter(PBS>0.5)
+
+mh_low <- manhattan_data %>% 
+  filter(PBS<0.5) %>% 
+  slice_sample(n=nrow(mh_high))
+
+rbind(mh_low,mh_high) %>% 
   ggplot() + 
-  scale_x_discrete(labels=c("PBS0"="Inshore","PBS1"="North Offshore","PBS2"="South Offshore")) +
+  scale_x_discrete(labels=c("PBS_IN"="Inshore","PBS_NO"="North Offshore","PBS_SO"="South Offshore")) +
   geom_point(aes(x=abs_pos/1e6,y=PBS,color=as.character(scaffold_num %% 2)),size=0.1) + 
   ylab("Population Branch Statistic") + xlab("Genome Position / Mb") + 
   theme_pubclean() + theme(legend.position = "None") + facet_wrap(~population,ncol = 1)

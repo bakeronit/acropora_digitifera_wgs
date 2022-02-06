@@ -129,21 +129,21 @@ However, if we take the total length of ROH segments in each individual we find 
 source("scripts/color_scheme.R")
 
 hbd %>% 
-  mutate(loc = case_when(
+  dplyr::mutate(loc = case_when(
     loc=="Inshore"~"IN",
     loc=="North Offshore"~"NO",
     loc=="South Offshore"~"SO"
   )) %>% 
   group_by(s1,loc) %>% 
-  summarise(hbd_len = sum(roh_len)) %>% 
+  dplyr::summarise(hbd_len = sum(roh_len)) %>% 
   ggplot(aes(x=loc,y=hbd_len)) + 
     geom_boxplot(aes(color=loc),alpha=0.5) +
     geom_point(aes(x=loc,color=loc), position = position_jitter(w=0.1,h=0)) + 
-  xlab("") + ylab("Runs of Homozygosity: Total (Mb)") +
+  xlab("") + ylab("HBD Segments: Total (Mb)") +
   theme_pubr() +
   theme(legend.position = "none", text = element_text(size=12), axis.text.x = element_text(size=12)) +
   scale_color_startrek()
-#ggsave("figures/hbd.png",width = 3,height = 3)
+ggsave("figures/hbd.png",width = 3,height = 3)
 ```
 
 ### Position of HBD segments

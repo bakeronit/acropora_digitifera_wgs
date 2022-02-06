@@ -9,6 +9,7 @@ bedtools getfasta -nameOnly -fi GCF_004143615.1_amil_sf_1.1_genomic.fna -bed ami
 
 bedtools getfasta -nameOnly -fi GCA_014634065.1_Adig_2.0_genomic.fna -bed adi_probes_merged.bed -fo adi.uces.fasta
 
+bedtools getfasta -nameOnly -fi aten_final_0.11.fasta -bed aten_probes_merged.bed -fo aten.uces.fasta
 
 for f in *aligned*.consensus.fa;do
 	fn=${f%_aligned*}

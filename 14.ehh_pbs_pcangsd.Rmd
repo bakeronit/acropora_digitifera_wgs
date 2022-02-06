@@ -18,15 +18,20 @@ Regions identified as sweeps via EHH statistics also tended to have more extreme
 ehh_sweeps <- read_rds("cache/candidate_regions_genes_ehh.rds") %>% 
     mutate(chr=str_trim(chr)) 
 
-pbsdata <- read_tsv("data/hpc/thetastat/fst.slidingwindow.tsv",col_types = cols()) %>% 
-  dplyr::select(chr,midPos,Nsites,starts_with("PBS")) %>% 
+# pbsdata <- read_tsv("data/hpc/thetastat/fst.slidingwindow.tsv",col_types = cols()) %>% 
+#   dplyr::select(chr,midPos,Nsites,starts_with("PBS")) %>% 
+#   pivot_longer(starts_with("PBS"),names_to = "population",values_to="PBS")
+
+pbsdata <- read_tsv("data/hpc/selection2/pbs/plink2_noheader.pbs",col_types = cols(),col_names = c("chr","pos","PBS_IN","PBS_NO","PBS_SO")) %>% 
+  slice_sample(n=100000) %>% 
+  dplyr::select(chr,pos,starts_with("PBS")) %>% 
   pivot_longer(starts_with("PBS"),names_to = "population",values_to="PBS")
 
 
 pcadapt_pvals <- read_rds("cache/pcadapt_pvals.rds")
 untransformed_coords <- read_tsv("data/hpc/pcangsd/wa.positions.txt",col_names = c("scaffold","pos"))
 sites_binary <- read_tsv("data/hpc/pcangsd/wa.sites",col_names = c("included"))
-untransformed_coords_included <- untransformed_coords[sites_binary$included==1,] %>% mutate(p=row_number())
+untransformed_coords_included <- untransformed_coords[sites_binary$included==1,] %>% dplyr::mutate(p=row_number())
 
 
 read_pi <- function(pop) {
@@ -59,8 +64,8 @@ if ( !file.exists("cache/inout_stats.rds")){
     bedr.sort.region(check.chr = FALSE)
 
   pbs_bed <- pbsdata %>% 
-    mutate(start=midPos-5000,end=midPos+5000) %>% 
-    unite("ID",chr,midPos,sep = ":", remove = FALSE) %>% 
+    mutate(start=pos,end=pos) %>% 
+    unite("ID",chr,pos,sep = ":", remove = FALSE) %>% 
     extract(chr,"chr",regex = "(.*).1") %>% 
     dplyr::select(chr,start,end,PBS,ID) %>% 
       as.data.frame() %>% 
@@ -130,10 +135,28 @@ if ( !file.exists("cache/inout_stats.rds")){
 
 
 ```{r, fig.height=12}
-p_pbs <- inout[['pbs']] %>% 
-  ggplot(aes(x=value)) + geom_density(aes(fill=in_sweep),alpha=0.5) + 
-  xlim(NA,0.5) + xlab("Population Branch Statistic") + ylab("") +
-  theme_pubclean() + theme(legend.position = "none")
+# p_pbs <- inout[['pbs']] %>% 
+#   ggplot(aes(x=value)) + geom_density(aes(fill=in_sweep),alpha=0.5) + 
+#   xlim(-0.2,1) + xlab("Population Branch Statistic") + ylab("") +
+#   theme_pubclean() + theme(legend.position = "none")
+
+
+pbs_sweeps <- read_tsv("data/hpc/selection2/pbs/pbs_sweeps.tsv",col_names = c("chr","pos","pos2","IN","NO","SO")) %>% 
+  pivot_longer(cols = c(IN,NO,SO), names_to = "loc", values_to = "PBS") %>% 
+  add_column(in_sweep=TRUE)
+pbs_nonsweeps <- read_tsv("data/hpc/selection2/pbs/pbs_nosweeps.tsv",col_names = c("chr","pos","pos2","IN","NO","SO")) %>% 
+  slice_sample(n=nrow(pbs_sweeps)) %>% 
+  pivot_longer(cols = c(IN,NO,SO), names_to = "loc", values_to = "PBS") %>% 
+  add_column(in_sweep=FALSE)
+
+pbs_both <- rbind(pbs_sweeps,pbs_nonsweeps)
+
+p_pbs <- pbs_both %>% 
+  ggplot(aes(x=PBS)) + geom_density(aes(color=in_sweep)) + 
+  theme_pubclean() + theme(legend.position = "none") +
+  facet_wrap(~loc) + xlim(0.1,2)
+
+
 
 p_pc <- inout[['pcadapt']] %>% 
   ggplot(aes(x=value)) + geom_density(aes(fill=in_sweep),alpha=0.5) + xlim(0,10) + xlab("-Log10(p); p = PCAdapt z-score ")+
@@ -166,7 +189,7 @@ legend_b <- get_legend(
     guides(color = guide_legend(nrow = 1)) +
     theme(legend.position = "bottom",legend.title = element_blank())
 )
-top_row <- plot_grid(p_pbs,p_pc,legend_b)
+top_row <- plot_grid(p_pbs,p_pc,legend_b,rel_widths = c(0.6,0.3,0.1))
 
 plot_grid(top_row,p_pi,p_D,ncol=1)
 ```
@@ -175,32 +198,7 @@ plot_grid(top_row,p_pi,p_D,ncol=1)
 
 
 
-```{r, results='hide'}
-pbs_bed <- pbsdata %>%
-  mutate(start=midPos-5000,end=midPos+5000) %>%
-  unite("ID",chr,midPos,sep = ":", remove = FALSE) %>%
-  extract(chr,"chr",regex = "(.*).1") %>%
-  dplyr::select(chr,start,end,PBS,ID) %>%
-    as.data.frame() %>%
-  bedr.sort.region(check.chr = FALSE)
 
-
-ehh_bed <- ehh_sweeps %>%
-  unite("locus",chr,start,end,remove = FALSE) %>%
-  dplyr::select(chr,start,end,pop,locus) %>%
-  as.data.frame() %>%
-  bedr.sort.region(check.chr = FALSE)
-
-
-pbs_extreme_loci <- pbsdata %>%
-  filter(PBS>0.2) %>%
-  mutate(start=midPos-5000,end=midPos+5000) %>%
-  unite("ID",chr,midPos,sep = ":", remove = FALSE) %>%
-  extract(chr,"chr",regex = "(.*).1") %>%
-  dplyr::select(chr,start,end,PBS,ID) %>%
-    as.data.frame() %>%
-  bedr.sort.region(check.chr = FALSE)
-```
 
 
 ```{r, results='hide'}
@@ -219,48 +217,48 @@ ehh_sweeps_scaff <- read_tsv("data/hpc/ragtag/ehh_sweeps_scaff.tsv", col_names =
 
 offsets <- read_tsv("data/hpc/ragtag/all.lengths.scaf.txt", col_names = c("chr","length"),show_col_types = FALSE) %>% 
   arrange(desc(length)) %>%
-  mutate(offset=lag(cumsum(length),default=0)) %>% 
-  mutate(scaffold_num=row_number())
+  dplyr::mutate(offset=lag(cumsum(length),default=0)) %>% 
+  dplyr::mutate(scaffold_num=row_number())
 
 ehh_sweep_manhattan_data <- ehh_sweeps_scaff %>% 
   left_join(offsets) %>% 
-  mutate(abs_start = start + offset, abs_end = end + offset)
+  dplyr::mutate(abs_start = start + offset, abs_end = end + offset)
 ```
 
 
 ```{r, results='hide'}
-dated_loci <- read_rds("cache/dated_loci.rds")
 
 pop_names <- c("inshore"="Inshore","northoffshore"="North Offshore","southoffshore"="South Offshore")
 
-pbs_manhattan_data <- read_rds("cache/pbs.rds")
+pbs_manhattan_data <- read_rds("cache/pbs.rds") %>% 
+  extract(population,into="population",regex = "PBS_(.*)")
 
-pbs_ehh_overlapping <- bedr.join.region(pbs_extreme_loci,ehh_bed,check.chr = FALSE) %>% 
-  filter(pop!=".") %>%
-  mutate(population=pop_names[pop]) %>% 
-  mutate(dated_locus_number = dated_loci[locus]) %>% 
-  mutate(PBS=as.numeric(PBS)) %>% 
-  left_join(pbs_manhattan_data,by=c("ID"="old_pos","PBS","population")) 
+pbs_thresholds <- read_rds("cache/pbs_thresholds.rds")
+
+pbs_ehh_overlapping <- read_tsv("data/hpc/selection2/pbs/pbs_sweeps.scaff.tsv",col_names = c("chr","pos","pos2","PBS_IN","PBS_NO","PBS_SO")) %>% 
+  select(-pos2) %>% 
+  pivot_longer(cols = starts_with("PBS"), values_to = "PBS",names_to = "population") %>% 
+  left_join(offsets,by=c("chr"="chr")) %>% 
+  dplyr::mutate(abs_pos= pos + offset) %>% 
+  extract(population,into="population",regex = "PBS_(.*)") %>% 
+  left_join(pbs_thresholds,by=c("population"="loc")) %>% 
+  filter(PBS>=pbs_thresh)
+
+mh_high <- pbs_manhattan_data %>% 
+  filter(PBS>0.2)
+
+mh_low <- pbs_manhattan_data %>% 
+  filter(PBS<0.2) %>% 
+  slice_sample(n=nrow(mh_high))
 
 
-
-
-to_label <- pbs_ehh_overlapping %>% 
-  group_by(locus,dated_locus_number,population) %>% 
-  summarise(PBS=max(PBS),abs_pos=mean(abs_pos,na.rm=TRUE)) %>% 
-  filter(!is.na(dated_locus_number)) %>% 
-  filter(dated_locus_number %in% c("1","8","28","33")) %>% 
-#  filter(PBS>0.3) %>% 
-  na.omit()
-  
-
-
-mh_plot <- pbs_manhattan_data %>% 
+mh_plot <- rbind(mh_low,mh_high) %>% 
   filter(PBS>0) %>% 
   ggplot() + 
-  geom_point(aes(x=abs_pos/1e6,y=PBS,color=as.character(scaffold_num %% 2)),size=0.01) + 
-  geom_point(data = pbs_ehh_overlapping,aes(x=abs_pos/1e6),y=-0.1,color="blue",size=0.1) + 
-    geom_linerange(data=ehh_sweep_manhattan_data, aes(xmin=(abs_start/1e6)-0.1,xmax=(abs_end/1e6)+0.1,y=-0.25),size=1.5,color="purple",alpha=1) +
+  geom_point(aes(x=abs_pos/1e6,y=PBS,color=as.character(scaffold_num %% 2)),size=0.02) + 
+  geom_point(data = pbs_ehh_overlapping,aes(x=abs_pos/1e6,y=PBS),color="blue",size=0.1) +   
+#  geom_point(data = pbs_ehh_overlapping,aes(x=abs_pos/1e6),y=-0.1,color="blue",size=0.1) + 
+  geom_linerange(data=ehh_sweep_manhattan_data, aes(xmin=(abs_start/1e6)-0.1,xmax=(abs_end/1e6)+0.1,y=-0.25),size=1.5,color="purple",alpha=1) +
 #  geom_point(data = to_label,aes(x=abs_pos/1e6,y=PBS),color="purple",size=0.5) + 
 #  geom_label_repel(data = to_label,aes(x=abs_pos/1e6,y=PBS, label=dated_locus_number),size=2,nudge_y=1,nudge_x = -10) + 
   ylab("Population Branch Statistic") + xlab("Genome Position / Mb") + ylim(-0.3,NA) +

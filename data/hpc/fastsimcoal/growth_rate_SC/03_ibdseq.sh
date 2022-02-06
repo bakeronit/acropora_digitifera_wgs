@@ -2,7 +2,8 @@ cd 3.out.growth_rate_SC
 
 mkdir -p ibdseq
 
-for f in *.vcf.gz;do
+#for f in *.vcf.gz;do
+for in 3.out.growth_rate_SC_16_1.gen.vcf.gz;do
 	echo $f
 	for c in $(seq 1 100);do
 		s1=${f#3.out.growth_rate_SC_}

@@ -2,7 +2,8 @@ cd 3.out.growth_rate_SC
 
 mkdir -p tajima
 
-for f in *.vcf.gz;do
+#for f in *.vcf.gz;do
+for f in 3.out.growth_rate_SC_16_1.gen.vcf.gz;do
     echo $f
     for pop in IN NO SO;do
         echo $pop
