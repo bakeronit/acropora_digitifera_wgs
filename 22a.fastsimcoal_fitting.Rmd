@@ -173,12 +173,16 @@ bs_df %>% filter(grepl(param,pattern = "MIG")) %>%
   ggplot(aes(x=param, y= value)) + geom_boxplot() + labs(x="",y="migration rate")
 ```
 
+**Tables: The point estimate of six models and the parameter 95% confidence intervals obtained under IMc model which were calcualted according to the percentile method.**
 
-```{r include=FALSE,eval = FALSE}
+```{r }
 #creating table s8
 gr_ll %>% group_by(model.lab) %>% slice_min(aic,n=1) %>% select(-c(model,run)) %>% 
   pivot_longer(-c(model.lab),names_to = "parameters", values_to = "value") %>% 
-  pivot_wider(names_from = model.lab,values_from = value) %>% select(parameters,SI,IM,IMc,SC,EM,AM) %>% write_tsv("table-s8.txt")
+  pivot_wider(names_from = model.lab,values_from = value) %>% select(parameters,SI,IM,IMc,SC,EM,AM) %>% knitr::kable()
+#%>% write_tsv("table-s8.txt")
 
-bs_df %>% group_by(param) %>% dplyr::summarise(min=min(value),max=max(value)) %>% write_tsv("table-s8b1.txt")
+#bs_df %>% group_by(param) %>% dplyr::summarise(min=min(value),max=max(value)) %>% write_tsv("table-s8b1.txt")
+
+bs_df %>% group_by(param) %>% dplyr::summarise(lowerbound=quantile(value,probs=c(0.05)),upperbound=quantile(value,probs=c(0.95))) %>% knitr::kable()
 ```
