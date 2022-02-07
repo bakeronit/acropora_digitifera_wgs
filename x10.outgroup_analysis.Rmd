@@ -182,33 +182,36 @@ The resulting tree (rooted at Acropora tenuis) recovers the expected relative di
 ```{r}
 ucetree <- read.iqtree("data/hpc/iqtree/partition.nex.best_scheme.nex.treefile")
 
-rucetree <- root(ucetree,node=33)
+rucetree <- root(ucetree,node=34)
+rucetree <- treeio::drop.tip(rucetree,"FI-1-3")
+rucetree <- treeio::drop.tip(rucetree,"MI-1-4")
 
 uce_st <- data.frame(tiplab=rucetree@phylo$tip.label) %>% 
   mutate(newlab = case_when(
     grepl("^adi$",tiplab) ~ "Acropora digitifera : Genome",
+    grepl("^aten$",tiplab) ~ "Acropora tenuis : Genome",
         grepl("^adi_D",tiplab) ~ "Acropora digitifera : Japan",
-    grepl("^adi_[R]", tiplab) ~ "Acropora digitifera : SO",
-    grepl("^adi_[AR]", tiplab) ~ "Acropora digitifera : NO",    
-    grepl("^adi_[AI]", tiplab) ~ "Acropora digitifera : IN",    
-    grepl("^adi_[BR]", tiplab) ~ "Acropora digitifera : IN",    
+    grepl("^adi_R", tiplab) ~ "Acropora digitifera : SO",
+    grepl("^adi_AR", tiplab) ~ "Acropora digitifera : NO",    
+    grepl("^adi_AI", tiplab) ~ "Acropora digitifera : IN",    
+    grepl("^adi_BR", tiplab) ~ "Acropora digitifera : IN",    
     grepl("^MI", tiplab) ~ "Acropora tenuis : GBR",
     grepl("^FI", tiplab) ~ "Acropora tenuis : GBR",
-    grepl("^amil", tiplab) ~ "Acropora millepora : GBR",    
+    grepl("^amil", tiplab) ~ "Acropora millepora : Genome",    
   )) %>% 
   separate(newlab,into = c("species","location"), sep=" : ", remove = FALSE)
 
 #ptree <- drop.tip(as.phylo(ucetree),c("amil"))
 #ptree <- ucetree
-location_colors2 <- c(myCol,"#7C878EFF","#FFCD00FF","#00B5E2FF")
-names(location_colors2) <- c("IN","NO","SO","Japan","Genome","GBR")
+location_colors2 <- c(myCol,"#7C878EFF","#FFCD00FF")
+names(location_colors2) <- c("IN","NO","SO","Japan","Genome")
 ggtree(rucetree) %<+% uce_st + 
   geom_tippoint(aes(color=location)) + scale_color_manual(values = location_colors2) +
   geom_tiplab(aes(label=newlab),align = F) +
   theme(legend.position = "bottom", legend.title = element_blank()) +
   xlim(NA,0.35) + geom_treescale()
 
-#ggsave(filename = "figures/fig-s7.jpg", width = 6.3,height = 5.6)
+ggsave(filename = "figures/fig-s7.jpg", width = 6.3,height = 5.6)
 #ggsave(filename = "figures/iqtree.png")
 ```
 

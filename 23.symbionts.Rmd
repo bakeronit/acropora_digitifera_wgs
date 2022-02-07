@@ -65,7 +65,23 @@ symbiodinium_data <- mpa_data %>%
   mutate(clade_order=group_order[clade]) %>% 
   mutate(sample_group_order=loc_order[sample_group]) %>%   
   mutate(clade_name = clade_names[clade]) %>% 
-  filter(clade!="Host")
+  filter(clade!="Host") 
+```
+
+```{r, include=FALSE}
+#symbiont read summary. To provide summary stats for paper only
+
+library(googlesheets4)
+gs4_deauth()
+read_totals <- read_sheet("https://docs.google.com/spreadsheets/d/1RHye3l7R05nA6kAw9u28H84X7BxbNsGUsWykX5eqvdw/edit?usp=sharing",range = "A2:K77") %>% dplyr::select("Sample ID",total_yield="Total yield bases (Mb)")
+
+symbiont_data_summary <- symbiodinium_data %>% 
+  group_by(sample,sample_group) %>% 
+  dplyr::summarise(reads=sum(read_count)) %>% 
+  extract(sample,into="Sample ID",regex="(.*?_.*?_.*?)_") %>% 
+  na.omit() %>% 
+  left_join(read_totals) %>% 
+  mutate(symbiont_percentage = reads*100/(total_yield*1e6/300)) 
 ```
 
 
@@ -76,9 +92,16 @@ symbiodinium_data <- mpa_data %>%
 library(ggrepel)
 library(ggpubr)
 
-spg_plot <- ggplot(symbiodinium_data ,aes(x=clade_name,y=read_count/1e6)) + 
+symb_plot_data <- symbiodinium_data %>% 
+  ungroup() %>% 
+  filter(sample_group!="JP") %>% # Interesting but beyond scope of the paper
+  group_by(sample) %>% 
+  dplyr::mutate(sample_total = sum(read_count))
+  
+spg_plot <- symb_plot_data %>% 
+  ggplot(aes(x=clade_name,y=read_count/1e6)) + 
   geom_boxplot(aes(color=clade_name), outlier.size = 0.5) + 
-  facet_wrap(~reorder(sample_group,sample_group_order),nrow = 1)  + theme_pubclean(base_size = 12) +
+  facet_wrap(~reorder(sample_group,sample_group_order),nrow = 1)  + theme_pubclean(base_size = 10) +
   ylab("Read Count (Millions)") + xlab("") +
   theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(),
         legend.position = "none", legend.title = element_blank())
@@ -87,19 +110,20 @@ spg_plot <- ggplot(symbiodinium_data ,aes(x=clade_name,y=read_count/1e6)) +
 
 ```{r}
 # Plot by read count proportions
-gp_symb_data <- symbiodinium_data %>% 
-  group_by(sample) %>% 
-  mutate(sample_total = sum(read_count)) %>% 
-  ungroup() %>% 
-  group_by(clade,sample) %>% 
-  mutate(proportion = sum(read_count)/sample_total)
+# gp_symb_data <- symbiodinium_data %>% 
+#   group_by(sample) %>% 
+#   mutate(sample_total = sum(read_count)) %>% 
+#   ungroup() %>% 
+#   group_by(clade,sample) %>% 
+#   mutate(proportion = sum(read_count)/sample_total)
 
-spg_plot_props <- ggplot(gp_symb_data ,aes(x=clade_name,y=proportion)) + 
+spg_plot_props <- symb_plot_data %>% 
+  group_by(clade,sample) %>% 
+  dplyr::mutate(proportion = sum(read_count)/sample_total) %>% 
+  ggplot(aes(x=clade_name,y=proportion)) + 
   geom_point(aes(color=clade_name), position = position_jitterdodge(jitter.height = 0.01, jitter.width = 0.8), size=0.5) +
-#  geom_point(data=DI11,aes(color=clade_name), size=2) +  
-#  geom_label_repel(data=DI11,aes(label=sample), nudge_x = 2, point.padding = 0.5, arrow = arrow(length = unit(0.2,"cm")), size=2.5) +
-  facet_wrap(~reorder(sample_group,sample_group_order),nrow = 1) + theme_pubclean(base_size = 12) +
-    xlab("") + ylab("Read Proportion") + 
+  facet_wrap(~reorder(sample_group,sample_group_order),nrow = 1) + theme_pubclean(base_size = 10) +
+    xlab("") + ylab("Read Proportion") + ylim(0,1) +
   theme(axis.text.x = element_blank(), axis.ticks.x = element_blank(),
         legend.position = "bottom", legend.title = element_blank())
 ```
@@ -110,7 +134,7 @@ Irrespective of whether absolute read counts or proportion of reads is used the 
 # Combine plots 
 library(cowplot)
 plot_grid(spg_plot,spg_plot_props, ncol = 1, align = "hv", axis = "lr", rel_heights = c(0.4,0.6))
-#ggsave("fig-s8.jpg",width = 6.2,height = 4.6)
+ggsave("figures/fig-s8.jpg",width = 6.2,height = 4.6)
 ```
 
 # Diversity within the dominant genus, *Cladocopium*
