@@ -1,6 +1,9 @@
 ---
 title: "Simulated data under the best fitting demographic model"
-output: github_document
+bibliography: bibliography.bib
+output:
+  github_document:
+    pandoc_args: --webtex
 ---
 
 ```{r setup, include=FALSE, message=FALSE}
@@ -15,7 +18,7 @@ FastSimCoal can fit a demographic model to SFS data and it can also be used to s
 
 **Table 1:** Parameter estimates for the best fitting model estimated by FastSimCoal. Lower and Upper bounds enclose 90% of the distribution of bootstrap values.  
 ```{r}
-read_tsv("data/hpc/demography/fastsimcoal/bootstrap_param.txt") %>%
+read_tsv("data/hpc/demography/fastsimcoal/final2705/bootstrap_params.txt") %>%
   dplyr::mutate(bs_id=row_number()) %>% 
   pivot_longer(-c(bs_id,MaxEstLhood,MaxObsLhood), names_to = "param", values_to = "value") %>% 
   group_by(param) %>% 
@@ -28,7 +31,7 @@ read_tsv("data/hpc/demography/fastsimcoal/bootstrap_param.txt") %>%
 Using these parameters as priors we then run FSC to generate data as follows;
 
 ```bash
-../fsc27_linux64/fsc2702 -t 3.out.growth_rate_SC.tpl -n 1 -e 3.out.growth_rate_SC.est  -E 10 -G x -c 0
+../fsc27_linux64/fsc2702 -t 3.out.growth_rate_SC.tpl -n 1 -e 3.out.growth_rate_SC.est  -E 50 -G x -c 0
 ```
 
 Where the file `3.out.growth_rate_SC.tpl` specifies that the simulation should generate 20 independent chromosomes of length 2mb using a recombination rate of 3.2e-8 and mutation rate of 1.2e-8.  The outputs can be converted to vcf using the awk script [gen2vcf](data/hpc/fastsimcoal/gen2vcf.awk). 
@@ -79,11 +82,11 @@ hbd_plot <- hbd_data %>%
   dplyr::summarise(hbd_len = sum(roh_len)) %>% 
   ungroup() %>% 
   group_by(rep,loc) %>% 
-  dplyr::summarise(hbd_len=mean(hbd_len*(309/300))) %>% 
+  dplyr::summarise(hbd_len=mean(hbd_len*(309/40))) %>% 
   ggplot(aes(x=loc,y=hbd_len)) + 
     geom_boxplot(aes(color=loc),alpha=0.5) +
     geom_point(aes(x=loc,color=loc), position = position_jitter(w=0.1,h=0)) + 
-  xlab("") + ylab("Runs of Homozygosity: Total (Mb)") +
+  xlab("") + ylab("HBD Segments: Total (Mb)") +
   theme_pubr() +
   theme(legend.position = "none", text = element_text(size=8)) +
   scale_color_manual(values = myCol)
@@ -114,7 +117,7 @@ het_data <- list.files("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC
 het_plot <- het_data %>% 
   filter(stat=="F") %>% 
   group_by(rep,location,stat) %>% 
-  summarise(value=mean(value)) %>% 
+  dplyr::summarise(value=mean(value)) %>%  
   ggplot(aes(x=location)) + 
   geom_boxplot(aes(y=value, color=location)) + 
   theme_pubr() +
@@ -164,7 +167,7 @@ admix_plot <-
   scale_fill_manual(values = myCol) +
     theme_pubr() +
   coord_flip() +
-    theme(legend.position = "none", legend.title = element_blank(), axis.text.y = element_blank()) +
+    theme(legend.position = "none", legend.title = element_blank(), axis.text.y = element_blank(), axis.ticks = element_blank(),text = element_text(size=8)) +
     ylab("Admixture Proportion") + xlab("")
 
 ```
@@ -173,6 +176,7 @@ admix_plot <-
 
 ```{r}
 plot_grid(hbd_plot,het_plot,tajima_plot,admix_plot,nrow = 2)
+ggsave("figures/fig-s16.png",width = 6.5,height = 6.5)
 ```
 
 **Figure 1:** Population genetic statistics and structure calculated using simulated data under the best fitting model. Colour scheme matches the one used for real data in all plots. 
@@ -181,3 +185,102 @@ plot_grid(hbd_plot,het_plot,tajima_plot,admix_plot,nrow = 2)
 In general the properties of simulated data reproduced key features of the real data.  For long runs of Homozygosity and inbreeding coefficients the trend that inshore samples had much higher values was reproduced but the magnitude of values overall was lower than for real data.  For Tajima's D all samples had positive values whereas in real data the values were all negative, however in both cases the inshore population had a higher value. Both positive and negative values of Tajima's D are indicators of a recent bottleneck, however the sign is very sensitive to the timing and strength of this bottleneck. 
 
 The admixture plot shows almost complete assignment of each individual to its location-based population cluster. This result (same as for real data) shows that the migration coefficients inferred under the demographic model are sufficiently low as to be consistent with the strong structure and limited admixture observed in real data. 
+
+
+# PBS on Simulated Data
+
+Since the demographic histories of populations in this study included strong bottlenecks it is important to determine whether these demographic effects could account for extreme values in signatures of selection. To tackle this issue we used simulations under the best-fitting FSC model to calculate an empirical distribution of test statistics under neutrality.  We then determined an empirical false positive rate under a range of thresholds of the test statistic as follows; 
+
+1. Subsample the neutral dataset (test statistic calculated under neutrality) so that it has an equal number of values to the real data. 
+2. Take a random sample of 100k values from this combined dataset.  Both the real and simulated data include sites in linkage disequilibrium.  This subsampling should thin sites to make calculations tractable while retaining data points that are now approximately independent. 
+3. Sort the combined data by test statistic value
+4. Code the each site $i$ with a value $s_i$ with is 0 if the site is in the real dataset and 1 if not (a false positive).
+5. The empirical false positive rate (FPR) for the site at row $k$ is then given by;
+$$
+FPR_k = 2\frac{\sum_{i=0}^ks_i}{k}
+$$
+6. And this FPR value will also be the value of the FPR when a threshold test statistic value equal to the value at site k is used. 
+
+For the EHH-based statistics it was not possible to perform this empirical FPR calculation because those statistics rely on a normalisation procedure such that the normalised values are z-scores.  We therefore performed this calculation using the population branch statistic.
+
+We calculated PBS by first calculating pairwise Fst values between all pairs of populations and at each site using plink2. 
+```bash
+plink2 --vcf $f --fst site report-variants --pheno phenotypes.txt --allow-extra-chr
+```
+
+PBS was then calculated for each focal population using the formula provided in [@Yi2010-br]. 
+
+
+
+
+```{r}
+read_pbs <- function(path){
+  bn=basename(path)
+  
+  read_table(path,skip = 2,col_names = c("contig","pos","IN","NO","SO")) %>% 
+    add_column(file=bn)
+}
+
+if ( file.exists("cache/pbs_combined_long.rds")){
+  pbs_combined_long <- read_rds("cache/pbs_combined_long.rds")
+} else {
+
+  pbs_real <- read_pbs("data/hpc/selection2/pbs/plink2.pbs")
+
+
+  pbs_sim <- list.files("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/","*.pbs",full.names = TRUE) %>% 
+    map_dfr(read_pbs) %>% 
+    slice_sample(n=nrow(pbs_real))
+  
+
+  pbs_combined <- rbind(pbs_real,pbs_sim) %>% 
+    mutate(fp = ifelse(grepl("^contig",contig),1,0))
+
+  pbs_combined_sample <- pbs_combined %>% 
+    slice_sample(n=500000)
+  
+  pbs_combined_IN <- pbs_combined_sample %>% 
+    select(contig,pos,PBS=IN,fp) %>% 
+    add_column(loc="IN") %>% 
+    arrange(desc(PBS)) %>% 
+    dplyr::mutate(fpr = 2*cumsum(fp)/row_number())
+
+  pbs_combined_NO <- pbs_combined_sample %>% 
+    select(contig,pos,PBS=NO,fp) %>% 
+    add_column(loc="NO") %>% 
+      arrange(desc(PBS)) %>% 
+    dplyr::mutate(fpr = 2*cumsum(fp)/row_number())
+
+  pbs_combined_SO <- pbs_combined_sample %>% 
+    select(contig,pos,PBS=SO,fp) %>% 
+    add_column(loc="SO") %>% 
+      arrange(desc(PBS)) %>% 
+    dplyr::mutate(fpr = 2*cumsum(fp)/row_number())
+
+
+  pbs_combined_long <- rbind(pbs_combined_IN,pbs_combined_NO,pbs_combined_SO)
+  pbs_combined_long %>% write_rds("cache/pbs_combined_long.rds") 
+}
+```
+
+
+
+```{r}
+th <- pbs_combined_long %>% filter(fpr<0.01) %>% group_by(loc) %>% dplyr::summarise(pbs_thresh=min(PBS))
+
+write_rds(th,"cache/pbs_thresholds.rds")
+
+pbs_combined_long %>% 
+  ggplot(aes(x=PBS,y=fpr)) + 
+  geom_line(aes(color=loc)) +
+  scale_fill_manual(values = myCol) +
+  theme_pubr() + 
+  xlab("PBS Threshold Value") + 
+  ylab("Empirical False Positive Rate") + 
+  xlim(0,4) +
+  geom_vline(data=th,aes(xintercept=pbs_thresh,color=loc)) +
+  theme(legend.title = element_blank(), legend.position = "bottom", text = element_text(size=10)) 
+ggsave("figures/fig-s17.png")
+```
+
+

@@ -26,6 +26,8 @@ gather_uce(){
 		samtools faidx $ucefasta ${adi_uces} | sed "s/>.*/>${id}/" >> alignments/${cuce}.fasta
 	done
 
+	samtools faidx aten.uces.fasta ${aten_uces} | sed "s/>.*/>aten/" >> alignments/${cuce}.fasta
+
 	for ucefasta in [FM]I*.uces.fasta;do
 		id=${ucefasta%.uces.fasta}
 		samtools faidx $ucefasta ${aten_uces} | sed "s/>.*/>${id}/" >> alignments/${cuce}.fasta
@@ -40,7 +42,7 @@ gather_uce(){
 
 align_uce(){
 	cuce=$1
-	mafft --adjustdirection --localpair --maxiterate 1000 alignments_concat/${cuce}.fasta | sed "s/>_R_/>/"> alignments_concat/${cuce}_align.fasta
+	mafft --adjustdirection --localpair --maxiterate 1000 alignments/${cuce}.fasta | sed "s/>_R_/>/"> alignments/${cuce}_align.fasta
 }
 
 export -f gather_uce

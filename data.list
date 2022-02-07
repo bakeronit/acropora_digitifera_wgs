@@ -60,6 +60,57 @@ data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rat
 data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_9_1.gen.vcf.gz_NO_1based.td
 data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/3.out.growth_rate_SC_9_1.gen.vcf.gz_SO_1based.td
 
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/10_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/11_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/12_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/13_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/14_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/15_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/16_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/17_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/18_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/19_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/1_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/20_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/21_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/22_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/23_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/24_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/25_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/26_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/27_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/28_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/29_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/2_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/30_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/31_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/32_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/33_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/34_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/35_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/36_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/37_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/38_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/39_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/3_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/40_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/41_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/42_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/43_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/44_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/45_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/46_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/47_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/48_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/49_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/4_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/50_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/5_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/6_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/7_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/8_1.pbs
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pbs/9_1.pbs
+
 # Kraken profiling
 
 data/hpc/symbiodinium_profiles/genome_kraken_mpa/AI_1_001_S102_L004.mpa
@@ -454,6 +505,21 @@ data/hpc/vcf_filtering/Adigi.v2.filtered.idepth
 data/hpc/vcf_filtering/Adigi.v2.filtered.imiss
 
 # selection
+
+data/hpc/selection2/pbs/max_pbs_in_sweeps.tsv
+data/hpc/selection2/pbs/pbs_nosweeps.tsv
+data/hpc/selection2/pbs/pbs_sweeps.scaff.tsv
+data/hpc/selection2/pbs/pbs_sweeps.tsv
+data/hpc/selection2/pbs/plink2.IN.NO.fst.var
+data/hpc/selection2/pbs/plink2.IN.SO.fst.var
+data/hpc/selection2/pbs/plink2.NO.SO.fst.var
+data/hpc/selection2/pbs/plink2.fst.summary
+data/hpc/selection2/pbs/plink2.log
+data/hpc/selection2/pbs/plink2.pbs
+data/hpc/selection2/pbs/plink2.pbs_scaff.tsv
+data/hpc/selection2/pbs/plink2_noheader.bed
+data/hpc/selection2/pbs/plink2_noheader.pbs
+data/hpc/selection2/pbs/plink2_noheader_sorted.bed
 
 data/hpc/selection2/xpnsl/southoffshore_vs_inshore_northoffshore.xpnsl.norm.50kb.windows
 data/hpc/selection2/xpnsl/northoffshore_vs_inshore_southoffshore.xpnsl.norm
