@@ -170,21 +170,21 @@ hbd <- read_tsv("data/hpc/ibdseq/1M_scaffolds.hbd",
 hbd_plot <- hbd %>% 
   group_by(s1,loc) %>% 
   dplyr::summarise(hbd_len = sum(roh_len)) %>% 
-  ggplot(aes(x=loc,y=hbd_len)) + 
+  ggplot(aes(x=loc,y=hbd_len)) +
   geom_boxplot(aes(color=loc),alpha=0.5, outlier.size = .2) +
   geom_point(aes(x=loc,color=loc), position = position_jitter(w=0.1,h=0),size=.2) + 
-  xlab("") + ylab("Total length of RoH in Mb") +
+  xlab("") + ylab("Total length of HBD \n segments in Mb") +
   theme_test(base_size = 12) +
   theme(legend.position = "none") +
   scale_color_startrek() +
   scale_x_discrete(labels=c("IN","NO","SO"))
 
-ggsave(hbd_plot,filename = "Fig.2F.pdf",width = 2.1,height = 2.3)
+ggsave(hbd_plot,filename = "Fig.2F.pdf",width = 2.2,height = 2.3)
 #total
 bottom_row<- plot_grid(ld_plot,f_plot,hbd_plot, labels = c("D","E","F"), 
-                       label_size = 12,nrow = 1,rel_widths = c(2.4,2.2,2.1),
+                       label_size = 12,nrow = 1,rel_widths = c(2.4,2.2,2.2),
                        hjust = c(-.4,.6,.6), vjust = .5)
 plot_grid(abc,bottom_row, ncol = 1,align = "hv", axis = "lr",
           rel_heights = c(7.2,2.3))
 
-ggsave("Figure2.pdf",width = 7.1, height = 9.7)
+ggsave("Figure2.pdf",width = 6.75, height = 8)
