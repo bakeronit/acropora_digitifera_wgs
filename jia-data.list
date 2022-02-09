@@ -1,6 +1,24 @@
+#small files
+
+## admixture
+data/hpc/admixture/Adigitifera_ldpruned.1.Q
+data/hpc/admixture/Adigitifera_ldpruned.2.Q
+data/hpc/admixture/Adigitifera_ldpruned.3.Q
+data/hpc/admixture/Adigitifera_ldpruned.4.Q
+data/hpc/admixture/Adigitifera_ldpruned.5.Q
+data/hpc/admixture/Adigitifera_ldpruned.6.Q
+data/hpc/admixture/CV.txt
+data/hpc/admixture/sample_order.txt
+
+## annotation
+data/hpc/annotation/Adigitifera_uniprot_blastp.outfmt6
+data/hpc/annotation/Adigitifera_uniprot_blastx.outfmt6
+data/hpc/annotation/all_ipr.tsv
+#data/hpc/annotation/uniprot_gene_annot.tsv
+data/hpc/annotation/uniprot-yourlist.tab
+data/hpc/annotation/allgenes_ids_extracted_from_gff.txt
 
 # fastsimcoal fitting
-
 data/hpc/demography/fastsimcoal/bootstrap_param.txt
 data/hpc/demography/fastsimcoal/divergence/split_IN_ALL.param
 data/hpc/demography/fastsimcoal/divergence/split_NO_ALL.param

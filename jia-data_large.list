@@ -1,0 +1,8 @@
+# Data listing for large (>50Mb) data files
+
+## pairwise site fst
+data/hpc/popgen/inshore_northoffshore_per_snp_fst.weir.fst
+data/hpc/popgen/inshore_southoffshore_per_snp_fst.weir.fst
+data/hpc/popgen/northoffshore_southoffshore_per_snp_fst.weir.fst
+
+
