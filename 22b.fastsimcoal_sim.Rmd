@@ -66,12 +66,12 @@ read_hbd <- function(path){
   raw
 }
 
-if ( !file.exists("cache/hbd_data.rds")){
+if ( !file.exists("data/r_essentials/22b_hbd_data.rds")){
   hbd_data <- list.files("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/ibdseq/","*.hbd",full.names = TRUE) %>%
     map_dfr(read_hbd)
-  write_rds(hbd_data,"cache/hbd_data.rds")
+  write_rds(hbd_data,"data/r_essentials/22b_hbd_data.rds")
 } else {
-  hbd_data <- read_rds("cache/hbd_data.rds")
+  hbd_data <- read_rds("data/r_essentials/22b_hbd_data.rds")
 }
 source("scripts/color_scheme.R")
 
@@ -109,10 +109,13 @@ read_het <- function(path){
 }
 
 
-
-het_data <- list.files("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/plink2/","*.het",full.names = TRUE) %>% 
-  map_dfr(read_het)
-
+if(!file.exists("data/r_essentials/22b_het_data.rds")){
+  het_data <- list.files("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/plink2/","*.het",full.names = TRUE) %>% 
+    map_dfr(read_het)
+  write_rds(het_data,"data/r_essentials/22b_het_data.rds")
+} else {
+  het_data <- read_rds("data/r_essentials/22b_het_data.rds")
+}
 
 het_plot <- het_data %>% 
   filter(stat=="F") %>% 
@@ -138,9 +141,15 @@ read_td <- function(path){
     add_column(loc=loc)
 }
 
-td_data <- list.files("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/","*.td",full.names = TRUE) %>% 
-  map_dfr(read_td)
-
+if (!file.exists("data/r_essentials/22b_td_data.rds")){
+  td_data <- list.files("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/tajima/","*.td",full.names = TRUE) %>% 
+    map_dfr(read_td) %>% 
+    slice_sample(n=10000)
+  write_rds(td_data,"data/r_essentials/22b_td_data.rds")
+} else {
+  td_data <- read_rds("data/r_essentials/22b_td_data.rds")
+}
+  
 tajima_plot <- ggplot(td_data,aes(x=loc,y=tajima)) + 
   geom_boxplot(aes(color=loc)) + 
   theme_pubr() +
@@ -221,8 +230,8 @@ read_pbs <- function(path){
     add_column(file=bn)
 }
 
-if ( file.exists("cache/pbs_combined_long.rds")){
-  pbs_combined_long <- read_rds("cache/pbs_combined_long.rds")
+if ( file.exists("data/r_essentials/22b_pbs_combined_long.rds")){
+  pbs_combined_long <- read_rds("data/r_essentials/22b_pbs_combined_long.rds")
 } else {
 
   pbs_real <- read_pbs("data/hpc/selection2/pbs/plink2.pbs")
@@ -259,7 +268,7 @@ if ( file.exists("cache/pbs_combined_long.rds")){
 
 
   pbs_combined_long <- rbind(pbs_combined_IN,pbs_combined_NO,pbs_combined_SO)
-  pbs_combined_long %>% write_rds("cache/pbs_combined_long.rds") 
+  pbs_combined_long %>% write_rds("data/r_essentials/22b_pbs_combined_long.rds") 
 }
 ```
 
@@ -268,7 +277,7 @@ if ( file.exists("cache/pbs_combined_long.rds")){
 ```{r}
 th <- pbs_combined_long %>% filter(fpr<0.01) %>% group_by(loc) %>% dplyr::summarise(pbs_thresh=min(PBS))
 
-write_rds(th,"cache/pbs_thresholds.rds")
+write_rds(th,"data/r_essentials/pbs_thresholds.rds")
 
 pbs_combined_long %>% 
   ggplot(aes(x=PBS,y=fpr)) + 
@@ -288,7 +297,7 @@ Summary of PBS in sweeps
 ```{r}
 library(bedr)
 
-ehh_sweeps_bed <- read_rds("cache/candidate_regions_genes_ehh.rds") %>% 
+ehh_sweeps_bed <- read_rds("data/r_essentials/candidate_regions_genes_ehh.rds") %>% 
     mutate(chr=str_trim(chr)) %>% 
   as.data.frame() %>% 
   bedr.sort.region(check.chr = FALSE)

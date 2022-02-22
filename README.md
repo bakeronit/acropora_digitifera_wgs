@@ -51,8 +51,8 @@ Download additional data not hosted on github due to size constraints
 
 ```bash
 cd acropora_digitifera_wgs
-wget 'https://cloudstor.aarnet.edu.au/plus/s/BKYCAsujh2sjLdz/download' -O data.tgz
-tar -zxvf data.tgz 
+wget 'https://cloudstor.aarnet.edu.au/plus/s/6GcW7OUebjrgASm/download' -O data_essential.tgz
+tar -zxvf data_essential.tgz 
 
 *Optional download (large files)*
 wget 'https://cloudstor.aarnet.edu.au/plus/s/Y9Vjkmz3BLL5ogd/download' -O data_large.tgz

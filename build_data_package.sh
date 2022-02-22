@@ -16,22 +16,33 @@
 # You will also need to ensure that the path Shared/wa_digitifera exists
 #
 
-DIFF=$(diff <(cat data.list | grep -v '^#' | grep -v '^$') <(tar -tf data.tgz))
-DIFFLARGE=$(diff <(cat data_large.list | grep -v '^#' | grep -v '^$') <(tar -tf data_large.tgz))
-if [ "$DIFF" != "" ]; then
-	echo "Rebuilding data.tgz"
-	tar -zcvf data.tgz -T <(cat data.list | grep -v '^#')
+DIFFESS=$(diff <(cat data_essential.list | grep -v '^#' | grep -v '^$') <(tar -tf data_essential.tgz))
+if [ "DIFFESS" != "" ]; then
+	echo "Rebuilding data_essential.tgz"
+	tar -zcvf data_essential.tgz -T <(cat data_essential.list | grep -v '^#')
 	# Upload to cloudstor if needed
-	rclone copy --progress --no-traverse data.tgz CloudStor:/Shared/wa_digitifera/
-	echo "Done uploading data.tgz"
+	rclone copy --progress --no-traverse data_essential.tgz CloudStor:/Shared/wa_digitifera/
+	echo "Done uploading data_essential.tgz"
 fi
 
 
-if ! [ -e data_large.tgz ] || [ "$DIFFLARGE" != "" ]; then
-	echo "Rebuilding data_large.tgz"
-	tar -zcvf data_large.tgz -T <(cat data_large.list | grep -v '^#')
-	# Upload to cloudstor if needed
-	rclone copy --progress --no-traverse data_large.tgz CloudStor:/Shared/wa_digitifera/
-	echo "Done uploading data_large.tgz"
-fi
 
+# DIFF=$(diff <(cat data.list | grep -v '^#' | grep -v '^$') <(tar -tf data.tgz))
+# DIFFLARGE=$(diff <(cat data_large.list | grep -v '^#' | grep -v '^$') <(tar -tf data_large.tgz))
+# if [ "$DIFF" != "" ]; then
+# 	echo "Rebuilding data.tgz"
+# 	tar -zcvf data.tgz -T <(cat data.list | grep -v '^#')
+# 	# Upload to cloudstor if needed
+# 	rclone copy --progress --no-traverse data.tgz CloudStor:/Shared/wa_digitifera/
+# 	echo "Done uploading data.tgz"
+# fi
+# 
+# 
+# if ! [ -e data_large.tgz ] || [ "$DIFFLARGE" != "" ]; then
+# 	echo "Rebuilding data_large.tgz"
+# 	tar -zcvf data_large.tgz -T <(cat data_large.list | grep -v '^#')
+# 	# Upload to cloudstor if needed
+# 	rclone copy --progress --no-traverse data_large.tgz CloudStor:/Shared/wa_digitifera/
+# 	echo "Done uploading data_large.tgz"
+# fi
+# 

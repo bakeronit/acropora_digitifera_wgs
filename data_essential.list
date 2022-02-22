@@ -93,6 +93,57 @@ data/hpc/ragtag/all.lengths.scaf.txt
 data/hpc/selection2/pbs/pbs_sweeps.scaff.tsv
 data/r_essentials/pbs_thresholds.rds
 
+# 17_dating (work in progress)
+
+data/hpc/startmrca/regions/BLFC01000593_400000_450001.vcf
+data/hpc/startmrca/regions/BLFC01000298_200000_350001.vcf
+data/r_essentials/17_tmrca_data.rds
+data/r_essentials/17_sweep_regions.rds
+data/r_essentials/17_furcation_data.rds
+
+# 18 Check
+
+data/hpc/radseq_data/out.relatedness2
+data/hpc/radseq_data/Sample_list_Jia_popgen_141121.xlsx
+data/hpc/radseq_data/Complete_list_Adigi_Ashmore_Adele_Beagle_Rowleys_181121.xlsx
+
+
+#22a FSC Fitting
+
+data/hpc/demography/fastsimcoal/n_parameters.txt
+data/hpc/demography/fastsimcoal/divergence/split_IN_ALL.param
+data/hpc/demography/fastsimcoal/divergence/split_NO_ALL.param
+data/hpc/demography/fastsimcoal/divergence/split_SO_ALL.param
+data/hpc/demography/fastsimcoal/divergence/split_poly_ALL.param
+data/r_essentials/tested_models.png
+data/hpc/demography/fastsimcoal/final2705/0.growth_rate_SI_ALL.param
+data/hpc/demography/fastsimcoal/final2705/1.growth_rate_IM_ALL.param
+data/hpc/demography/fastsimcoal/final2705/3.growth_rate_SC_ALL.param
+data/hpc/demography/fastsimcoal/final2705/4.growth_rate_SC2_ALL.param
+data/hpc/demography/fastsimcoal/final2705/6.growth_rate_AM2_ALL.param
+data/hpc/demography/fastsimcoal/final2705/7.growth_rate_AM_ALL.param
+data/hpc/demography/fastsimcoal/final2705/bootstrap_params.txt
+
+#22b FSC Sim
+
+data/hpc/demography/fastsimcoal/final2705/bootstrap_params.txt
+data/r_essentials/22b_hbd_data.rds
+data/r_essentials/22b_het_data.rds
+data/r_essentials/22b_td_data.rds
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/admixture/3.out.growth_rate_SC_ldpruned.3.Q
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/admixture/3.out.growth_rate_SC_1_1.fam
+data/r_essentials/22b_pbs_combined_long.rds
+data/hpc/selection2/pbs/pbs_sweeps.tsv
+
+# 23 Symbionts
+
+data/r_essentials/23_mpa_data.rds
+data/hpc/pcangsd/samples.txt
+data/hpc/symbiont/ITS2_reads_mapping/sample_it2_div.txt
+data/hpc/symbiont/d2s/wa_matrix.txt
+
+
+
 
 
 

@@ -61,7 +61,7 @@ ggplot(divergence_ll, aes(x=model,y=aic)) + geom_boxplot() +
 Since our population genetic statistics and SMC++ analyses all point toward a bottleneck and recent population growth we added a growth phase to all populations after splitting. We then generated 6 alternative models based on the relative timing of migration as shown in the diagram below. 
 
 ```{r}
-knitr::include_graphics("figures/tested_models.png")
+knitr::include_graphics("data/r_essentials/tested_models.png")
 ```
 
 **Figure 2: Graphic illustration of six alternative models.  Each model is given a long name and a short code in brackets. **
