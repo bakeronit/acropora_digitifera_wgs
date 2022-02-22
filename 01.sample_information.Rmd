@@ -96,34 +96,49 @@ We applied [GATK4 best practices](https://gatk.broadinstitute.org/hc/en-us/secti
 **Table 1: A summary of mapping results per sample**
 
 ```{r mapping-results}
-#fix the select function
-detach("package:raster", unload=TRUE)
+if ( !file.exists("data/r_essentials/mapping_stats.rds")){
+  #fix the select function
+  detach("package:raster", unload=TRUE)
 
-bamstats_files <- list.files("data/hpc/bamstats",pattern = "*.stats",full.names = TRUE) 
-genoCov_files <- list.files("data/hpc/genomeCov",pattern = "*_coverage.txt",full.names = TRUE)
+  bamstats_files <- list.files("data/hpc/bamstats",pattern = "*.stats",full.names = TRUE) 
+  genoCov_files <- list.files("data/hpc/genomeCov",pattern = "*_coverage.txt",full.names = TRUE)
 
-extract_mapping_rate <- function(filename) {
-    vroom::vroom(pipe(paste0("grep Mapped ",filename)),
-                col_names = c("name","value"),
-                delim = ":" ,col_select = "value") %>% 
-    add_column(id=basename(filename) %>% str_remove("_bamtools.stats")) %>% 
-    mutate(mapping_rate=str_extract(value,pattern="[1-9][0-9]\\.[0-9]+") %>% as.numeric) %>% select("id","mapping_rate")
-}
+  extract_mapping_rate <- function(filename) {
+      vroom::vroom(pipe(paste0("grep Mapped ",filename)),
+                  col_names = c("name","value"),
+                  delim = ":" ,col_select = "value") %>% 
+      add_column(id=basename(filename) %>% str_remove("_bamtools.stats")) %>% 
+      mutate(mapping_rate=str_extract(value,pattern="[1-9][0-9]\\.[0-9]+") %>% as.numeric) %>% select("id","mapping_rate")
+  }
 
-read_coverage <- function(filename) {
-  limma::read.columns(filename,c("#rname","coverage","meandepth")) %>% add_column(id=basename(filename) %>% str_remove("_coverage.txt"))
-}
+  read_coverage <- function(filename) {
+    limma::read.columns(filename,c("#rname","coverage","meandepth")) %>% add_column(id=basename(filename) %>% str_remove("_coverage.txt"))
+  }
 
 #make the table
-map_df(genoCov_files, read_coverage) %>% group_by(id) %>%   summarise(genome_coverage=mean(coverage), mean_mapping_depth=mean(meandepth)) %>% left_join(map_df(bamstats_files,extract_mapping_rate)) %>% mutate(location=case_when(substr(id,1,2) == "AI" ~"Inshore",
+  mapping_stats <- map_df(genoCov_files, read_coverage) %>% 
+    group_by(id) %>%   
+    summarise(genome_coverage=mean(coverage), mean_mapping_depth=mean(meandepth)) %>% 
+    left_join(map_df(bamstats_files,extract_mapping_rate)) %>% 
+    mutate(location=case_when(substr(id,1,2) == "AI" ~"Inshore",
                             substr(id,1,2) == "BR" ~"Inshore", 
                             substr(id,1,2)=="AR" ~ "North Offshore",
                             substr(id,1,2)=="RS"~"South Offshore")) %>%  
-  mutate(id = case_when(
-    grepl('merged$',id) ~ stri_reverse(id) %>% str_split("_",2) %>% map(last) %>% unlist %>% stri_reverse,
-    TRUE ~stri_reverse(id) %>% str_split("_",3) %>% map(last) %>% unlist %>% stri_reverse)) %>% 
-  select(id,location,mapping_rate,mean_mapping_depth,genome_coverage) %>% 
-  rename("Sample ID"=id,"Location"=location, "Mapping rate (%)"=mapping_rate,"Mean mapping depth (X)"=mean_mapping_depth, "Genome coverage (%)"=genome_coverage)  %>% 
+    mutate(id = case_when(
+      grepl('merged$',id) ~ stri_reverse(id) %>% str_split("_",2) %>% map(last) %>% unlist %>% stri_reverse,
+      TRUE ~stri_reverse(id) %>% str_split("_",3) %>% map(last) %>% unlist %>% stri_reverse)) %>% 
+    select(id,location,mapping_rate,mean_mapping_depth,genome_coverage) %>% 
+    rename("Sample ID"=id,"Location"=location, "Mapping rate (%)"=mapping_rate,"Mean mapping depth (X)"=mean_mapping_depth, "Genome coverage (%)"=genome_coverage)
+  write_rds(mapping_stats,"data/r_essentials/mapping_stats.rds")
+} else {
+  mapping_stats <- read_rds("data/r_essentials/mapping_stats.rds")
+}
+
+```
+
+
+```{r}
+mapping_stats %>% 
   knitr::kable(escape = F) 
 ```
 
