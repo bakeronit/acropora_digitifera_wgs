@@ -73,49 +73,60 @@ offsets <- read_tsv("data/hpc/ragtag/all.lengths.scaf.txt", col_names = c("chr",
 
 ```{r}
 # Read all the iHS, XP-EHH and XP-nSL stats (called ehh stats)
+if ( !file.exists("data/r_essentials/top_ehh_g3.rds")){
+  if ( file.exists("cache/ehh.rds")){
+    ehh_stats <- read_rds("cache/ehh.rds") # 5Gb file so try to avoid reading it if possible. We do not include this in the public distribution package either.
+  } else {
+  # Collects all the ehh based statistics together. This allows more flexible mix and match of plots
+  #
+    ehh_stats <- list.files("data/hpc/selection2",pattern = "*norm.ragtag.txt",recursive = TRUE,full.names = TRUE) %>% 
+      map_dfr(read_ehh_stat) %>% 
+      left_join(offsets) %>% 
+      mutate(abs_pos=chr_pos + offset)
 
-if ( file.exists("cache/ehh.rds")){
-  ehh_stats <- read_rds("cache/ehh.rds")
+    write_rds(ehh_stats,file = "cache/ehh.rds")
+  } 
+  top_ehh_g3 <- ehh_stats %>% filter(abs(norm_value)>3)
+  write_rds(top_ehh_g3,"data/r_essentials/top_ehh_g3.rds")
 } else {
-# Collects all the ehh based statistics together. This allows more flexible mix and match of plots
-#
-  ehh_stats <- list.files("data/hpc/selection2",pattern = "*norm.ragtag.txt",recursive = TRUE,full.names = TRUE) %>% 
-    map_dfr(read_ehh_stat) %>% 
-    left_join(offsets) %>% 
-    mutate(abs_pos=chr_pos + offset)
-
-  write_rds(ehh_stats,file = "cache/ehh.rds")
+  top_ehh_g3 <- read_rds("data/r_essentials/top_ehh_g3.rds")
 }
 ```
 
 ```{r}
-# Read all the *.windows files and consolidate into a single table
+if ( !file.exists("data/r_essentials/08_window_stats.rds")){
+  # Read all the *.windows files and consolidate into a single table
 
-read_windowed_ihs <- function(path) {
-  pop <- path %>% basename() %>% str_match("[a-z]+shore") %>% as.character()
-  read_tsv(path, col_names = c("chr","start","end","nsnp","frac","percentile","sd"),show_col_types = FALSE) %>%
-    add_column(pop=pop)
-}
+  read_windowed_ihs <- function(path) {
+    pop <- path %>% basename() %>% str_match("[a-z]+shore") %>% as.character()
+    read_tsv(path, col_names = c("chr","start","end","nsnp","frac","percentile","sd"),show_col_types = FALSE) %>%
+      add_column(pop=pop)
+  }
 
-windowed_ihs <- list.files(path = "data/hpc/selection2/ihs", pattern = "windows.ragtag.txt", full.names = TRUE) %>% 
-  map_dfr(read_windowed_ihs) %>% 
-  filter(percentile<=1) %>% 
-  add_column(stat="ihs") 
+  windowed_ihs <- list.files(path = "data/hpc/selection2/ihs", pattern = "windows.ragtag.txt", full.names = TRUE) %>% 
+    map_dfr(read_windowed_ihs) %>% 
+    filter(percentile<=1) %>% 
+    add_column(stat="ihs") 
   
-windowed_xpehh <- list.files(path = "data/hpc/selection2/xpehh", pattern = "windows.ragtag.txt", full.names = TRUE) %>% 
-  map_dfr(read_windowed_xpstats) %>% 
-  filter(percentileA<=1) 
+  windowed_xpehh <- list.files(path = "data/hpc/selection2/xpehh", pattern = "windows.ragtag.txt", full.names = TRUE) %>% 
+    map_dfr(read_windowed_xpstats) %>% 
+    filter(percentileA<=1) 
 
-windowed_xpnsl <- list.files(path = "data/hpc/selection2/xpnsl", pattern = "windows.ragtag.txt", full.names = TRUE) %>% 
-  map_dfr(read_windowed_xpstats) %>% 
-  filter(percentileA<=1) 
+  windowed_xpnsl <- list.files(path = "data/hpc/selection2/xpnsl", pattern = "windows.ragtag.txt", full.names = TRUE) %>% 
+    map_dfr(read_windowed_xpstats) %>% 
+    filter(percentileA<=1) 
 
-window_stats <- windowed_xpehh %>% 
-  select(chr,start,pop,stat) %>% 
-  rbind( windowed_ihs %>% select(chr,start,pop,stat) ) %>% 
-  rbind( windowed_xpnsl %>% select(chr,start,pop,stat) ) %>% 
-  left_join(offsets) %>% 
-  mutate(abs_pos = start + offset )
+  window_stats <- windowed_xpehh %>% 
+    select(chr,start,pop,stat) %>% 
+    rbind( windowed_ihs %>% select(chr,start,pop,stat) ) %>% 
+    rbind( windowed_xpnsl %>% select(chr,start,pop,stat) ) %>% 
+    left_join(offsets) %>% 
+    mutate(abs_pos = start + offset )
+
+  write_rds(window_stats,"data/r_essentials/08_window_stats.rds")
+} else {
+  window_stats <- read_rds("data/r_essentials/08_window_stats.rds")
+}
 ```
 
 
@@ -125,19 +136,17 @@ Since iHS is calculated for each population separately it is possible to directl
 
 
 ```{r, cache=TRUE, fig.align='center'}
-top_ihs <- ehh_stats %>% filter(abs(norm_value)>5) %>% filter(stat=="ihs")
+top_ihs_g5 <- top_ehh_g3 %>% filter(abs(norm_value)>5) %>% filter(stat=="ihs")
+write_rds(top_ehh_g3,"data/r_essentials/top_ehh_g3.rds")
 
-ehh_stats %>% 
-  filter(abs(norm_value)>3) %>% 
+top_ehh_g3 %>% 
   filter(stat=="ihs") %>% 
   ggplot() +
   geom_point(aes(x=abs_pos/1e6, y=abs(norm_value),color=as.character(scaffold_num %% 2)), size=0.1) + 
-#  geom_point(data=top_ihs,aes(x=abs_pos/1e6, y=abs(norm_value),color=as.character(scaffold_num %% 2)), size=1) + 
   geom_point(data=window_stats %>% filter(stat=="ihs"),aes(x=abs_pos/1e6,y=6.8), alpha=0.2) + 
   labs(x="Genome Position / Mb", y="|iHS|") + 
   scale_color_brewer(palette = "Dark2") + 
   theme_pubclean() + theme(legend.position = "None") +
-#  geom_hline(aes(yintercept=5)) +
   facet_wrap(~pop, ncol=1)
 ```
 
@@ -166,7 +175,7 @@ plot_stats_for_pop <- function(stat_data){
   theme(legend.position = "None")
 }
 
-ehh_stats %>% 
+top_ehh_g3 %>% 
   filter(pop %in% c("inshore","inshore_vs_offshore")) %>% 
   plot_stats_for_pop 
 ```
@@ -177,7 +186,7 @@ ehh_stats %>%
 The North Offshore population also has several very strong peaks but these appear to be mostly in different loci to inshore. 
 
 ```{r, fig.align='center', fig.height=6}
-ehh_stats %>% 
+top_ehh_g3 %>% 
   filter(pop %in% c("northoffshore","northoffshore_vs_inshore")) %>% 
   plot_stats_for_pop()
 ```
@@ -189,7 +198,7 @@ ehh_stats %>%
 For the South Offshore population we also see many strong sweeps including two very strong signals from the iHS statistic. 
 
 ```{r, fig.align='center', fig.height=6}
-ehh_stats %>% 
+top_ehh_g3 %>% 
   filter(pop %in% c("southoffshore","southoffshore_vs_inshore")) %>% 
   plot_stats_for_pop()
 ```

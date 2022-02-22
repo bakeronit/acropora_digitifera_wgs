@@ -84,11 +84,6 @@ p2 <- ggplot(pca %>% filter(sampleid!="BR_5_121:BR_5_121_S125_L004")%>% arrange(
   theme(text=element_text(size=12,  face = "bold"),
         legend.position = "none",
         panel.grid = element_blank()) 
-  #geom_label(data = pca %>% 
-               #extract(sampleid, "label", "([^\\:]*)", remove = FALSE) %>% 
-               #filter(grepl(pattern = "^BR_5_121",sampleid)), 
-            # aes(label=label), nudge_y = 0.1, size=2) 
-
 
 p1 + p2
 ```
@@ -103,16 +98,27 @@ This analysis revealed that one sample from Beagle Reef (inshore), `BR_5_121` ha
 ### PC loadings
 To check whether population structure evident in the PCA was driven by a small number of genomic regions (eg such as inversions) we inspected the PC loading for the first two principle components.
 
-```{r pc_loading,cache=TRUE,fig.retina=2,fig.show="hold", out.width="50%"}
+```{r pc_loading,eval=FALSE}
+# Very large file. Skip and simply show the plot in RMarkdown rendering
+#
 snpsigs <- read_table("data/hpc/pca/Adigitifera_smartpca.snpeigs",col_names = c("ID","chr","pos",paste0("PC",(1:20)))) 
 
 hgdp <- pcaviz(dat=pca, sdev = sdev_eval, var = sum_eval, rotation = snpsigs ) 
 
-pcaviz_loadingsplot(hgdp,pc.dim = "PC1",min.rank = 0.8,geom.point.params = list(size=0.5, color="grey36")) + labs(x="SNPs",y=paste0("PC",1)) + ggtitle("PC loading plots of SNPs across the genome")
+load_pc1 <- pcaviz_loadingsplot(hgdp,pc.dim = "PC1",min.rank = 0.8,geom.point.params = list(size=0.5, color="grey36")) + labs(x="SNPs",y=paste0("PC",1)) + ggtitle("PC loading plots of SNPs across the genome")
 
-pcaviz_loadingsplot(hgdp,pc.dim = "PC2",min.rank = 0.8,geom.point.params = list(size=0.5, color="grey36")) + labs(x="SNPs",y=paste0("PC",2)) 
+load_pc2 <- pcaviz_loadingsplot(hgdp,pc.dim = "PC2",min.rank = 0.8,geom.point.params = list(size=0.5, color="grey36")) + labs(x="SNPs",y=paste0("PC",2)) 
 
+library(cowplot)
+plot_grid(load_pc1,load_pc2)
+ggsave("data/r_essentials/pcloadings.png",width = 8,height = 6)
 ```
+
+```{r}
+knitr::include_graphics("data/r_essentials/pcloadings.png")
+```
+
+
 At a high level this seems to suggest that population structure reflects variation across the entire genome rather and is not dominated by a small number of strongly differentiated regions.
 
 ### Admixture analysis

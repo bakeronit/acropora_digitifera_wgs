@@ -283,4 +283,45 @@ pbs_combined_long %>%
 ggsave("figures/fig-s17.png")
 ```
 
+Summary of PBS in sweeps
+
+```{r}
+library(bedr)
+
+ehh_sweeps_bed <- read_rds("cache/candidate_regions_genes_ehh.rds") %>% 
+    mutate(chr=str_trim(chr)) %>% 
+  as.data.frame() %>% 
+  bedr.sort.region(check.chr = FALSE)
+
+pbs_in_sweeps_bed <- read_tsv("data/hpc/selection2/pbs/pbs_sweeps.tsv",col_names = c("chr","start","end","IN","NO","SO")) %>% 
+  extract(chr,into="chr",regex="([^\\.]*)") %>% 
+  as.data.frame() %>% 
+  bedr.sort.region(check.chr = FALSE)
+
+ehh_pbs_in_sweeps_bed <- bedr.join.region(pbs_in_sweeps_bed,ehh_sweeps_bed,check.chr = FALSE)
+```
+
+```{r}
+sweep_pbs_summary <- ehh_pbs_in_sweeps_bed %>% 
+  group_by(chr,start.b,end.b,pop) %>% 
+  mutate(pop=case_when(
+    pop=="northoffshore" ~ "NO",
+    pop=="southoffshore" ~ "SO",
+    pop=="inshore" ~ "IN"
+      )) %>% 
+  dplyr::summarise(n=n(), max_in=max(IN),max_no=max(NO),max_so=max(SO)) %>% 
+  mutate(max_pbs = case_when(
+    pop=="NO" ~ max_no,
+    pop=="SO" ~ max_so,
+    pop=="IN" ~ max_in
+  )) %>% left_join(pbs_thresholds,by=c("pop"="loc"))
+
+
+sweep_pbs_summary %>% 
+  ungroup() %>% 
+  mutate(pass=as.integer(max_pbs>=pbs_thresh)) %>% 
+  group_by(pop) %>% 
+  dplyr::summarise(n=n(), pass=sum(pass), ratio = pass/n)
+```
+
 

@@ -79,10 +79,6 @@ uniprot_gene_annot <- rbind(blastp,blastx) %>%
   dplyr::select(geneid,uniprot_id,entryname="Entry name",
           genename="Gene names",go="Gene ontology IDs",kegg="Cross-reference (KEGG)",protein="Protein names") %>% mutate(genename=ifelse(is.na(genename),entryname,genename)) %>% 
   left_join((interpro_go %>% dplyr::rename(go_ipr=go)),by=c("geneid"))
-
-
-
-
 ```
 
 
