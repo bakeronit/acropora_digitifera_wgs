@@ -95,11 +95,11 @@ vcftools --gzvcf Adigi.v2.filtered.vcf.gz \
 The pairwide average Fst values among three *A.digitifera*. 
 ```{r fst-table,results='asis'}
 fst <- "
-|                  | Sample size  | Inshore | Offshore North| Offshore South|
+|                  | Sample size  | Inshore | North Offshore| South Offshore|
 |------------------|:------------:|:-------:|:-------------:|:-------------:|
-|**Inshore**       |30            |  -      | 0.054         |  0.056        |
-|**Offshore North**|20            |  0.211  | -             |  0.036        |
-|**Offshore South**|25            |  0.222  | 0.007         |   -           |
+|**Inshore**       |29            |  -      | 0.055933      |  0.058331     |
+|**North Offshore**|20            | 0.022377| -             |  0.035717     |
+|**South Offshore**|25            | 0.023734| 0.006928      |   -           |
 "
 cat(fst)
 ```
@@ -277,7 +277,7 @@ bcftools view -S ^{pop}.txt Adigi.v2.filtered.vcf.gz | bcftools filter -i 'AC=0 
 
 |Population    | Sample size | SNP count    |
 |--------------|-------------|--------------|
-|Inshore       |     30      |  1,289,789   |
-|Offshore North|     20      |  1,424,388   |
-|Offshore South|     25      |  1,510,524   |
-| Total        |     75      |  9,656,554   |
+|Inshore       |     29      |  1,235,530   |
+|Offshore North|     20      |  1,425,395   |
+|Offshore South|     25      |  1,511,531   |
+| Total        |     74      |  9,656,554   |

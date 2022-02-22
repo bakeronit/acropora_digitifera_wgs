@@ -1,0 +1,36 @@
+---
+title: "Simulated data under a model without a bottleneck"
+bibliography: bibliography.bib
+output:
+  github_document:
+    pandoc_args: --webtex
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message=FALSE,warning = FALSE)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+```
+
+
+## PCA without a bottleneck
+
+```{r}
+eig_nb <- read_tsv("data/hpc/fastsimcoal/no_bott/3.out.no_bott/pca/3.out.no_bott_1_1.eigenvec") %>% 
+  extract("#IID",into="site",regex = "([^_]*)")
+
+nb_p <- eig_nb %>% ggplot(aes(x=PC1,PC2)) + geom_point(aes(color=site))
+
+
+eig_b <- read_tsv("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pca/1_1.eigenvec") %>% 
+  extract("#IID",into="site",regex = "([^_]*)")
+
+n_p <- eig_b %>% ggplot(aes(x=PC1,PC2)) + geom_point(aes(color=site))
+
+
+cowplot::plot_grid(nb_p,n_p)
+```
+
+
+

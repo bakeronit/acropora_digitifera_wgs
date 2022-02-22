@@ -11,4 +11,4 @@ cache/
 scripts/__pycache__/
 sw/
 results/
-x60_enriched_genes.Rmd
+unused/

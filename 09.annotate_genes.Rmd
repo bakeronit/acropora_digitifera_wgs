@@ -38,7 +38,7 @@ The `tsv` files produced by this process were concatenated to produce a single f
 # We extract GO term assignments from Interproscan results.
 ipr_colnames <- c("adi_id","md5","seqlen","analysis","signature_acc","signature_desc","start","stop","score","status","date","ipr_acc","ipr_ann","ipr_go", "pathways")
 
-interpro2 <- read_tsv("data/hpc/annotation/all_ipr.tsv", guess_max = 10000, col_names = ipr_colnames, show_col_types = FALSE) %>% 
+interpro2 <- read_tsv("data/hpc/annotation/all_ipr.tsv", guess_max = 10000, col_names = ipr_colnames) %>% 
   dplyr::select(adi_id,ipr_go) %>% 
   filter(ipr_go!="-") %>% 
   na.omit()
