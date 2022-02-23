@@ -111,10 +111,11 @@ ggtree(njtree,ladderize = FALSE) %<+% tree_data +
 ggsave("tree_haps.png",height = 3,width = 5)
 
 ggtree(njtree,ladderize = FALSE) %<+% tree_data + 
+  geom_tiplab(aes(color=pop),align = TRUE,size=1) +
   geom_tippoint(aes(shape=marker_allele,color=pop),size=2) + 
 #  geom_facet(panel="Haplotypes",data = hh_gg %>% filter(allele==1), 
 #             geom= geom_point,mapping = aes(x=pos,color=pop),shape="|",size=1) +
-  scale_color_manual(values=myCol)
+  scale_color_manual(values=myCol) 
 
 ggsave("tree.png",height = 6,width = 8)
 

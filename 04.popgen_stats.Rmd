@@ -190,7 +190,7 @@ ggplot() +
   scale_x_discrete(labels=c("IN","NO","SO"))
 
 plot_grid(pi_plot,td_plot)
-#ggsave("fig-s11.jpg",height = 2.6,width = 5.6)
+#ggsave("figures/fig-s11.jpg",height = 2.6,width = 5.6)
 ```
 
 **Figure: 2** The left boxplot shows the values of $\theta_{\pi}$ and the right plot displays the Tajima's D values in three populations.
@@ -209,22 +209,28 @@ plink --vcf Adigi.v2.filtered.vcf.gz \
 ```
 
 ```{r ld-decay, fig.align='center',fig.retina=2,cache=TRUE,fig.width=5.2, fig.height=4.6}
+if ( !file.exists("data/r_essentials/ld_summary_data.rds")){
+  summarise_ld <- function(filename) {
+    df <- read_table2(filename) %>% select(-X8) %>% as_tibble %>% 
+      mutate(dist = BP_B-BP_A) %>% arrange(dist) %>%
+      mutate(distc = cut(dist,seq(min(dist)-1,max(dist)+1,by=200))) %>% 
+      group_by(distc) %>% summarise(mean_dist=mean(dist),mean_r2=mean(R2))
+    df
+  }
 
-summarise_ld <- function(filename) {
-  df <- read_table2(filename) %>% select(-X8) %>% as_tibble %>% 
-    mutate(dist = BP_B-BP_A) %>% arrange(dist) %>%
-    mutate(distc = cut(dist,seq(min(dist)-1,max(dist)+1,by=200))) %>% 
-    group_by(distc) %>% summarise(mean_dist=mean(dist),mean_r2=mean(R2))
-  df
+  noffshore_ld <- summarise_ld("data/hpc/popgen/northoffshore.ld") %>% add_column(location="NO")
+  soffshore_ld <- summarise_ld("data/hpc/popgen/southoffshore.ld") %>% add_column(location="SO")
+  inshore_ld <- summarise_ld("data/hpc/popgen/inshore.ld") %>% add_column(location="IN")
+
+  ld_summary_data <- rbind(inshore_ld,noffshore_ld,soffshore_ld)
+
+  write_rds(ld_summary_data,"data/r_essentials/ld_summary_data.rds")
+} else {
+  ld_summary_data <- read_rds("data/r_essentials/ld_summary_data.rds")
 }
 
-noffshore_ld <- summarise_ld("data/hpc/popgen/northoffshore.ld") %>% add_column(location="NO")
-soffshore_ld <- summarise_ld("data/hpc/popgen/southoffshore.ld") %>% add_column(location="SO")
-inshore_ld <- summarise_ld("data/hpc/popgen/inshore.ld") %>% add_column(location="IN")
-
-
-ggplot(rbind(inshore_ld,noffshore_ld,soffshore_ld),aes(mean_dist/1000,mean_r2)) + geom_point(size = 1,aes(color=location)) + ggsci::scale_color_startrek(labels = c("Inshore", "Offshore North","Offshore South")) +
-  theme_classic() + 
+ggplot(ld_summary_data,aes(mean_dist/1000,mean_r2)) + geom_point(size = 1,aes(color=location)) + ggsci::scale_color_startrek(labels = c("Inshore", "Offshore North","Offshore South")) +
+    theme_classic() + 
   theme(legend.position = c(0.80,0.85),
         legend.title = element_blank()) + labs(x="Pairwise distance in Kb", y="LD (" ~ r^2 ~ ")")
 ```

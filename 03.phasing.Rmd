@@ -70,7 +70,7 @@ ic_afp <- ic_af %>% mutate(correct=code1==code2) %>%
   theme(axis.text.x = element_text(angle=45, vjust = 0.6, hjust = 0.6)) 
 
 plot_grid(icp,ic_afp,labels = c("A","B"),label_size = 12)
-ggsave("fig-s2.jpg",height = 3, width = 6)
+ggsave("figures/fig-s2.jpg",height = 3, width = 6)
 ```
 
 **Figure 1:** Summary of imputation accuracy based on concordance of imputed and original values for high quality genotypes. (A) Shows the relationship between imputation accuracy and missingness (number of pruned genotypes) for homozygous and heterozygous calls.  (B) Shows the relationship between overall accuracy and minor allele frequency.  

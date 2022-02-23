@@ -1,0 +1,153 @@
+# 01_sample_info
+
+data/maps/point_data.csv
+data/r_essentials/mapping_stats.rds
+
+# 02 qc
+
+data/hpc/vcf_filtering/Adigi.v2.filtered.idepth
+data/hpc/vcf_filtering/Adigi.v2.filtered.imiss
+data/hpc/vcf_filtering/Adigi.v2.filtered.snpden
+
+# 03 phasing
+
+data/hpc/phasing/imputation_check.txt
+data/hpc/phasing/compare_imputation_with_af.txt
+
+# 04_popgen
+
+data/hpc/popgen/plink2.het
+data/hpc/popgen/inshore.filtered_windowed.pi
+data/hpc/popgen/northoffshore.filtered_windowed.pi
+data/hpc/popgen/southoffshore.filtered_windowed.pi
+data/hpc/popgen/inshore.filtered_windowed.td
+data/hpc/popgen/northoffshore.filtered_windowed.td
+data/hpc/popgen/southoffshore.filtered_windowed.td
+
+data/r_essentials/ld_summary_data.rds
+
+# 05_popstructure
+
+data/hpc/pca/Adigitifera_smartpca.evec
+data/hpc/pca/Adigitifera_smartpca.eval
+data/hpc/admixture/sample_order.txt
+data/hpc/admixture/Adigitifera_ldpruned.2.Q
+data/hpc/admixture/Adigitifera_ldpruned.3.Q
+data/hpc/admixture/Adigitifera_ldpruned.4.Q
+data/hpc/admixture/Adigitifera_ldpruned.5.Q
+data/hpc/admixture/CV.txt
+data/r_essentials/pcloadings.png
+
+# 06 ibd hbd
+
+data/hpc/ibd/Adigi_ind74.ibd_relatedness.txt
+data/hpc/pcangsd/samples.txt
+data/hpc/pcangsd/wa_bam.txt
+data/hpc/ibdseq/1M_scaffolds.hbd
+data/hpc/pcangsd/all.lengths.scaf.txt
+data/hpc/ibdseq/hbd_midpoints.scaff.txt
+
+# 07 demography
+
+data/r_essentials/psmc.jpg
+data/hpc/demography/estimate_em50_k40/em50_k40.csv
+data/r_essentials/smc_bs.rds
+data/nature07158-s2.txt
+
+# 08_ehh
+data/hpc/ragtag/all.lengths.scaf.txt
+data/r_essentials/08_window_stats.rds
+data/r_essentials/top_ehh_g3.rds
+
+# 09_annotate_genes
+
+data/hpc/annotation/all_ipr.tsv
+data/hpc/annotation/Adigitifera_uniprot_blastp.outfmt6
+data/hpc/annotation/Adigitifera_uniprot_blastx.outfmt6
+data/hpc/annotation/uniprot-yourlist.tab
+
+data/hpc/annotation/allgenes_ids_extracted_from_gff.txt
+
+# 10_identify windows
+
+data/r_essentials/10_windowed_ehh.rds
+data/hpc/annotation/allgenes.bed
+data/r_essentials/candidate_regions_genes_ehh.rds
+
+# 11_go_enrich (no new files)
+
+# 12_pcangsd
+data/r_essentials/pbsdata.rds
+data/hpc/pcangsd/all.lengths.scaf.txt
+data/r_essentials/12_all_thetas.rds
+data/r_essentials/pcangsd_pvalue_hist.png
+data/r_essentials/pcangsd_manhattan.png
+
+
+# 14_ehh_pbs
+
+data/r_essentials/14_inout_stats.rds
+data/r_essentials/14_pbs_inout.rds
+data/hpc/ragtag/ehh_sweeps_scaff.tsv
+data/hpc/ragtag/all.lengths.scaf.txt
+data/hpc/selection2/pbs/pbs_sweeps.scaff.tsv
+data/r_essentials/pbs_thresholds.rds
+
+# 17_dating (work in progress)
+
+data/hpc/startmrca/regions/BLFC01000593_400000_450001.vcf
+data/hpc/startmrca/regions/BLFC01000298_200000_350001.vcf
+data/r_essentials/17_tmrca_data.rds
+data/r_essentials/17_sweep_regions.rds
+data/r_essentials/17_furcation_data.rds
+
+# 18 Check
+
+data/hpc/radseq_data/out.relatedness2
+data/hpc/radseq_data/Sample_list_Jia_popgen_141121.xlsx
+data/hpc/radseq_data/Complete_list_Adigi_Ashmore_Adele_Beagle_Rowleys_181121.xlsx
+
+
+#22a FSC Fitting
+
+data/hpc/demography/fastsimcoal/n_parameters.txt
+data/hpc/demography/fastsimcoal/divergence/split_IN_ALL.param
+data/hpc/demography/fastsimcoal/divergence/split_NO_ALL.param
+data/hpc/demography/fastsimcoal/divergence/split_SO_ALL.param
+data/hpc/demography/fastsimcoal/divergence/split_poly_ALL.param
+data/r_essentials/tested_models.png
+data/hpc/demography/fastsimcoal/final2705/0.growth_rate_SI_ALL.param
+data/hpc/demography/fastsimcoal/final2705/1.growth_rate_IM_ALL.param
+data/hpc/demography/fastsimcoal/final2705/3.growth_rate_SC_ALL.param
+data/hpc/demography/fastsimcoal/final2705/4.growth_rate_SC2_ALL.param
+data/hpc/demography/fastsimcoal/final2705/6.growth_rate_AM2_ALL.param
+data/hpc/demography/fastsimcoal/final2705/7.growth_rate_AM_ALL.param
+data/hpc/demography/fastsimcoal/final2705/bootstrap_params.txt
+
+#22b FSC Sim
+
+data/hpc/demography/fastsimcoal/final2705/bootstrap_params.txt
+data/r_essentials/22b_hbd_data.rds
+data/r_essentials/22b_het_data.rds
+data/r_essentials/22b_td_data.rds
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/admixture/3.out.growth_rate_SC_ldpruned.3.Q
+data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/admixture/3.out.growth_rate_SC_1_1.fam
+data/r_essentials/22b_pbs_combined_long.rds
+data/hpc/selection2/pbs/pbs_sweeps.tsv
+
+# 23 Symbionts
+
+data/r_essentials/23_mpa_data.rds
+data/hpc/pcangsd/samples.txt
+data/hpc/symbiont/ITS2_reads_mapping/sample_it2_div.txt
+data/hpc/symbiont/d2s/wa_matrix.txt
+
+
+
+
+
+
+
+
+
+

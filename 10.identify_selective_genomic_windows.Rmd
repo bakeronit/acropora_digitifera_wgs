@@ -23,16 +23,25 @@ Both the XP-EHH and XP-nSL statistics are designed to compare two populations.  
 Regions in the top 1st percentile of extreme scores were picked as candidate selective regions. Note that, while we picked windows with a high proportion of extreme scores, the number of SNPs in each window was also taken into consideration to avoid bias towards windows with less SNPs. This is illustrated in the QC plot below which shows a relatively even spread of selected windows across regions with different snp densities.
 
 ```{r windowed-stats}
-windowed_ihs <- list.files(path = "data/hpc/selection2/ihs", pattern = "windows$", full.names = TRUE) %>% 
-  map_dfr(read_windowed_ihs) %>% 
-  add_column(stat = "ihs") %>% 
-  dplyr::select(-sd)
+if ( !file.exists("data/r_essentials/10_windowed_ehh.rds")){
+  windowed_ihs <- list.files(path = "data/hpc/selection2/ihs", pattern = "windows$", full.names = TRUE) %>% 
+    map_dfr(read_windowed_ihs) %>% 
+    add_column(stat = "ihs") %>% 
+    select(-sd)
 
-windowed_xpstats <- list.files("data/hpc/selection2",pattern = ".xp[a-z]{3}.norm.50kb.windows$",recursive = TRUE,full.names = TRUE,include.dirs = TRUE) %>% 
-    map_dfr(read_windowed_xpstats) %>% 
-  dplyr::select(chr,start,end,nsnp,frac=fracA,percentile=percentileA,pop,stat)
+  windowed_xpstats <- list.files("data/hpc/selection2",pattern = ".xp[a-z]{3}.norm.50kb.windows$",recursive = TRUE,full.names = TRUE,include.dirs = TRUE) %>% 
+      map_dfr(read_windowed_xpstats) %>% 
+    select(chr,start,end,nsnp,frac=fracA,percentile=percentileA,pop,stat)
 
-windowed_ehh <- rbind(windowed_ihs,windowed_xpstats)
+
+  windowed_ehh <- rbind(windowed_ihs,windowed_xpstats)
+
+  write_rds(windowed_ehh,"data/r_essentials/10_windowed_ehh.rds")
+} else {
+  windowed_ehh <- read_rds("data/r_essentials/10_windowed_ehh.rds")
+  windowed_ihs <- windowed_ehh %>% filter(stat=="ihs")
+  windowed_xpstats <- windowed_ehh %>% filter(stat %in% c("xpehh","xpnsl"))
+}
 
 all_regions <- windowed_ehh %>% 
   dplyr::select(chr,start,end) %>% 
@@ -152,7 +161,7 @@ To facilitate downstream analyses we annotated candidate regions by
   - Information from `selscan` used to assess the region (fraction of extreme values, stats in which the region was in the 1st percentile)
   - Gene names from Uniprot
   
-The complete list of these annotated candidate regions is available as a supplementary table in the paper and also as the file `data/hpc/annotation/uniprot_gene_annot.tsv` in this repository (available after data download)
+The complete list of these annotated candidate regions is available as a supplementary table in the paper
 
 ```{r results='hide'}
 # Annotate regions with gene information
@@ -264,27 +273,26 @@ add_ehh_raw_annotation <- function(focal_pop,raw_stats,regions){
   left_join(tmp,tmp_ihs) %>% left_join(tmp_xpehh) %>% left_join(tmp_xpnsl)
 }
 
-if ( !file.exists("cache/raw_ehh_stats.rds")){
+if ( !file.exists("data/r_essentials/candidate_regions_genes_ehh.rds")){
   raw_ehh_stats <- list.files("data/hpc/selection2",pattern = "*.norm$",recursive = TRUE,full.names = TRUE) %>% 
     map_dfr(read_ehh_stat) %>% 
     mutate(chr=str_remove(chr,"\\.1")) %>% 
     rename(pos=chr_pos)
-    write_rds(raw_ehh_stats,"cache/raw_ehh_stats.rds")
+
+  candidate_regions_genes_ehh <- c("inshore","northoffshore","southoffshore") %>% 
+    map_dfr(add_ehh_raw_annotation,raw_ehh_stats,candidate_regions_genes_ehhwin)
+
+  candidate_regions_genes_ehh %>% write_rds("data/r_essentials/candidate_regions_genes_ehh.rds")
 } else {
-  raw_ehh_stats <- read_rds("cache/raw_ehh_stats.rds")
+  candidate_regions_genes_ehh <- read_rds("data/r_essentials/candidate_regions_genes_ehh.rds")
 }
-
-candidate_regions_genes_ehh <- c("inshore","northoffshore","southoffshore") %>% 
-  map_dfr(add_ehh_raw_annotation,raw_ehh_stats,candidate_regions_genes_ehhwin)
-
 ```
 
-```{r}
-candidate_regions_genes_ehh %>% write_rds("cache/candidate_regions_genes_ehh.rds")
+```{r, eval=FALSE}
+# Write candidate regions for mapping to pseudochromosome coords with ragtag
 candidate_regions_genes_ehh %>% mutate(chr=paste(chr,".1",sep="")) %>% write_tsv("data/hpc/ragtag/ehh_sweeps.tsv",col_names = FALSE)
 
 # Also write as a gff track
-
 candidate_regions_genes_ehh %>% 
   add_column(source="selscan") %>% 
   add_column(feature="cds") %>% 
@@ -299,10 +307,10 @@ candidate_regions_genes_ehh %>%
     write_tsv("data/hpc/tracks/sweeps.gff3",col_names = FALSE)
 ```
 
-For the purposes of making a human viewable table in supp info we also attach gene names from uniprot
+For the purposes of making a human viewable table in supp info we also attach gene names from uniprot. The final table is provided as Supp Table 5 in the paper
 
 ```{r ehh_genes_table}
-
+# You must run 09_annotate_genes first
 uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv")
 
 supp_table4 <- candidate_regions_genes_ehh %>% 
@@ -323,24 +331,5 @@ supp_table5 <- candidate_regions_genes_ehh %>%
   dplyr::select(-genename) 
 
 write_tsv(supp_table5,"cache/supp_table5.tsv")
-```
-
-
-```{r, include=FALSE}
-candidate_regions_genes_ehh <-  read_rds("cache/candidate_regions_genes_ehh.rds")
-
-candidate_regions_genes_ehh %>% 
-  group_by(stats) %>% 
-  filter(n() > 10) %>% 
-  ggplot() + 
-  geom_boxplot(aes(x=pop,y=frac)) + 
-  geom_jitter(aes(x=pop,y=frac,color=pop),alpha=0.5) + scale_color_startrek() +
-  facet_wrap(~stats) + coord_flip()
-```
-
-```{r, include=FALSE}
-candidate_regions_genes_ehh %>% 
-  ggplot() + 
-  geom_density(aes(x=frac,color=pop)) + scale_color_startrek()
 ```
 

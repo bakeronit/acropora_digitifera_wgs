@@ -21,11 +21,13 @@ library(cowplot)
 
 
 ```{r}
+# If not present run 09.annotate
 uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv") %>% 
   mutate(go=go_ipr) %>% 
   dplyr::select(-go_ipr)
 
-candidate_regions_table <- read_rds("cache/candidate_regions_genes_ehh.rds")
+# If not present run 10.identify
+candidate_regions_table <- read_rds("data/r_essentials/candidate_regions_genes_ehh.rds")
 
 candidate_genes_table <- candidate_regions_table %>% 
   separate_rows(genes,sep=";") %>% 
@@ -38,20 +40,21 @@ In a previous analysis (see [10.identify_selective_genomic_windows](10.identify_
 candidate_genes_table %>% 
   mutate(region_id = paste(chr,start,end,collapse = "_")) %>% 
   group_by(pop) %>% 
-  summarise(numgenes = n(), nregions = length(unique(region_id))) %>% 
+  dplyr::summarise(numgenes = n(), nregions = length(unique(region_id))) %>% 
   knitr::kable()
 ```
 
 We then used `topGO` to identify GO terms that were enriched in the gene sets covered by selective sweeps in each population. Enrichment was initially calculated in a gene centric manner because GO terms are most properly interpreted as attached to genes not regions, however, since genomic regions and not genes are the independent units in this analysis we then recalculated enrichment statistics in a region centric manner for all GO terms found to be enriched in the initial analysis.  The gene centric analysis considered each gene as an independent entity and considered the target set as the set of all genes intersecting with selective sweeps in a given population, and the background set was taken as the complete set of annotated genes for *A. digitifera*.  The region centric analysis considered the target set as all candidate sweeps for a population and the background set as the complete set of all 50kb regions on which EHH statistics were calculated.
 
 ```{r define-functions-regions}
+# If not present run 10.identify
 regions_genes_go <- read_rds("cache/all_regions_genes.rds") %>% 
   unite("region_id",chr,start,end) %>% 
   left_join(uniprot_gene_annot,by="geneid")
 
 regions2go <- regions_genes_go %>% 
   group_by(region_id) %>%
-  summarise(go = paste(go,sep=";")) %>% 
+  dplyr::summarise(go = paste(go,sep=";")) %>% 
   split(.$region_id) %>% 
   purrr::map(~str_split(.$go,";") %>% pluck(1) %>% str_trim() %>% unique())
 ```
@@ -120,7 +123,7 @@ go_enrich_all_ontologies <- function(genes_table,target_pop){
     left_join(uniprot_gene_annot %>%
                 dplyr::select(geneid,uniprot_id,protein)) %>%
     group_by(go) %>% 
-    summarise(uniprot_ids = paste(unique(uniprot_id),collapse = ";"), 
+    dplyr::summarise(uniprot_ids = paste(unique(uniprot_id),collapse = ";"), 
                 geneids = paste(unique(geneid),collapse = ";"),
                 protein_names = paste(unique(protein),collapse = ";"))
   
@@ -171,7 +174,7 @@ go2gene_signif <- topgo_results_all %>%
   filter(!is.na(geneids)) %>% 
   filter(geneids!="NA") %>% 
   group_by(GO.ID) %>% 
-  summarise(geneids=paste(unique(geneids),collapse = ";")) %>% 
+  dplyr::summarise(geneids=paste(unique(geneids),collapse = ";")) %>% 
   ungroup() %>% 
   split(.$GO.ID) %>%
   purrr::map(~ .$geneids %>% str_split(";") %>% pluck(1))
@@ -232,7 +235,7 @@ enrich_test <- function(n_regions,n_regions_sig,n_regions_ann,n_regions_ann_sig)
 
 number_of_sig_regions <- candidate_regions_table %>% 
   group_by(pop) %>% 
-  summarise(n_sig = n()) %>% 
+  dplyr::summarise(n_sig = n()) %>% 
   pull(n_sig,name = pop)
 
 total_bg_regions <- regions_genes_go$region_id %>% n_distinct()
@@ -263,7 +266,7 @@ write_tsv(supp_table6B,"cache/supp_table6b.tsv")
 ```{r, fig.height=12}
 bar_go1 <- topgo_results_all %>% 
   group_by(GO.ID) %>% 
-  summarise(max_sig=max(Significant),minwf=min(WeightFisher)) %>% 
+  dplyr::summarise(max_sig=max(Significant),minwf=min(WeightFisher)) %>% 
   filter(max_sig>0) %>% 
   filter(minwf<0.001) %>% 
   pull(GO.ID) %>% 
@@ -275,7 +278,7 @@ bar_go <- topgo_results_all %>%
   rowwise() %>% 
   mutate(n_regions = map2_int(GO.ID,pop,n_regions_per_term)) %>% 
   group_by(GO.ID) %>% 
-  summarise(max_regions = max(n_regions)) %>% 
+  dplyr::summarise(max_regions = max(n_regions)) %>% 
   filter(max_regions>2) %>% 
   pull(GO.ID) %>% 
   unique()
@@ -301,7 +304,7 @@ pg_go <- pg_go1 %>%
 
 
 
-We found a total of `r pg_go %>% filter(classic<0.001) %>% filter(n_regions>2) %>% pull(GO.ID) %>% unique() %>% length()` GO terms enriched (p<0.001) across all three of the locations.  These are summarised in Figure 1.  
+We found a total of `r pg_go %>% filter(classic<0.001) %>% filter(n_regions>2) %>% pull(GO.ID) %>% unique() %>% length()` GO terms enriched (p<0.001) across all three of the locations.  These are dplyr::summarised in Figure 1.  
 
 
 ```{r, fig.height=12}

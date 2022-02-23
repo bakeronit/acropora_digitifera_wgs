@@ -29,25 +29,30 @@ These genomes were combined with the host *A. digitifera* genome as well the sta
 kraken was then used to classify all non host read pairs (paired reads not aligning to the host genome) for all samples and the raw outputs processed with `kraken-mpa-report`.  This produces a report in a format similar to MetaPhlAn's output (see [09_run_kraken_genome.sh](data/hpc/symbiodinium_profiles/09_run_kraken_genome.sh)). 
 
 ```{r}
-genome_mpa31_files <- list.files("data/hpc/symbiodinium_profiles/genome_kraken_mpa/",pattern = "*.mpa",full.names = TRUE)
+if(!file.exists("data/r_essentials/23_mpa_data.rds")){
+  genome_mpa31_files <- list.files("data/hpc/symbiodinium_profiles/genome_kraken_mpa/",pattern = "*.mpa",full.names = TRUE)
 
-read_mpa <- function(path){
-  s <- basename(path) %>% str_extract("[^\\.]+")
-  sample_group <- s %>% str_extract("[^\\-]+")
-  mpa_data <- read_tsv(path,col_names = c("taxonomy","read_count"),col_types = cols()) %>% 
-    add_column(sample=s) %>% 
-    mutate(sample_group= case_when(
-      grepl("^AI",sample) ~ "IN",
-      grepl("^BR",sample) ~ "IN",
-      grepl("^AR",sample) ~ "NO",
-      grepl("^RS",sample) ~ "SO",
-      grepl("^DR",sample) ~ "JP"
-          ))
+  read_mpa <- function(path){
+    s <- basename(path) %>% str_extract("[^\\.]+")
+    sample_group <- s %>% str_extract("[^\\-]+")
+    mpa_data <- read_tsv(path,col_names = c("taxonomy","read_count"),col_types = cols()) %>% 
+      add_column(sample=s) %>% 
+      mutate(sample_group= case_when(
+        grepl("^AI",sample) ~ "IN",
+        grepl("^BR",sample) ~ "IN",
+        grepl("^AR",sample) ~ "NO",
+        grepl("^RS",sample) ~ "SO",
+        grepl("^DR",sample) ~ "JP"
+            ))
+  }
+
+  genome_mpa31_data <- do.call(rbind,lapply(genome_mpa31_files,read_mpa)) %>% add_column(kmer="g31")
+
+  mpa_data <- genome_mpa31_data 
+  write_rds(mpa_data,"data/r_essentials/23_mpa_data.rds")
+} else {
+  mpa_data <- read_rds("data/r_essentials/23_mpa_data.rds")
 }
-
-genome_mpa31_data <- do.call(rbind,lapply(genome_mpa31_files,read_mpa)) %>% add_column(kmer="g31")
-
-mpa_data <- genome_mpa31_data 
 ```
 
 
@@ -68,7 +73,7 @@ symbiodinium_data <- mpa_data %>%
   filter(clade!="Host") 
 ```
 
-```{r, include=FALSE}
+```{r, include=FALSE, eval=FALSE}
 #symbiont read summary. To provide summary stats for paper only
 
 library(googlesheets4)

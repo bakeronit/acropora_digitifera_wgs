@@ -95,32 +95,20 @@ df <- left_join(idepth,imiss) %>%
   )) %>% 
   arrange(F_MISS) %>% 
   dplyr::mutate(rn = row_number())
-  
- # mutate(INDV = case_when(
-#    grepl('merged$',INDV) ~ stri_reverse(INDV) %>% str_split("_",2) %>% map(last) %>% unlist %>% stri_reverse,
-#    TRUE ~stri_reverse(INDV) %>% str_split("_",3) %>% map(last) %>% unlist %>% stri_reverse))
-
-#df$INDV <- factor(df$INDV,levels = df %>% arrange(F_MISS) %>% select(INDV) %>% unlist)
 ```
 
 
 ```{r,fig.align='center',fig.retina=2,fig.height=10,fig.width=12}
 source("scripts/color_scheme.R")
 
-#df_long <- pivot_longer(df,cols=c("F_MISS","MEAN_DEPTH"),names_to="stat")
-
 p1 <- ggplot(df) + geom_col(aes(x=reorder(sample_label,rn),y=F_MISS,fill=loc)) +
-#  coord_flip() + 
   labs(x="",y="Proportion of genotypes missing") + 
   scale_fill_manual(values=myCol) + 
-#  facet_wrap(~stat, scales = "free_x") +
   theme_pubr() + theme(legend.position = "none",axis.text.x = element_text(angle=90,size=8))
 
 p2 <- ggplot(df) + geom_col(aes(x=reorder(sample_label,rn),y=MEAN_DEPTH,fill=loc)) +
-#  coord_flip() + 
   labs(x="",y="Mean Sequencing Depth") + 
   scale_fill_manual(values=myCol) + 
-#  facet_wrap(~stat, scales = "free_x") +
   theme_pubr() + 
   theme(axis.text.x = element_blank(), legend.position = "none")
 
@@ -137,7 +125,6 @@ ggsave("figures/qcplot_suppfig1.png",width = 12,height = 8)
 ```{r,fig.align='center',fig.retina=2}
 snpden <- read_tsv("data/hpc/vcf_filtering/Adigi.v2.filtered.snpden") %>% filter(SNP_COUNT>10) 
 ggplot(snpden) + geom_histogram(aes(x=SNP_COUNT,y=..density..),binwidth = 20,color="black",fill="darkblue") +
-#  stat_function(fun = dnorm, colour="red",args = list(mean=mean(snpden$SNP_COUNT,na.rm=TRUE),sd=sd(snpden$SNP_COUNT,na.rm = TRUE))) + 
   labs(x="SNP count per 10kb",y="Density") + theme_classic()
 ```
 

@@ -9,6 +9,7 @@ library(tidyverse)
 library(ggpubr)
 library(cowplot)
 library(rehh)
+library(coda)
 ```
 
 Since hard selective sweeps lead to dominance of a single haplotype at the swept locus it is possible to estimate the date at which a sweep occurred.  This is because new haplotypes will be introduced via mutation, and recombination will act to break down the length of the region of extended haplotype homozygosity. 
@@ -30,7 +31,7 @@ To identify the focal allele we look for the position with the maximum z-score f
 
 
 ```{r}
-sweep_regions <- read_rds("cache/candidate_regions_genes_ehh.rds") %>% 
+sweep_regions <- read_rds("data/r_essentials/candidate_regions_genes_ehh.rds") %>% 
   unite(col = "sweep_id",chr,start,end,remove = FALSE)
 
 stats_order <- c(1,2,3,4,5,6,7,8)
@@ -302,13 +303,13 @@ gnjt2 + geom_facet(panel="Haplotypes",data = hh_gg2 %>% filter(allele==1),
 Manual check results are recorded [here](https://docs.google.com/spreadsheets/d/1HW_6cVteoJjQEhHLmL5XaNKmcBYcX7PG40uz-mWE-ew/edit?usp=sharing) and are downloaded to the file `sweep_regions.xlsx`.  These manual checks include a check for QC as well as a check on the status of the selected allele (0/1). We process this to produce an input file for the `startmrca` analysis, and after writing it to disk we run the MCMC. 
 
 ```{r}
-if (!file.exists("cachec/sweep_regions.rds")){
+if (!file.exists("data/r_essentials/17_sweep_regions.rds")){
   library(googlesheets4)
   gs4_deauth()
   sweeps_gs4 <- read_sheet("https://docs.google.com/spreadsheets/d/1HW_6cVteoJjQEhHLmL5XaNKmcBYcX7PG40uz-mWE-ew/edit?usp=sharing")
-  write_rds(sweeps_gs4,"cache/sweep_regions.rds")
+  write_rds(sweeps_gs4,"data/r_essentials/17_sweep_regions.rds")
 } else {
-  sweeps_gs4 <- read_rds("cache/sweep_regions.rds")
+  sweeps_gs4 <- read_rds("data/r_essentials/17_sweep_regions.rds")
 }
 ```
 
@@ -342,12 +343,42 @@ read_chain <- function(path){
   tmp$t.chain %>% 
     as.data.frame() %>% 
     mutate(p = path) %>% 
-    extract(p,"locus",regex="(B.*).rds")
+    extract(p,into=c("locus","rep"),regex="(B.*)_([1-3]).rds") %>% 
+    filter(V4==1) %>% 
+    slice_sample(n=1000)
+}
+if ( !file.exists("data/r_essentials/17_tmrca_data.rds")){
+  tmrca_data <- list.files("data/hpc/startmrca/results/","*.rds", full.names = TRUE) %>% 
+    map_dfr(read_chain) %>% 
+    filter(locus %in% manual_sweeps$sweep_id)
+  write_rds(tmrca_data,"data/r_essentials/17_tmrca_data.rds")
+} else {
+  tmrca_data <- read_rds("data/r_essentials/17_tmrca_data.rds")
 }
 
-tmrca_data <- list.files("data/hpc/startmrca/results/","*.rds", full.names = TRUE) %>% 
-  map_dfr(read_chain) %>% 
-  filter(locus %in% manual_sweeps$sweep_id)
+
+
+to_mcmc_list <- function(locus_data){
+  locus_data %>% select(rep,time=V1) %>% group_by(rep) %>% group_split(.keep = F) %>% map(mcmc) %>% mcmc.list()
+}
+
+
+
+locus_groups <- split(tmrca_data,tmrca_data$locus)
+locus_mcmc_lists <- locus_groups %>% lapply(to_mcmc_list)
+
+gelman_pe <- function(x){
+  if( length(x)>1){
+    gd <- gelman.diag(x)
+    return(gd$psrf)
+  }else{
+    return(c(10,10))
+  }
+}
+
+gdr <- locus_mcmc_lists %>% sapply(gelman_pe) %>% t() %>% as.data.frame() %>% rownames_to_column("locus")
+
+converged <- gdr %>% filter(V2<2) %>% pull(locus)
 
 # Annotate the regions table
 uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv") %>% 
@@ -382,29 +413,15 @@ sweep_regions_of_interest <- sweep_regions_annot %>%
   left_join(genes_of_interest,by=c("genes"="id")) %>% 
   filter(!is.na(name))
 
-# go_terms_signif <- list("metal ion homeostasis"=c("GO:0006875","GO:0055076"),
-#                      "GPCR activity"=c("GO:0004930", "GO:0007186"),
-# #                     "ion transport"="GO:0006811",
-#                      "transcription factor activity"=c("GO:0000981"))
-            
 
-# add_go_flags <- function(data,go_terms_signif){
-#   for(goname in names(go_terms_signif)){
-#     goregions <- sweep_regions_annot %>% 
-#       filter(go %in% go_terms_signif[[goname]]) %>% 
-#       pull(sweep_id) %>% unique()
-#     data <- data %>% mutate({{goname}} := locus %in% goregions)
-#   }
-#   data
-# }
-  
 pd <- tmrca_data %>% 
+  ungroup() %>% 
+#  filter(locus %in% converged) %>% 
   left_join(sweep_regions,by=c("locus"="sweep_id")) %>% 
-  filter(V4==1) %>% 
   mutate(t_years = V1*5) %>% 
   group_by(locus) %>% 
   mutate(n=row_number()) %>% 
-  slice_tail(n=1000) %>% 
+  slice_tail(n=500) %>% 
   mutate(tmrca_mean = mean(V1*5), tmrca_sd = sqrt(var(V1*5))) %>% 
   ungroup() %>% 
   left_join(sweeps_gs4 %>% dplyr::select(locus=sweep_id,allele=manual_allele,note,qc_pass)) 
@@ -469,18 +486,6 @@ dated_loci <- pd %>%
   mutate(label=row_number()) %>% 
   pull(label,name = locus)
   
-# 
-# # Save this list of dated loci for other figures
-# write_rds(dated_loci ,"cache/dated_loci.rds")
-# 
-# add.alpha <- function(col, alpha=1){
-#   if(missing(col))
-#     stop("Please provide a vector of colours.")
-#   apply(sapply(col, col2rgb)/255, 2, 
-#                      function(x) 
-#                        rgb(x[1], x[2], x[3], alpha=alpha))  
-# }
-
 pd1 <- pd %>% 
   filter(qc_pass==1) %>% 
   mutate(locus_label = as.character(dated_loci[locus])) %>% 
@@ -544,7 +549,7 @@ analyse_haps <- function(sweep_locus){
   list(furcation,hn,haplen)
 }
 
-sweeps_gs4 <- read_rds("cache/sweep_regions.rds")
+sweeps_gs4 <- read_rds("data/r_essentials/17_sweep_regions.rds")
 
 
   
@@ -566,12 +571,12 @@ to_label <- as.data.frame(dated_loci) %>%
   filter(dated_locus_number %in% c(1,7,18,25)) #%>% 
 #  mutate(dated_locus_number=as.character(dated_locus_number))
 
-if (!file.exists("cache/furcation_data.rds")){
+if (!file.exists("data/r_essentials/17_furcation_data.rds")){
   furcation_data <- to_label %>% pull(locus) %>% purrr::map(analyse_haps)
   names(furcation_data) <- to_label$locus
-  write_rds(furcation_data,"cache/furcation_data.rds")
+  write_rds(furcation_data,"data/r_essentials/17_furcation_data.rds")
 } else {
-  furcation_data <- read_rds("cache/furcation_data.rds")
+  furcation_data <- read_rds("data/r_essentials/17_furcation_data.rds")
 }
 
 hldata <- to_label$locus %>% 
