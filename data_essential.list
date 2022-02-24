@@ -143,6 +143,9 @@ data/hpc/symbiont/ITS2_reads_mapping/sample_it2_div.txt
 data/hpc/symbiont/d2s/wa_matrix.txt
 
 
+# 24 Simulation without bottleneck
+
+data/r_essentials/24_fst.rds
 
 
 

@@ -13,23 +13,45 @@ library(ggpubr)
 library(cowplot)
 ```
 
+Analyses with SMC++ and fastsimcoal both indicated the presence of a strong bottleneck (most likely founder effect) in all three populations.  These bottleneck effects would have contributed to drift, which, combined with low migration rates would have resulted in the clear divergence observed in population structure analyses.  Here we used fastsimcoal analyses to disentangle these effects.  To do this we constructed a model (called `no_bott`) that was based on the best fitting model, but, where all changes in Ne were removed, effectively keeping the population size the same as the ancestral population with subdivision on splits.  This model is detailed in [3.out.no_bott.est](data/hpc/fastsimcoal/no_bott/3.out.no_bott.est) and [3.out.no_bott.tpl](data/hpc/fastsimcoal/no_bott/3.out.no_bott.tpl)
 
-## PCA without a bottleneck
+Simulations with this model were generated using
+
+```bash
+fsc2705 -t 3.out.no_bott.tpl -n 1 -e 3.out.no_bott.est  -E 10 -G x -c 0 -k 10000000
+```
+
+After converting to `vcf` they were used to calculate genome-wide Fst values between all pairs with plink2. This was done separately for each independent simulation.
+
+```bash
+plink2 --vcf ${f} --fst site --pheno phenotypes.txt --allow-extra-chr --out fst/${s2}_no_bott.fst
+```
+
+The boxplot below shows that these Fst values are much smaller than those for the full model (`IMc`) that includes population size changes. Thus indicating a strong contribution from the bottleneck to drift and population divergence. 
 
 ```{r}
-eig_nb <- read_tsv("data/hpc/fastsimcoal/no_bott/3.out.no_bott/pca/3.out.no_bott_1_1.eigenvec") %>% 
-  extract("#IID",into="site",regex = "([^_]*)")
+read_fst <- function(path){
+  read_tsv(path,show_col_types=FALSE) %>% 
+    unite("Pair",`#POP1`,POP2)
+}
 
-nb_p <- eig_nb %>% ggplot(aes(x=PC1,PC2)) + geom_point(aes(color=site))
+if (!file.exists("data/r_essentials/24_fst.rds")){
 
+  fst_sum_nb <- list.files("data/hpc/fastsimcoal/no_bott/3.out.no_bott/fst/","*.summary", full.names = TRUE) %>% 
+    map_dfr(read_fst) %>% 
+    add_column(model="no_bott")
 
-eig_b <- read_tsv("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/pca/1_1.eigenvec") %>% 
-  extract("#IID",into="site",regex = "([^_]*)")
+  fst_sum_sc <- list.files("data/hpc/fastsimcoal/growth_rate_SC/3.out.growth_rate_SC/fst/","*.summary", full.names = TRUE) %>% 
+    map_dfr(read_fst) %>% 
+    add_column(model="IMc")
 
-n_p <- eig_b %>% ggplot(aes(x=PC1,PC2)) + geom_point(aes(color=site))
-
-
-cowplot::plot_grid(nb_p,n_p)
+  fst_sum <- rbind(fst_sum_nb,fst_sum_sc) 
+  write_rds(fst_sum,"data/r_essentials/24_fst.rds")
+} else {
+  fst_sum <- read_rds("data/r_essentials/24_fst.rds")  
+}
+  
+fst_sum %>% ggplot(aes(x=Pair)) + geom_boxplot(aes(y=HUDSON_FST,fill=model))
 ```
 
 
