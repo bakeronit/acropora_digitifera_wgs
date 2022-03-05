@@ -152,5 +152,13 @@ data/r_essentials/24_fst.rds
 
 
 
+# x40 LiftOver
+data/genome/oist_lengths.txt
+data/genome/ncbi_lengths.txt
+data/genome/oist_genes.bed
+data/genome/ncbi_genes.bed
+
+data/genome/adig-v2-ncbi.gff
+
 
 
