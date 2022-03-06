@@ -13,7 +13,7 @@ read_ehh_stat <- function(path){
   }
   
   info <- parse_path_info(path)
-  read_tsv(path,col_names = c("chr","chr_pos","norm_value")) %>% 
+  read_tsv(path,col_names = c("chr","chr_pos","norm_value"),show_col_types=FALSE) %>% 
     mutate(pval = pnorm(abs(norm_value))) %>% 
     add_column(stat=info[2]) %>% 
     add_column(pop=info[1])
