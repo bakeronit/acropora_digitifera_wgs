@@ -389,7 +389,7 @@ gene_table_for_term <- function(goterm){
   left_join(uniprot_gene_annot,by=c("genes"="geneid")) %>% 
   ungroup() %>% 
     add_column(enriched_go=goterm) %>% 
-    dplyr::select(enriched_go,region_id,pop,genes,entryname,genename,protein,frac,stats) %>% 
+    dplyr::select(enriched_go,region_id,pop,genes,uniprot_id,genename,protein,frac,stats) %>% 
     na.omit()
 }
 
@@ -401,7 +401,7 @@ go_terms_in_plot <- jdm_included %>% rownames()
 
 allgo_genes <- map_dfr(go_terms_in_plot,gene_table_for_term) %>% 
   left_join(go_terms,by=c("enriched_go"="GOID")) %>% 
-  dplyr::select(enriched_go,TERM,region_id,pop,genes,entryname,genename,protein,frac,stats)
+  dplyr::select(enriched_go,TERM,region_id,pop,genes,uniprot_id,genename,protein,frac,stats)
 
 write_tsv(allgo_genes,"cache/allgo_genes.tsv")
 ```
