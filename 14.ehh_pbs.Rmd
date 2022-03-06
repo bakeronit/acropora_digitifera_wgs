@@ -12,7 +12,7 @@ library(ggpubr)
 library(bedr)
 ```
 
-Regions identified as sweeps via EHH statistics also tended to have more extreme values of the population branch statistic (PBS), explained more genetic variation related to population structure (PCAdapt statistic), and had elevated values of Tajima's D.  
+Regions identified as sweeps via EHH statistics also tended to have more extreme values of the population branch statistic (PBS) and had elevated values of Tajima's D.  
 
 ```{r}
 read_pi <- function(pop) {
@@ -35,10 +35,10 @@ if ( !file.exists("data/r_essentials/14_inout_stats.rds")){
     pivot_longer(starts_with("PBS"),names_to = "population",values_to="PBS")
 
 
-  pcadapt_pvals <- read_rds("cache/pcadapt_pvals.rds")
-  untransformed_coords <- read_tsv("data/hpc/pcangsd/wa.positions.txt",col_names = c("scaffold","pos"))
-  sites_binary <- read_tsv("data/hpc/pcangsd/wa.sites",col_names = c("included"))
-  untransformed_coords_included <- untransformed_coords[sites_binary$included==1,] %>% dplyr::mutate(p=row_number())
+  # pcadapt_pvals <- read_rds("cache/pcadapt_pvals.rds")
+  # untransformed_coords <- read_tsv("data/hpc/pcangsd/wa.positions.txt",col_names = c("scaffold","pos"))
+  # sites_binary <- read_tsv("data/hpc/pcangsd/wa.sites",col_names = c("included"))
+  # untransformed_coords_included <- untransformed_coords[sites_binary$included==1,] %>% dplyr::mutate(p=row_number())
 
 
 
@@ -46,13 +46,13 @@ if ( !file.exists("data/r_essentials/14_inout_stats.rds")){
 
   tajimaD <- rbind(read_td("inshore"),read_td("northoffshore"),read_td("southoffshore"))
 
-  pcadapt_bed <- untransformed_coords_included %>% 
-    add_column(pval = -log10(pcadapt_pvals)) %>% 
-    slice_sample(n=200000) %>% 
-    mutate(chr=str_replace(scaffold,".1$","")) %>% 
-    dplyr::select(chr,start=pos,end=pos,pval) %>% 
-    as.data.frame() %>% 
-    bedr.sort.region(check.chr = FALSE)
+  # pcadapt_bed <- untransformed_coords_included %>% 
+  #   add_column(pval = -log10(pcadapt_pvals)) %>% 
+  #   slice_sample(n=200000) %>% 
+  #   mutate(chr=str_replace(scaffold,".1$","")) %>% 
+  #   dplyr::select(chr,start=pos,end=pos,pval) %>% 
+  #   as.data.frame() %>% 
+  #   bedr.sort.region(check.chr = FALSE)
 
   pbs_bed <- pbsdata %>% 
     mutate(start=pos,end=pos) %>% 
@@ -81,7 +81,7 @@ if ( !file.exists("data/r_essentials/14_inout_stats.rds")){
 
   pbs_ehh_joinbed <- bedr.join.region(pbs_bed,ehh_bed,check.chr = FALSE)
 
-  pcadapt_ehh_joinbed <- bedr.join.region(pcadapt_bed,ehh_bed,check.chr = FALSE)
+#  pcadapt_ehh_joinbed <- bedr.join.region(pcadapt_bed,ehh_bed,check.chr = FALSE)
 
   tajima_ehh_joinbed <- bedr.join.region(tajima_bed,ehh_bed,check.chr = FALSE)
 
@@ -95,11 +95,11 @@ if ( !file.exists("data/r_essentials/14_inout_stats.rds")){
     dplyr::select(in_sweep,pop,stat,value=PBS)
 
 
-  pcadapt_inout <- pcadapt_ehh_joinbed %>% 
-      mutate(in_sweep = ifelse(chr.b!=".","Sweep","Non-Sweep")) %>% 
-    add_column(stat="pcadapt") %>% 
-    mutate(pval=as.numeric(pval)) %>% 
-    dplyr::select(in_sweep,pop,stat,value=pval)
+  # pcadapt_inout <- pcadapt_ehh_joinbed %>% 
+  #     mutate(in_sweep = ifelse(chr.b!=".","Sweep","Non-Sweep")) %>% 
+  #   add_column(stat="pcadapt") %>% 
+  #   mutate(pval=as.numeric(pval)) %>% 
+  #   dplyr::select(in_sweep,pop,stat,value=pval)
 
   tajima_inout <- tajima_ehh_joinbed %>%
     mutate(in_sweep = ifelse(chr.b!=".","Sweep","Non-Sweep")) %>% 
@@ -113,7 +113,7 @@ if ( !file.exists("data/r_essentials/14_inout_stats.rds")){
     mutate(pi=as.numeric(pi)) %>% 
     dplyr::select(in_sweep,pop,stat,value=pi)
 
-  inout <- list(pbs=pbs_inout,pcadapt=pcadapt_inout,tajima=tajima_inout,pi=pi_inout)
+  inout <- list(pbs=pbs_inout,tajima=tajima_inout,pi=pi_inout)
   
   write_rds(inout,"data/r_essentials/14_inout_stats.rds")
 } else {
@@ -147,9 +147,9 @@ p_pbs <- pbs_both %>%
 
 
 
-p_pc <- inout[['pcadapt']] %>% 
-  ggplot(aes(x=value)) + geom_density(aes(fill=in_sweep),alpha=0.5) + xlim(0,10) + xlab("-Log10(p); p = PCAdapt z-score ")+
-  theme_pubclean() + theme(legend.position = "none") + ylab("")
+# p_pc <- inout[['pcadapt']] %>% 
+#   ggplot(aes(x=value)) + geom_density(aes(fill=in_sweep),alpha=0.5) + xlim(0,10) + xlab("-Log10(p); p = PCAdapt z-score ")+
+#   theme_pubclean() + theme(legend.position = "none") + ylab("")
 
  p_pi <-  
    inout[['pi']] %>% 
@@ -178,7 +178,7 @@ legend_b <- get_legend(
     guides(color = guide_legend(nrow = 1)) +
     theme(legend.position = "bottom",legend.title = element_blank())
 )
-top_row <- plot_grid(p_pbs,p_pc,legend_b,rel_widths = c(0.6,0.3,0.1))
+top_row <- plot_grid(p_pbs)
 
 plot_grid(top_row,p_pi,p_D,ncol=1)
 ```
@@ -228,7 +228,7 @@ pbs_manhattan_data <- read_rds("data/r_essentials/pbsdata.rds") %>%
 pbs_thresholds <- read_rds("data/r_essentials/pbs_thresholds.rds")
 
 pbs_ehh_overlapping <- read_tsv("data/hpc/selection2/pbs/pbs_sweeps.scaff.tsv",col_names = c("chr","pos","pos2","PBS_IN","PBS_NO","PBS_SO")) %>% 
-  select(-pos2) %>% 
+  dplyr::select(-pos2) %>% 
   pivot_longer(cols = starts_with("PBS"), values_to = "PBS",names_to = "population") %>% 
   left_join(offsets,by=c("chr"="chr")) %>% 
   dplyr::mutate(abs_pos= pos + offset) %>% 

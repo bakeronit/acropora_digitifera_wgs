@@ -74,14 +74,9 @@ data/r_essentials/10_windowed_ehh.rds
 data/hpc/annotation/allgenes.bed
 data/r_essentials/candidate_regions_genes_ehh.rds
 
-# 11_go_enrich (no new files)
-
-# 12_pcangsd
+# 12_pbs
 data/r_essentials/pbsdata.rds
 data/hpc/pcangsd/all.lengths.scaf.txt
-data/r_essentials/12_all_thetas.rds
-data/r_essentials/pcangsd_pvalue_hist.png
-data/r_essentials/pcangsd_manhattan.png
 
 
 # 14_ehh_pbs
