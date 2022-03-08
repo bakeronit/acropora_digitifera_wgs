@@ -236,9 +236,9 @@ pbs_ehh_overlapping <- read_tsv("data/hpc/selection2/pbs/pbs_sweeps.scaff.tsv",c
   left_join(pbs_thresholds,by=c("population"="loc")) %>% 
   filter(PBS>=pbs_thresh)
 
-pbs_ehh_overlapping %>% 
-  filter(PBS>4) %>% 
-  left_join(pbs_manhattan_data,by=c("chr","pos")) %>% head()
+# pbs_ehh_overlapping %>% 
+#   filter(PBS>4) %>% 
+#   left_join(pbs_manhattan_data,by=c("chr","pos")) %>% head()
 
 
 highlight_sweeps <- ehh_sweep_manhattan_data %>% 
@@ -281,4 +281,35 @@ knitr::include_graphics("figures/pbs_ehh_manhattan.png")
 ```
 
 **Figure 2:** Manhattan plots showing the coincidence of extreme values of the population branch statistic (PBS) and regions under selection identified by EHH based scans.  PBS estimates for each population are shown as points with the other two considered as outgroups. Points are shown in black and grey to indicate transitions between alternating pseudo-chromosomes via mapping to the A. millepora assembly from Fuller et al (Fuller et al. 2020). The purple shaded baseline shows the location of regions identified as candidates for positive selection using EHH-based scans.  Blue points indicate windows where outlying PBS values (>0.2) are coincident with EHH scans.
+
+
+# Genes associated with the intersection of significant PBS and EHH regions
+
+```bash
+cat data/hpc/selection2/pbs/plink2_noheader.pbs | awk 'BEGIN{OFS="\t"}{print $1,$2,$3}' | ./scripts/pbs2bed.py -t 0.76 > data/hpc/selection2/pbs/pbs_in.bed
+
+cat data/hpc/selection2/pbs/plink2_noheader.pbs | awk 'BEGIN{OFS="\t"}{print $1,$2,$4}' | ./scripts/pbs2bed.py -t 0.49 > data/hpc/selection2/pbs/pbs_no.bed
+
+cat data/hpc/selection2/pbs/plink2_noheader.pbs | awk 'BEGIN{OFS="\t"}{print $1,$2,$5}' | ./scripts/pbs2bed.py -t 0.44 > data/hpc/selection2/pbs/pbs_so.bed
+```
+
+```bash
+cd data/hpc/selection2/
+bedtools intersect -u -b pbs_in.bed -a ../../../genome/adig-v2-ncbi.gff | awk '$3=="gene"' > pbs_genes_in.gff
+bedtools intersect -wao -a pbs_genes_in.gff -b ../../tracks/sweeps.gff3 | grep 'inshore' > pbs_genes_in_sweeps.tsv
+
+bedtools intersect -u -b pbs_no.bed -a ../../../genome/adig-v2-ncbi.gff | awk '$3=="gene"' > pbs_genes_no.gff
+bedtools intersect -wao -a pbs_genes_no.gff -b ../../tracks/sweeps.gff3 | grep 'northoffshore' > pbs_genes_no_sweeps.tsv
+
+bedtools intersect -u -b pbs_so.bed -a ../../../genome/adig-v2-ncbi.gff | awk '$3=="gene"' > pbs_genes_so.gff
+bedtools intersect -wao -a pbs_genes_so.gff -b ../../tracks/sweeps.gff3 | grep 'southoffshore' > pbs_genes_so_sweeps.tsv
+```
+
+
+```{r}
+
+```
+
+
+
 

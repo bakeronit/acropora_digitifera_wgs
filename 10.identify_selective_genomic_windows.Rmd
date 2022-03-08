@@ -309,7 +309,7 @@ candidate_regions_genes_ehh %>%
   mutate(start=start+1) %>% 
   mutate(chr=paste(chr,".1",collapse = "",sep="")) %>% 
   mutate(ID = paste(chr,":",start,"-",end,collapse="",sep="")) %>% 
-  mutate(attributes = paste("ID=",ID,";genes=",genes,collapse = "",sep = "")) %>% 
+  mutate(attributes = paste("ID=",ID,";genes=",genes,";pop=",pop,collapse = "",sep = "")) %>% 
   ungroup() %>% 
   dplyr::select(chr,source,feature,start,end,frac,strand,phase,attributes) %>% 
     write_tsv("data/hpc/tracks/sweeps.gff3",col_names = FALSE)
