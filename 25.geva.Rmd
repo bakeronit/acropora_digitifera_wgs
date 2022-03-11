@@ -13,6 +13,14 @@ library(ggpubr)
 library(cowplot)
 ```
 
+To investigate the timing of selection in relation to the emergence of variants at selective sweeps we used [GEVA](https://github.com/pkalbers/geva) [@Albers2020-vl] (Genealogical Estimation of Variant Age) to estimate the age of all 7.7M variants genome-wide that were present within our sample of phased haplotypes (see [03.phasing](03.phasing.md)). 
+
+One requirement for GEVA is that the ancestral and derived alleles are identified for each SNP. We used [est-sfs](http://www.homepages.ed.ac.uk/pkeightl//software) [@Keightley2018-dh] for this task as follows;
+  
+First we created a whole-genome alignment of *A. digitifera* with two outgroup species, *A. millepora* and *A. tenuis* using [Cactus](https://github.com/ComparativeGenomicsToolkit/cactus) (v2.0.5). We then exported the alleles at all snps using `halSnps` and then filtered these to only include those overlapping our callset. These were then used to generate an input file for `est-sfs` and to run `est-sfs`. We then used `bcftools` and custom awk scripts to update our phased variant callset by assigning the ancestral allele inferred by `est-sfs` to the reference allele.  This updating process takes care to update genotypes in instances where ref and alt alleles are swapped from their original values.  See bash and shell scripts in [data/hpc/ancestral_allele/](data/hpc/ancestral_allele/) for details.
+
+The phased vcf file with ref updated to the ancestral allele was then used as input to GEVA. See [data/hpc/geva/](data/hpc/geva/) for details
+
 
 
 ```{r}
@@ -204,17 +212,17 @@ csq_pos %>%
 
 
 
-```{r}
-sweep_g %>% 
-  filter(Clock=="J") %>% 
-  ggplot(aes(x=PostMedian)) + 
-  geom_density() +
-  geom_vline(aes(xintercept=10000))
-```
-```{r}
-sweep_g %>% 
-  filter(Clock=="J") %>% 
-  ggplot(aes(x=PostMedian,derived_count)) + 
-  geom_point() 
-```
+<!-- ```{r} -->
+<!-- sweep_g %>%  -->
+<!--   filter(Clock=="J") %>%  -->
+<!--   ggplot(aes(x=PostMedian)) +  -->
+<!--   geom_density() + -->
+<!--   geom_vline(aes(xintercept=10000)) -->
+<!-- ``` -->
+<!-- ```{r} -->
+<!-- sweep_g %>%  -->
+<!--   filter(Clock=="J") %>%  -->
+<!--   ggplot(aes(x=PostMedian,derived_count)) +  -->
+<!--   geom_point()  -->
+<!-- ``` -->
 
