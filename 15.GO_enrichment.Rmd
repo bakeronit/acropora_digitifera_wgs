@@ -31,16 +31,19 @@ uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv", sho
 ```{r}
 read_sg <- function(path){
   read_tsv(path,col_names = NULL,show_col_types = FALSE) %>% 
-  unite("region_id",X10,X13,X14,sep="_") %>% 
-  tidyr::extract(X9,into="gene_id",regex="ID=(.*)") %>% 
-  dplyr::select(region_id,gene_id)
+  unite("region_id",X15,X18,X19,sep="_") %>% 
+  tidyr::extract(X9,into="gene_id",regex="ID=([^B]+)") %>% 
+  dplyr::select(region_id,gene_id, max_pbs=X12,sum_pbs=X13,max_ehh=X20)
 }
 
 sweep_genes <- rbind(
   read_sg("data/hpc/selection2/pbs/pbs_genes_in_sweeps.tsv") %>% add_column(pop="inshore"),
   read_sg("data/hpc/selection2/pbs/pbs_genes_no_sweeps.tsv") %>% add_column(pop="northoffshore"),
   read_sg("data/hpc/selection2/pbs/pbs_genes_so_sweeps.tsv") %>% add_column(pop="southoffshore")
-)
+) %>% 
+  group_by(region_id,gene_id,pop) %>% 
+  summarise(max_pbs = max(max_pbs),sum_pbs=sum(sum_pbs),max_ehh=max(max_ehh)) %>% 
+  group_by(region_id) %>% slice_max(sum_pbs,n=1)
 ```
 
 
@@ -258,7 +261,7 @@ total_bg_regions <- regions_genes_go$region_id %>% n_distinct()
 
 ```{r supp-table}
 topgo_results_all %>% 
-  filter(classic <0.005) %>% 
+  filter(classic <0.05) %>% 
   mutate(n_regions = map2_int(GO.ID,pop,n_regions_per_term),
          n_region_bg = map_int(GO.ID,n_regions_bg_per_term),
          n_region_expected = number_of_sig_regions[pop]*n_region_bg/total_bg_regions) %>% 
