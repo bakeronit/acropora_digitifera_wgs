@@ -22,49 +22,35 @@ library(cowplot)
 
 ```{r}
 # If not present run 09.annotate
-uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv", show_col_types = FALSE) %>% 
+uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv") %>% 
   mutate(go=go_ipr) %>% 
   dplyr::select(-go_ipr)
+
+# If not present run 10.identify
+candidate_regions_table <- read_rds("data/r_essentials/candidate_regions_genes_ehh.rds")
+
+candidate_genes_table <- candidate_regions_table %>% 
+  separate_rows(genes,sep=";") %>% 
+  left_join(uniprot_gene_annot, by = c("genes"="geneid") )
 ```
 
-
-```{r}
-read_sg <- function(path){
-  read_tsv(path,col_names = NULL,show_col_types = FALSE) %>% 
-  unite("region_id",X15,X18,X19,sep="_") %>% 
-  tidyr::extract(X9,into="gene_id",regex="ID=([^B]+)") %>% 
-  dplyr::select(region_id,gene_id, max_pbs=X12,sum_pbs=X13,max_ehh=X20)
-}
-
-sweep_genes <- rbind(
-  read_sg("data/hpc/selection2/pbs/pbs_genes_in_sweeps.tsv") %>% add_column(pop="inshore"),
-  read_sg("data/hpc/selection2/pbs/pbs_genes_no_sweeps.tsv") %>% add_column(pop="northoffshore"),
-  read_sg("data/hpc/selection2/pbs/pbs_genes_so_sweeps.tsv") %>% add_column(pop="southoffshore")
-) %>% 
-  group_by(region_id,gene_id,pop) %>% 
-  summarise(max_pbs = max(max_pbs),sum_pbs=sum(sum_pbs),max_ehh=max(max_ehh)) %>% 
-  group_by(region_id) %>% slice_max(sum_pbs,n=1)
-```
-
-
-
-
-```{r}
-candidate_genes_table <- sweep_genes %>% 
-  left_join(uniprot_gene_annot,by=c("gene_id"="geneid"))
-```
-
-In a previous analysis (see [14.ehh_pbs](14.ehh_pbs.md) we identified a total of  `r nrow(candidate_genes_table)` genes that overlapped with `r candidate_genes_table$region_id %>% n_distinct()` regions identified as being in the top 1% of EHH stats and also as having significant PBS values. A summary of sweep regions and the number of genes covered by them in each population is shown below;
+In a previous analysis (see [10.identify_selective_genomic_windows](10.identify_selective_genomic_windows.md) we identified a total of `r nrow(candidate_regions_table)` candidate selective sweep regions.  A summary of sweep regions and the number of genes covered by them in each population is shown below;
 
 ```{r}
 candidate_genes_table %>% 
+  mutate(region_id = paste(chr,start,end,collapse = "_")) %>% 
   group_by(pop) %>% 
   dplyr::summarise(numgenes = n(), nregions = length(unique(region_id))) %>% 
   knitr::kable()
 ```
 
-We used `topGO` to test whether any GO terms were enriched in the gene sets covered by selective sweeps in each population. Enrichment was initially calculated in a gene-centric manner because GO terms are most properly interpreted as attached to genes not regions.  This initial (naive) enrichment calculation identified several significantly enriched GO terms, however, as can be seen in the table below these were almost always supported by just a single region.  
+We then used `topGO` to identify GO terms that were enriched in the gene sets covered by selective sweeps in each population. Enrichment was initially calculated in a gene centric manner because GO terms are most properly interpreted as attached to genes not regions, however, since genomic regions and not genes are the independent units in this analysis we then recalculated enrichment statistics in a region centric manner for all GO terms found to be enriched in the initial analysis.  
 
+The gene centric analysis considered each gene as an independent entity with the target set as all genes intersecting with selective sweeps in a given population, and the background set taken as all annotated genes for *A. digitifera*.  
+
+To perform the region centric analysis we first assigned GO terms to regions by taking the union of all GO terms assigned to genes within a region. We then considered the target set as all candidate sweeps for a population and the background set as the complete set of all 50kb regions on which EHH statistics were calculated.
+
+Enrichment p-values for both gene-centric and region-centric analyses were calculated using Fisher's exact test.  For the gene-centric analysis this was done using TopGO incorporating topGO's weighting system.  For the region-centric analysis it was performed using the `fisher.test` function in R.
 
 ```{r define-functions-regions}
 # If not present run 10.identify
@@ -130,7 +116,7 @@ genes_in_enrichedGO <- function(topgo_results,target) {
 go_enrich_all_ontologies <- function(genes_table,target_pop){
   target <- genes_table %>% 
     filter(pop==target_pop) %>% 
-    dplyr::select(gene_id) %>% 
+    dplyr::select(genes) %>% 
     distinct %>% 
     pull
 
@@ -217,17 +203,20 @@ colnames(jdm) <- names(go2gene_signif)
 
 ```{r, fig.height=12}
 n_regions_per_term <- function(term,focal_pop){
-  candidate_genes_table %>%
-  filter(gene_id %in% (go2gene_signif[term] %>% pluck(1))) %>% 
+  candidate_regions_table %>%
+  unite("region_id",chr,start,end,remove=FALSE) %>% 
+  separate_rows(genes,sep=";") %>% 
+  filter(genes %in% (go2gene_signif[term] %>% pluck(1))) %>% 
     filter(pop==focal_pop) %>% 
     pull(region_id) %>% n_distinct()
 }
 
 n_genes_per_term <- function(term,focal_pop){
-  candidate_genes_table %>%
+  candidate_regions_table %>%
     filter(pop==focal_pop) %>% 
-    filter(gene_id %in% (go2gene_signif[term] %>% pluck(1))) %>% 
-    pull(gene_id) %>% n_distinct()
+    separate_rows(genes,sep=";") %>% 
+    filter(genes %in% (go2gene_signif[term] %>% pluck(1))) %>% 
+    pull(genes) %>% n_distinct()
 }
 
 n_regions_bg_per_term <- function(term){
@@ -250,8 +239,7 @@ enrich_test <- function(n_regions,n_regions_sig,n_regions_ann,n_regions_ann_sig)
 }
 
 
-number_of_sig_regions <- candidate_genes_table %>% 
-  dplyr::select(region_id,pop) %>% 
+number_of_sig_regions <- candidate_regions_table %>% 
   group_by(pop) %>% 
   dplyr::summarise(n_sig = n()) %>% 
   pull(n_sig,name = pop)
@@ -260,16 +248,133 @@ total_bg_regions <- regions_genes_go$region_id %>% n_distinct()
 ```
 
 ```{r supp-table}
-topgo_results_all %>% 
-  filter(classic <0.05) %>% 
-  mutate(n_regions = map2_int(GO.ID,pop,n_regions_per_term),
+add_region_info <- function(data){
+  data %>% 
+    mutate(n_regions = map2_int(GO.ID,pop,n_regions_per_term),
          n_region_bg = map_int(GO.ID,n_regions_bg_per_term),
          n_region_expected = number_of_sig_regions[pop]*n_region_bg/total_bg_regions) %>% 
-  mutate(p.region = pmap_dbl(list(total_bg_regions,number_of_sig_regions[pop],n_region_bg,n_regions),enrich_test)) %>% 
+    mutate(p.region = pmap_dbl(list(total_bg_regions,number_of_sig_regions[pop],n_region_bg,n_regions),enrich_test)) 
+}
+
+supp_table6A <- topgo_results_all %>% 
+  filter(classic <0.005) %>% 
+  add_region_info() %>%   
+  filter(n_regions>=2) %>% 
   dplyr::select(-uniprot_ids,-protein_names,-n_region_expected) %>% 
-  dplyr::rename("Num Sweeps"=n_regions,"Num Background Regions"=n_region_bg,"Region p-value"=p.region) %>% 
-    knitr::kable()
+  dplyr::rename("Num Sweeps"=n_regions,"Num Background Regions"=n_region_bg,"Region p-value"=p.region)
+
+  
+supp_table6B <- supp_table6A %>% 
+  separate_rows(geneids,sep = ";") %>% 
+  left_join(uniprot_gene_annot,by=c("geneids"="geneid")) %>% 
+  dplyr::select(GO.ID,Term,ontology,pop,geneid=geneids,uniprot_id,"Protein name"=protein)
+  
+write_tsv(supp_table6A,"cache/supp_table6a.tsv")
+write_tsv(supp_table6B,"cache/supp_table6b.tsv")
 ```
+
+
+```{r, fig.height=12}
+
+bar_go <- supp_table6A %>% pull(GO.ID) %>% unique()
+
+pg_go1 <- topgo_results_all %>% 
+  filter(GO.ID %in% bar_go) %>% 
+  add_region_info() 
+
+pg_go <- pg_go1 %>% 
+  pivot_wider(id_cols = c("GO.ID","ontology"), names_from = pop,values_from = p.region,values_fill = NA) %>% 
+  pivot_longer(c(inshore,northoffshore,southoffshore),names_to = "pop", values_to = "p.region") %>% 
+  left_join(pg_go1) %>% 
+  rowwise() %>% 
+  mutate(Significant = ifelse(is.na(Significant), n_genes_per_term(GO.ID,pop),Significant )) %>% 
+  mutate(n_regions = ifelse(is.na(n_regions), n_regions_per_term(GO.ID,pop),n_regions)) %>% 
+  mutate(n_region_bg = ifelse(is.na(n_region_bg), n_regions_bg_per_term(GO.ID), n_region_bg)) %>% 
+  mutate(p.region = ifelse(is.na(p.region), enrich_test(total_bg_regions, number_of_sig_regions[pop],n_region_bg, n_regions), p.region)) 
+```
+
+
+
+
+We found a total of `r length(bar_go)` GO terms that were enriched (gene and region centric p<0.005; at least 2 regions) in at least one of the three of the locations.  These are summarised in Figure 1.  
+
+
+```{r, fig.height=12}
+pop_names <- c("inshore"="Inshore","northoffshore"="North Offshore","southoffshore"="South Offshore")
+
+library(colorspace)
+hclcols <- sequential_hcl(3,palette = "ag_Sunset")
+
+# Text labels have separate data so we can show them when bars are absent
+text_label_data <- pg_go %>% 
+  mutate(text_label = paste(Significant,"/",n_regions,sep = "")) %>% 
+  mutate(pop_names=pop_names[pop]) %>% 
+  mutate(classic = case_when(
+    classic<0.1 ~ classic,
+    classic>=0.1 ~ 0.8
+  ))
+
+barplot <- pg_go %>% 
+  filter(classic<0.1) %>% 
+  mutate(pop_names=pop_names[pop]) %>% 
+  mutate(text_label = paste(Significant,"/",n_regions,sep = "")) %>% 
+  mutate(is_enriched = ifelse(p.region<0.005, 1, 0.3)) %>% 
+  ggplot(aes(x=-log10(classic),y=GO.ID)) + 
+  geom_col(aes(alpha=is_enriched,fill=ontology,color=ontology),size=0.1) +
+  scale_color_manual(values = hclcols,labels = c("Biological process", "Cellular component", "Molecular function")) +
+  scale_fill_manual(values = hclcols,labels = c("Biological process", "Cellular component", "Molecular function")) +  
+  geom_text(data=text_label_data,aes(label=text_label), hjust=-0.1,size=1.5) +
+  theme_bw() + 
+  guides(alpha="none") +
+  labs(x=expression(-Log[10](P)),y="",fill="") +
+  theme(panel.grid = element_blank(),
+        legend.position = "bottom",
+        legend.text = element_text(),
+        axis.text.y = element_blank(),
+        axis.text.x = element_text(size=6),
+        axis.title.x = element_text(size=6),
+        strip.text = element_text(size=6),
+        strip.background = element_blank()) + 
+  ylab("") + 
+  facet_wrap(~pop_names) +
+  xlim(0,7)
+
+leg_b <- get_legend(barplot + guides(alpha="none",color="none"))
+
+go_terms = AnnotationDbi::select(GO.db, keys(GO.db, "GOID"), c("TERM", "ONTOLOGY")) %>% 
+  filter(GOID %in% display_go)
+
+
+
+tree_data <- pg_go %>% 
+  pivot_wider(id_cols = c("GO.ID","ontology"), names_from = pop, values_from = classic) %>% 
+  dplyr::rename(inshore_p = inshore, northoffshore_p = northoffshore, southoffshore_p = southoffshore) %>% 
+  left_join(pg_go %>% pivot_wider(id_cols = c("GO.ID"), names_from = pop, values_from = Significant)) %>% 
+  as.data.frame() %>% 
+  left_join(go_terms,by=c("GO.ID"="GOID")) %>% 
+  mutate(term_label = paste(GO.ID," ",TERM,sep=""))
+
+jdm_included <- jdm[tree_data$GO.ID,tree_data$GO.ID]
+hc <- hclust(as.dist(jdm_included))
+hc_order <- hc$order
+names(hc_order) <- rownames(jdm_included)[hc$order]
+
+#hcp <- as.phylo(hc)
+
+tree <- ggtree(as.phylo(hc)) %<+% tree_data + 
+geom_tiplab(aes(label = term_label),align = TRUE, size=2) + 
+  xlim(0,10) 
+
+bpt <- (barplot + theme(legend.position = "none")) %>% insert_left(tree, width = 1.2)
+ggsave(bpt,filename = "figures/go_enrichment_wide.png",height = 2,width = 6.75)
+leg_b <- ggdraw(leg_b)
+ggsave(leg_b,filename = "figures/go_legend.png",width = 6.75,height = 0.5)
+
+
+bpt
+```
+
+**Figure 1: Enriched GO terms for genes intersecting with candidate loci under selection**. Length of bars indicates significance of gene-centric enrichment (longer is more significant) and colour indicates the ontology. Filled bars are also significant (p<0.005) in a region-centric test while unfilled bars are not. Numerical labels are given as ng/nr where ng indicates the number of genes contained within sweep regions and nr indicates the number of distinct regions where these genes are found. Dendrogram depicts relationships between GO terms based on numbers of shared annotated genes.  
 
 
 
