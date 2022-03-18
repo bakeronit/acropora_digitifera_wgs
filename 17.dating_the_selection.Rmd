@@ -12,8 +12,6 @@ library(rehh)
 library(coda)
 ```
 
-Since hard selective sweeps lead to dominance of a single haplotype at the swept locus it is possible to estimate the date at which a sweep occurred.  This is because new haplotypes will be introduced via mutation, and recombination will act to break down the length of the region of extended haplotype homozygosity. 
-
 The software [startmrca](https://github.com/jhavsmith/startmrca) [@Smith2018-xt] is designed to estimate the timing of sweeps based on patterns of haplotype diversity and length that arise as a result of mutation and recombination after a sweep has occurred. 
 
 `startmrca` relies on the concept of a "focal allele" which in-theory should represent the allele that is under selection, however, in-practise it need only represent an allele on the same haplotype as the selected allele in strong linkage disequilibrium with it. 
@@ -25,104 +23,9 @@ In order to estimate the timing of selection at a locus we need the following in
   - A list of individuals without the focal allele
 
 
-## Identifying the focal Allele
+#### Haem Peroxidase Locus BLFC01000154_250000_300001
 
-To identify the focal allele we look for the position with the maximum z-score from |iHS| or XP-EHH within the interval. This information is encoded in the candidate regions as described in [10.identify_selective_genomic_windows](10.identify_selective_genomic_windows.md)
-
-
-```{r}
-sweep_regions <- read_rds("data/r_essentials/candidate_regions_genes_ehh.rds") %>% 
-  unite(col = "sweep_id",chr,start,end,remove = FALSE)
-
-stats_order <- c(1,2,3,4,5,6,7,8)
-names(stats_order) <- c("ihs","xpehh","ihs;xpehh","xpehh;xpnsl","xpnsl;xpehh","ihs;xpehh;xpnsl","xpehh;xpnsl;ihs","xpnsl;ihs;xpehh")
-
-qc_data <- sweep_regions %>% 
-  filter(stats %in% names(stats_order)) %>% 
-  mutate(stats_order = as.numeric(stats_order[stats])) %>% 
-  pivot_longer(cols = ends_with("pos")) %>% 
-  extract(name,"stat_max",regex="max_(.*)_pos") %>% 
-  rowwise() %>% 
-  mutate(is_signif = stat_max %in% str_split(stats,";")[[1]]) %>% 
-  filter(is_signif) %>% 
-  group_by(sweep_id,pop) %>% 
-  mutate(num_signif = n()) %>% 
-  mutate(mean_max_pos=mean(value,na.rm=TRUE)) %>% #View()
-  mutate(max_stat_pos=value-mean_max_pos)
-
-```
-
-Since many sweeps are significant in more than one of the EHH based statistics we would like to check that the position of which these statistics reach their maximum is roughly the same between stats.  This at least suggests that they are picking up on the same basic sweep signal, albeit with slightly different emphasis depending on the statistic. The QC plot below indicates that for XP type stats the position of the maximum signal falls within a relatively small window (~5kb) whereas for iHS the position often disagrees with other statistics to a much greater degree. 
-
-
-```{r}
-p1 <- qc_data %>% 
-  filter(num_signif>1) %>% 
-  ggplot(aes(y=fct_reorder(sweep_id,num_signif),x=max_stat_pos)) + 
-  geom_point(aes(color=stat_max)) + 
-  xlim(-50000,50000) +
-  theme_pubr() +
-  theme(legend.position = "None", axis.text.x = element_blank(), axis.text.y = element_blank()) + ylab("Sweep ID") + xlab("")
-  
-p2 <- qc_data %>% 
-  filter(num_signif>1) %>% 
-  ggplot(aes(x=max_stat_pos)) + geom_density(aes(fill=stat_max),alpha=0.5) + 
-  xlab("Position") +
-  theme_pubclean() + theme(legend.position = "bottom") + xlim(-50000,50000)
-
-plot_grid(p1,p2,ncol = 1,align = "v")
-```
-Since our sweep dating method assumes a hard sweep we exclude regions where the only significant stat is `XP-nSL`.  In addition, since the XP-EHH stat seems to have the best resolution for locating the focal allele we prefer this position wherever possible as the focal allele in our subsequent calculations.
-
-Sweeps are therefore filtered as follows;
-
-1. Exclude sweeps supported purely by XP-nSL
-2. Exclude any regions that are significant in multiple populations (There are four such regions)
-3. Pick the `position` as the max_xpehh_pos if xpehh is significant, otherwise max_ihs_pos
-
-```{r}
-# Export all eligible regions in a format suitable for the furcation_plots script
-# This format has columns
-# sweep_id, position, allele, chrom, start, end
-
-sweep_regions %>% 
-  filter(stats %in% names(stats_order)) %>% 
-  mutate(position = ifelse(grepl("xpehh",stats),max_xpehh_pos,max_ihs_pos)) %>% 
-  group_by(sweep_id) %>% 
-  filter(n()==1) %>% 
-  add_column(allele=0) %>% 
-  extract(sweep_id,"chrom","([^_]+)",remove = FALSE) %>% 
-  mutate(chrom = paste(chrom,".1",sep="")) %>% 
-  mutate(start = max(0,start-500000)) %>% 
-  mutate(end = end+500000) %>% 
-  dplyr::select(sweep_id,position,allele,chrom,start,end,pop) %>% 
-  write_tsv("data/hpc/startmrca/sweep_regions.tsv")
-```
-
-After exporting this initial list of regions we then perform a manual check based on furcation plots.  These plots are generated for each window using;
-
-```bash
-bash 02_furcation_plots.sh
-```
-
-Manual checks are based on the following rationale;
-
-1. `startmrca` assumes that a sufficiently hard sweep occurred to as to generate a star shaped genealogy.  This should be visible as a clade with many short branches in a tree of haplotype sequences.
-
-2. The star-like genealogy assumption applies to haplotypes that were subject to selection (ie that carried the putative advantageous allele). In the original `startmrca` paper it was assumed that the actual selected locus was known, in which case the selected haplotypes could be readily identified simply on the basis of their allele at this locus. In our case we have considerable uncertainty in the exact locus under selection, but instead pick a locus with significant iHS, XP-EHH score that is likely to be physically close-to and strongly linked with the selected locus. We call this locus the "proxy" locus and we need to check that segregation at this locus combined with knowledge of the focal population is sufficient to identify the selected haplotypes.  
-
-3. `startmrca` needs to identify the ancestral haplotype.  In cases of soft sweeps, or if the proxy locus does not properly identify the selected haplotypes then this will be difficult and likely subject to error. 
-
-Based on this overall rationale we performed checks as follows;
-
-1. There should be a set of highly homozygous haplotypes that carry the same allele at the proxy locus.
-2. There should be just one such set of haplotypes
-3. These haplotypes should be almost exclusively present in one population.  If there are haplotypes from different populations with the same allele at the proxy locus these should have clearly distinct haplotypes from the selected haplotypes and there should not be many of them.  This requirement will unfortunately remove old sweeps because recombination would naturally result in such mixed clusters, however, we need to guard against alternative possibilities such as that the mixed clusters are a result of a soft sweep on an allele that had a diverse haplotype background.
-
-
-#### QC Example 1 (Passing QC)
-
-As an example, consider locus `BLFC01000593_400000_450001` which appears to have undergone strong selection in the inshore population.
+Our strongest signature of a selective sweep was identified at locus `BLFC01000154_250000_300001` in the inshore population.
 
 ```{r, results='hide'}
 hap_names2pops <- function(hn){
@@ -137,18 +40,18 @@ hap_names2pops <- function(hn){
 
 
 
-vcf_file <- "data/hpc/startmrca/regions/BLFC01000593_400000_450001.vcf"
-position <- "402815"
+vcf_file <- "data/hpc/startmrca/regions/BLFC01000154_250000_300001_aaref.vcf"
 
 hh <- data2haplohh(hap_file = vcf_file,
                    polarize_vcf = FALSE,
                    vcf_reader = "data.table")
 
+position <- 282923
 marker_index <- which(positions(hh)==position)
 ```
 
 
-Firstly we plot the haplotypes themselves in a region +/- 200 markers around the focal locus. We see that the highly homozygous haplotypes at the bottom all have the derived allele whereas few of those in the top have this allele. We can also see visually that the one NO haplotype that has the derived allele is not the same as the selected haplotype.
+Firstly we plot the haplotypes themselves in a region +/- 200 markers around the focal locus. We see that the highly homozygous haplotypes at the bottom all have the derived allele whereas few of those in the top have this allele. 
 
 
 ```{r, results='hide'}
@@ -180,24 +83,11 @@ hn <- hap.names(hh)
 plot(furcation,hap.names = hap_names2pops(hn),cex=0.5,cex.lab=0.3)
 ```
 
-Note that there is one haplotype from NO that has the derived allele. Despite having the focal allele (not necessarily the exact target of selection) this haplotype is quite different from the selected haplotype. This can be seen by visualising the selected haplotypes in tree form. (Right of the focal allele only shown). The key thing about this plot is that is shows that by selecting haplotypes based on the combination of focal allele and focal population we accurately capture them.
+The furcation plot is designed to capture relationships between haplotypes as a function of distance away from a focal point.  Another way to view the sequences is to consider the relationships between their core haplotype sequences.  This plot serves as a useful complement to the previous plot.  Here we can not only see that the focal allele accurately identifies the selected haplotype, but also .. that it completely identifies them (ie there are no selected haplotypes that do not have the focal allele).  We can see this because haplotypes with this allele form a single monophyletic clade.
 
 ```{r}
-newick <- as.newick(furcation,
-                    allele = 1,
-                    side = "right",
-                    hap.names = hap.names(hh))
-library(ape)
-tree <- ape::read.tree(text = newick)
-
+library(phytools)
 library(ggtree)
-
-tree_data <- data.frame(tiplab=hn) %>% 
-  mutate(pop=hap_names2pops(hn), has_marker_allele = (hh_subset@haplo[,201]==1))
-
-gt <- ggtree(tree,ladderize = FALSE) %<+% tree_data + 
-  geom_tiplab(aes(label=pop,color=pop),align = TRUE,size=2) 
-#  xlim(NA,500000)
 
 hh_gg <- hh_subset@haplo %>% 
   as.data.frame() %>% 
@@ -205,122 +95,43 @@ hh_gg <- hh_subset@haplo %>%
   pivot_longer(-haplotype,names_to = "position", values_to = "allele") %>% 
   extract(position,into = "pos",regex = "V([0-9]+)",convert = TRUE) 
 
-
-gt + geom_facet(panel="Haplotypes",data = hh_gg %>% filter(allele==1), 
-                geom= geom_point,mapping = aes(x=pos),color="blue",shape="|",size=1)
-```
-
-The furcation plot is designed to capture relationships between haplotypes as a function of distance away from a focal point.  Another way to view the sequences is to consider the relationships between their core haplotype sequences.  This plot serves as a useful complement to the previous plot.  Here we can not only see that the focal allele accurately identifies the selected haplotype, but also .. that it completely identifies them (ie there are no selected haplotypes that do not have the focal allele).  We can see this because haplotypes with this allele form a single monophyletic clade.
-
-```{r}
-library(phytools)
 njtree <- hh_subset@haplo %>% dist.gene() %>% nj %>% midpoint.root()
 
+tree_data <- data.frame(tiplab=hn) %>% 
+   mutate(pop=hap_names2pops(hn), has_marker_allele = (hh_subset@haplo[,201]==1))
+
 gnjt <- ggtree(njtree,ladderize = FALSE) %<+% tree_data + 
-  geom_tiplab(aes(label=pop,color=pop),align = TRUE,size=2) +
-  geom_tippoint(aes(color=has_marker_allele))
+#  geom_tiplab(aes(label=pop,color=pop),align = TRUE,size=2) +
+  geom_tippoint(aes(shape=has_marker_allele,color=pop)) + 
+  ggsci::scale_color_startrek() + 
+  theme(legend.position = "none")
+
+ggsave(gnjt,filename = "figures/hap_tree_peroxidase.png",width = 3, height = 5)
+```
 
 
+```{r}
 gnjt + geom_facet(panel="Haplotypes",data = hh_gg %>% filter(allele==1), 
                 geom= geom_point,mapping = aes(x=pos),color="blue",shape="|",size=1) 
-
 ```
-
-#### QC Example 2 (Failing QC)
-
-Now consider a less clear-cut case such as the locus `BLFC01000298_200000_350001`.  In this case the putatively selected haplotype has allele 0 not 1. Looking at the haplotype plot we see several clusters of what appear to be a selected haplotype in inshore.  
-
-```{r, results='hide'}
-vcf_file2 <- "data/hpc/startmrca/regions/BLFC01000298_200000_350001.vcf"
-position2 <- "276007"
-
-hh2 <- data2haplohh(hap_file = vcf_file2,
-                   polarize_vcf = FALSE,
-                   vcf_reader = "data.table")
-
-marker_index2 <- which(positions(hh2)==position2)
-
-hh_subset2 <- subset(hh2, select.mrk = (marker_index2-200):(marker_index2+200))
-
-
-plot(
-  hh_subset2,
-  mrk = 201,
-  group_by_allele = TRUE,
-  ignore.distance = TRUE,
-  col = c(NA, "red"),
-  linecol = c("lightblue", "lightpink"),
-  mrk.col = "black",
-  cex = 0.1,
-  cex.lab.hap = 0.2,
-  hap.names = hap_names2pops(hap.names(hh2))
-)
-```
-
-The furcation plot confirms that these haplotypes do indeed have high EHH that extends over a large (>100kb) region.  However we can also see that there are some inshore haplotypes with allele 0 that furcate early (ie probably don't have the selected haplotype). 
-
-```{r, results='hide'}
-furcation2 <- calc_furcation(hh2,mrk = marker_index2)
-
-hn2 <- hap.names(hh2)
-
-plot(furcation2,hap.names = hap_names2pops(hn2),cex=0.5,cex.lab=0.3)
-```
-
-By examining a tree based on the innermost 400 variants we see that in the inshore population there does seem to be a highly abundant haplotype that is likely to represent the haplotype carrying the selected allele.  Things are not completely clear-cut however because there are several related haplotypes that differ by a small but non-trivial number of mutations as well as other haplotypes in inshore that show evidence of recombination with background haplotypes.  These suggest that our choice of the representative SNP (ie a proxy for the locus of the beneficial allele) might not be correct.  Just based on the alleles at this proxy locus starTMRCA will not be able to distinguish between the selected haplotypes and other haplotypes in inshore. l 
-
 
 ```{r}
-hh_gg2 <- hh_subset2@haplo %>% 
-  as.data.frame() %>% 
-  rownames_to_column("haplotype") %>% 
-  pivot_longer(-haplotype,names_to = "position", values_to = "allele") %>% 
-  extract(position,into = "pos",regex = "V([0-9]+)",convert = TRUE) 
+# Identify haplotypes in inshore that are not the selected hap.  This is used later for GEVA 
 
+pop="inshore"
 
-tree_data2 <- data.frame(tiplab=hn2) %>% 
-  mutate(pop=hap_names2pops(hn2), has_marker_allele = (hh_subset2@haplo[,201]==0))
+haps_alleles <- data.frame(allele=haplo(hh)[,marker_index]) %>% 
+  rownames_to_column("hap") %>% 
+  extract(col = hap,into = "loc_code","([^_]+)", remove = FALSE) %>% 
+  mutate(location = case_when(
+    loc_code %in% c("BR","AI") ~ "inshore",
+    loc_code %in% c("AR") ~ "northoffshore",
+    loc_code %in% c("RS1","RS2","RS3") ~ "southoffshore"
+  ))
 
-njtree2 <- hh_subset2@haplo %>% dist.gene() %>% nj %>% midpoint.root()
-
-gnjt2 <- ggtree(njtree2,ladderize = FALSE) %<+% tree_data2 + 
-  geom_tiplab(aes(label=pop,color=pop),align = TRUE,size=2) +
-  geom_tippoint(aes(shape=has_marker_allele))
-
-
-gnjt2 + geom_facet(panel="Haplotypes",data = hh_gg2 %>% filter(allele==1), 
-                geom= geom_point,mapping = aes(x=pos),color="blue",shape="|",size=1) 
+haps_alleles %>% filter(allele==0) %>% filter(location=="inshore")
 ```
 
-
-
-
-
-
-
-### Summary of manual checks
-
-Manual check results are recorded [here](https://docs.google.com/spreadsheets/d/1HW_6cVteoJjQEhHLmL5XaNKmcBYcX7PG40uz-mWE-ew/edit?usp=sharing) and are downloaded to the file `sweep_regions.xlsx`.  These manual checks include a check for QC as well as a check on the status of the selected allele (0/1). We process this to produce an input file for the `startmrca` analysis, and after writing it to disk we run the MCMC. 
-
-```{r}
-if (!file.exists("data/r_essentials/17_sweep_regions.rds")){
-  library(googlesheets4)
-  gs4_deauth()
-  sweeps_gs4 <- read_sheet("https://docs.google.com/spreadsheets/d/1HW_6cVteoJjQEhHLmL5XaNKmcBYcX7PG40uz-mWE-ew/edit?usp=sharing")
-  write_rds(sweeps_gs4,"data/r_essentials/17_sweep_regions.rds")
-} else {
-  sweeps_gs4 <- read_rds("data/r_essentials/17_sweep_regions.rds")
-}
-```
-
-
-```{r, exec=FALSE}
-manual_sweeps <- sweeps_gs4 %>% 
-  mutate(allele=manual_allele) %>% 
-  filter(qc_pass==1) %>% 
-  dplyr::select(-manual_allele,-note,-qc_pass) %>% 
-  write_tsv("data/hpc/startmrca/sweep_regions_checked.tsv")
-```
 
 ## Running STARTMRCA
 
@@ -337,6 +148,9 @@ Preliminary results are shown below for all loci passing QC.  The dates shown ar
 
 One of the main things that can be seen here is that relatively few loci pass the QC checks for use with startmrca.  This limits the analysis a little but we are able to see dating estimates for several loci involved in enriched go terms.  The broad pattern of timing is also interesting because it shows a peak in the number of loci dating to around 6kya which approximately matches the time when sea levels reached similar heights to what they are today.
 
+
+
+
 ```{r, include=FALSE}
 read_chain <- function(path){
   tmp <- read_rds(path) 
@@ -349,8 +163,7 @@ read_chain <- function(path){
 }
 if ( !file.exists("data/r_essentials/17_tmrca_data.rds")){
   tmrca_data <- list.files("data/hpc/startmrca/results/","*.rds", full.names = TRUE) %>% 
-    map_dfr(read_chain) %>% 
-    filter(locus %in% manual_sweeps$sweep_id)
+    map_dfr(read_chain) 
   write_rds(tmrca_data,"data/r_essentials/17_tmrca_data.rds")
 } else {
   tmrca_data <- read_rds("data/r_essentials/17_tmrca_data.rds")
@@ -359,7 +172,7 @@ if ( !file.exists("data/r_essentials/17_tmrca_data.rds")){
 
 
 to_mcmc_list <- function(locus_data){
-  locus_data %>% select(rep,time=V1) %>% group_by(rep) %>% group_split(.keep = F) %>% map(mcmc) %>% mcmc.list()
+  locus_data %>% dplyr::select(rep,time=V1) %>% group_by(rep) %>% group_map( ~ mcmc(.x)) %>% mcmc.list()
 }
 
 
@@ -376,274 +189,8 @@ gelman_pe <- function(x){
   }
 }
 
-gdr <- locus_mcmc_lists %>% sapply(gelman_pe) %>% t() %>% as.data.frame() %>% rownames_to_column("locus")
+#gdr <- locus_mcmc_lists %>% sapply(gelman_pe) %>% t() %>% as.data.frame() %>% rownames_to_column("locus")
 
-converged <- gdr %>% filter(V2<2) %>% pull(locus)
-
-# Annotate the regions table
-uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv") %>% 
-  mutate(go=go_ipr) %>% 
-  dplyr::select(-go_ipr)
-
-#topgo_results_all <- read_rds("cache/topgo_results_all.rds")
-
-
-sweep_regions_annot <- sweep_regions %>% 
-  separate_rows(genes,sep=";") %>% 
-  left_join(uniprot_gene_annot, by = c("genes"="geneid") ) %>% 
-  separate_rows(go,sep=";") %>% 
-  mutate(go = str_trim(go))
-
-#sweep_regions_annot %>% write_tsv("cache/sweep_regions_annot.tsv")
-
-genes_of_interest <- data.frame(name=c(
-  "DNAJ - HSP40",
-  "HSP70",
-  "Peroxidasin",
-  "Daxx"),
-  id=c(
-    "adig_s0038.g95",
-    "adig_s0017.g68",
-    "adig_s0150.g21",
-    "adig_s0062.g74"
-  )
-)
-
-sweep_regions_of_interest <- sweep_regions_annot %>% 
-  left_join(genes_of_interest,by=c("genes"="id")) %>% 
-  filter(!is.na(name))
-
-
-pd <- tmrca_data %>% 
-  ungroup() %>% 
-#  filter(locus %in% converged) %>% 
-  left_join(sweep_regions,by=c("locus"="sweep_id")) %>% 
-  mutate(t_years = V1*5) %>% 
-  group_by(locus) %>% 
-  mutate(n=row_number()) %>% 
-  slice_tail(n=500) %>% 
-  mutate(tmrca_mean = mean(V1*5), tmrca_sd = sqrt(var(V1*5))) %>% 
-  ungroup() %>% 
-  left_join(sweeps_gs4 %>% dplyr::select(locus=sweep_id,allele=manual_allele,note,qc_pass)) 
-#%>% 
-#  add_go_flags(go_terms_signif) 
-
-
-
-# pdgo <- pd %>% 
-#   filter(qc_pass==1) %>% 
-#   pivot_longer(names(go_terms_signif),names_to = "go") %>% 
-#   filter(value==TRUE) %>% 
-#   group_by(locus,go,pop) %>% 
-#   summarise(tmrca_mean = dplyr::first(tmrca_mean)) %>% 
-#   ungroup() #%>% 
-#  filter(!((go=="iron ion") & (pop == "inshore"))) %>% 
-#  filter(!((go=="ion transport") & (pop=="inshore"))) 
-
-pd_gi <- pd %>% 
-  filter(qc_pass==1) %>%
-  left_join(sweep_regions_of_interest %>% dplyr::select(sweep_id,name),by=c("locus"="sweep_id")) %>% 
-  filter(!is.na(name)) %>% 
-  group_by(locus,name) %>% 
-  summarise(tmrca_mean = dplyr::first(tmrca_mean)) %>% 
-  ungroup()
-  
-pdmeans <- pd %>% 
-    group_by(locus,pop) %>% 
-  summarise(tmrca_mean = dplyr::first(tmrca_mean)) 
-
-pdmeans_pass <- pd %>% 
- filter(qc_pass==1) %>%
-    group_by(locus,pop) %>% 
-  summarise(tmrca_mean = dplyr::first(tmrca_mean)) 
-
-library(ggrepel)
-library(ggpubr)
-source("scripts/color_scheme.R")
-
-protein_names <- sweep_regions_annot %>% 
-  group_by(sweep_id) %>% 
-  summarise(protein_names = paste(unique(protein), collapse = ";"))
-
-# Export to Supp table 7
-supp_table7 <- pd %>% 
-  filter(qc_pass==1) %>%
-  group_by(locus) %>% 
-  slice_sample(n=1) %>% 
-  ungroup() %>% 
-  arrange(tmrca_mean) %>% 
-  mutate(label=row_number()) %>% 
-  select(label,locus,chr,start,end,pop,genes,tmrca_mean,tmrca_sd) %>% 
-  left_join(protein_names,by=c("locus"="sweep_id"))
-
-write_tsv(supp_table7,"cache/supp_table7.tsv")
-
-dated_loci <- pd %>% 
-  filter(qc_pass==1) %>% 
-  dplyr::select(locus,tmrca_mean) %>% 
-  distinct() %>% 
-  arrange(tmrca_mean) %>% 
-  mutate(label=row_number()) %>% 
-  pull(label,name = locus)
-  
-pd1 <- pd %>% 
-  filter(qc_pass==1) %>% 
-  mutate(locus_label = as.character(dated_loci[locus])) %>% 
-  ggplot(aes(x=t_years,y=reorder(locus_label,tmrca_mean))) + 
-  geom_violin(aes(fill=pop,color=pop)) + 
-  geom_label_repel(data= pd_gi %>% 
-                     mutate(locus_label = as.character(dated_loci[locus])),
-                   aes(x=tmrca_mean,y=locus_label,label=name),
-                   direction = "both",nudge_x = 5000, xlim=c(8000,NA),
-                   force=10, size = 2,max.overlaps = 1000,
-                   label.padding = 0.15, label.size = 0.5,segment.size=0.3, segment.alpha = 1) +
-  ylab("Sweep Locus") + xlab("TMRCA / Years since present") +
-  scale_fill_manual(values=myCol,labels=c("Inshore","North Offshore","South Offshore")) +
-  scale_color_manual(values=myCol) +  
-    theme_pubr() +
-  guides(color="none")+
-  theme(legend.title = element_blank(), 
-        axis.text.y = element_text(size=8),
-        axis.text.x = element_text(size=8),
-        legend.text = element_text(size=8),
-        axis.title.x = element_text(size=10),
-        axis.title.y= element_text(size=10),
-        legend.position = "none")
-
-pdax <- axis_canvas(pd1,axis="x") +
-  geom_histogram(data=pdmeans_pass,aes(x=tmrca_mean,fill=pop),binwidth = 1000) +
-    scale_fill_manual(values=myCol,labels=c("Inshore","North Offshore","South Offshore")) 
-
-p1 <- insert_xaxis_grob(pd1,pdax,grid::unit(.15, "null"), position = "top")
-
-ggdraw(p1)
-
-ggsave("figures/sweep_dates_wide4.png", width = 4.75,height = 4)
+#converged <- gdr %>% filter(V2<2) %>% pull(locus)
 ```
-
-
-```{r, include=FALSE}
-hap_names2pops <- function(hn){
-  pops <- rep("IN",length(hn))
-  sos <- grepl("RS[123]",hn)
-  nos <- grepl("^AR",hn)
-  ins <- (!sos & !nos)
-  pops[sos]="SO"
-  pops[nos]="NO"
-  pops
-}
-
-analyse_haps <- function(sweep_locus){
-  vcf_file <- paste("data/hpc/startmrca/regions/",sweep_locus,".vcf",sep="")
-  position <- sweeps_gs4 %>% filter(sweep_id==sweep_locus) %>% pull(position)
-
-  hh <- data2haplohh(hap_file = vcf_file,
-                     polarize_vcf = FALSE,
-                     vcf_reader = "data.table")
-
-  marker_index <- which(positions(hh)==position)
-
-  furcation <- calc_furcation(hh,mrk = marker_index)
-  haplen <- calc_haplen(furcation)
-  hn <- hap_names2pops(hap.names(hh))
-  list(furcation,hn,haplen)
-}
-
-sweeps_gs4 <- read_rds("data/r_essentials/17_sweep_regions.rds")
-
-
-  
-make_hldata <- function(locus_name){
-  
-  hn <- furcation_data[[locus_name]][[3]]
-
-  furcation_data[[locus_name]][[3]][[4]] %>% 
-    as.data.frame() %>% 
-    add_column(name=furcation_data[[locus_name]][[2]]) %>% 
-    mutate(length = MAX-MIN) %>% 
-    mutate(rn=row_number()) %>% 
-    add_column(locus=locus_name) 
-}
-
-to_label <- as.data.frame(dated_loci) %>% 
-  rownames_to_column("locus") %>% 
-  dplyr::rename(dated_locus_number=dated_loci) %>% 
-  filter(dated_locus_number %in% c(1,7,18,25)) #%>% 
-#  mutate(dated_locus_number=as.character(dated_locus_number))
-
-if (!file.exists("data/r_essentials/17_furcation_data.rds")){
-  furcation_data <- to_label %>% pull(locus) %>% purrr::map(analyse_haps)
-  names(furcation_data) <- to_label$locus
-  write_rds(furcation_data,"data/r_essentials/17_furcation_data.rds")
-} else {
-  furcation_data <- read_rds("data/r_essentials/17_furcation_data.rds")
-}
-
-hldata <- to_label$locus %>% 
-  purrr::map_dfr(make_hldata) %>% 
-  left_join(to_label)
-
-popmap <- c("IN"="inshore","NO"="northoffshore","SO"="southoffshore")
-
-named_cols <- c(myCol,"grey")
-names(named_cols) <- c("IN","NO","SO","notfocal")
-
-phaps <- hldata %>% 
-  left_join(sweeps_gs4 %>% dplyr::select(locus=sweep_id,pops=pop)) %>% 
-  mutate(poph=popmap[name]) %>% 
-  mutate(name = ifelse(poph==pops,name,"notfocal")) %>% 
-  group_by(locus) %>% 
-  arrange(length,.by_group = TRUE) %>% 
-  mutate(rn = row_number()) %>% 
-  mutate(xoffset=(max(MIN)+min(MAX))/2) %>% 
-    ggplot() + 
-      geom_segment(aes(x=(MIN-xoffset)/1e6,xend=(MAX-xoffset)/1e6,y=rn,yend=rn,color=name)) +
-    scale_color_manual(values=named_cols) +  
-    theme_pubr() + 
-  facet_wrap(~reorder(dated_locus_number,dplyr::desc(dated_locus_number)),ncol = 1) +
-  theme(axis.text.y = element_blank(),
-        axis.ticks.y = element_blank(),
-        text = element_text(size=8),
-        axis.title.x = element_text(size=10),
-        axis.title.y= element_text(size=10),
-        legend.position = "none", 
-        strip.background = element_blank(),
-        strip.text = element_text(size=10)) +
-  xlab("Relative Position /Mb") +
-  ylab("Haplotype")
-
-ggsave(phaps,filename = "figures/haplengths.png",width = 2,height = 3.5)
-```
-
-```{r, include=FALSE}
-#ptimeline <- ggdraw(p1)
-ptimeline <- p1
-
-
-plot_row <- plot_grid(
-                      ptimeline,
-                      phaps,
-                      rel_widths = c(0.7,0.3),align = "h",axis = "b")
-
-legend_b <- get_legend(
-  pd1 + 
-    guides(fill = guide_legend()) +
-    theme(legend.position = "right")
-)
-
-ggdraw(legend_b)
-ggsave("figures/sweep_dates_legend.png",width = 1.5,height = 2)
-
-
-plot_grid(plot_row,ncol = 1)
-
-ggsave("figures/sweep_dates_wide.png",width = 6.75,height=4)
-```
-
-
-
-```{r}
-knitr::include_graphics("figures/sweep_dates_wide.png")
-```
-
 

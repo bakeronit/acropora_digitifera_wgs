@@ -44,57 +44,10 @@ Consequence calling was then done using the vcf and reference sequences where th
 bcftools csq -f BLFC01000154.1_aa.fasta -g s0150.g24.gff BLFC01000154.1_aaref.vcf.gz -O t > s0150.g24.csq.tsv 
 ```
 
-We used results from GEVA in combination with allele frequency and variant consequence information to investigate variants overlapping `s0150.g24` in detail.
-
-## Ferritin locus on BLFC01000600
-
-```{r}
-sites_files <- list.files("data/hpc/geva/chroms/BLFC01000600.1/","*.sites",full.names = TRUE)
-
-options(readr.show_col_types = FALSE)
-geva_sites <- map_dfr(sites_files,read_table, col_types=cols())
-
-markers <- read_table("data/hpc/geva/chroms/BLFC01000600.1/BLFC01000600.1_geva.marker.txt")
-
-geva_pos <- geva_sites %>% 
-  left_join(markers)
-```
-
-```bash
-plink2 --vcf BLFC01000154.1_aaref.vcf.gz --allow-extra-chr --freq 'cols=chrom,pos,ref,alt,altfreq'  --pheno populations.txt --loop-cats 'site'
-paste plink2.*.afreq | awk '{OFS="\t";print $1,$2,$4,$5,$6,$12,$18}' > BLFC01000154.1_plink2.all.afreq
-```
-
-```{r}
-allele_counts <- read_tsv("data/hpc/vcsq/BLFC01000600.1_plink2.all.afreq",col_names = c("CHROM","POS","REF","ALT","IN","NO","SO"),skip = 1) 
-
-geva_info <- geva_pos %>% 
-  left_join(allele_counts,by=c("Position"="POS"))
-
-geva_info %>% 
-  filter(dplyr::between(Position,3685540,3691260)) %>% 
-  filter(PostMedian*5<2e4) %>% 
-  group_by(MarkerID) %>% 
-  summarise(PostMedian,IN,NO,SO) %>% 
-  pivot_longer(cols=c("IN","NO","SO"), names_to = "Pop",values_to = "Freq") %>% 
-  ggplot() + 
-  geom_violin(aes(x=Pop,y=Freq,fill=Pop)) + 
-  geom_point(aes(x=Pop,y=Freq,color=PostMedian),position="jitter") + 
-  facet_wrap(~Pop)
-```
-```{r}
-geva_info %>% 
-  filter(dplyr::between(Position,3685540,3691260)) %>% 
-  group_by(MarkerID,Position) %>% 
-  summarise(PostMedian,IN,NO,SO) %>% 
-  pivot_longer(cols=c("IN","NO","SO"), names_to = "Pop",values_to = "Freq") %>% 
-  ggplot() + 
-  geom_point(aes(x=Position,y=PostMedian*5,color=Freq)) + 
-  facet_wrap(~Pop,ncol=1)
-```
-
 
 ## Haem Peroxidase locus on BLFC01000154.1
+
+We used results from GEVA in combination with allele frequency and variant consequence information to investigate variants overlapping `s0150.g24` in detail.  To facilitate this we first used plink2 to calculate allele frequencies in each population separately.
 
 ```{r}
 # Read allele age info from GEVA and join with physical position info
@@ -119,6 +72,8 @@ paste plink2.*.afreq | awk '{OFS="\t";print $1,$2,$4,$5,$6,$12,$18}' > BLFC01000
 gunzip -c BLFC01000154.1_aaref.vcf.gz | grep -v '^#' | awk '{OFS="\t";print $1,$2,$4,$5,$8}' > BLFC01000154.1_aaref_allele_info.tsv
 ```
 
+A plot of these allele frequencies by population indicates a large number of high-frequency derived alleles in the inshore population compared with the two offshore populations. This is expected since the inshore population was under selection.  Interestingly, when we break this down further we see that low frequency alleles in the inshore population are far younger than high frequency ones with the switch occurring between 2000 and 10000 generations ago. This strong dichotomy between young, rare alleles and old frequent ones is not present in the reference (offshore) populations. It suggests that most rare alleles in the inshore population reflect variants that have arisen since the onset of strong selection at this locus.
+
 ```{r}
 # Read allele frequencies from PLINK and join with geva ages
 #
@@ -127,24 +82,22 @@ allele_counts <- read_tsv("data/hpc/vcsq/BLFC01000154.1_plink2.all.afreq",col_na
 geva_info <- geva_pos %>% 
   left_join(allele_counts,by=c("Position"="POS"))
 
-geva_info %>% 
-  filter(dplyr::between(Position,265513,294565)) %>% 
-  group_by(MarkerID) %>% 
-  summarise(IN,NO,SO) %>% 
-  pivot_longer(cols=c("IN","NO","SO"), names_to = "Pop",values_to = "Freq") %>% 
-  ggplot() + geom_density(aes(x=Freq,fill=Pop)) + facet_wrap(~Pop)
-
-
-geva_info %>% 
-  filter(dplyr::between(Position,265513,294565)) %>% 
-#  filter(PostMedian*5<2e4) %>% 
+af_data <- geva_info %>% 
+  filter(dplyr::between(Position,275513,284565)) %>% 
   group_by(MarkerID) %>% 
   summarise(PostMedian,IN,NO,SO) %>% 
-  pivot_longer(cols=c("IN","NO","SO"), names_to = "Pop",values_to = "Freq") %>% 
+  mutate(age_class = cut(PostMedian,breaks=c(0,2000,5000,10000,Inf))) %>% 
+  pivot_longer(cols=c("IN","NO","SO"), names_to = "Pop",values_to = "Freq")
+
+p_all <-  af_data %>% 
   ggplot() + 
-  geom_point(aes(x=Pop,y=Freq,color=PostMedian),position="jitter") + 
-  geom_violin(aes(x=Pop,y=Freq,fill=Pop),alpha=0.5) + 
-  facet_wrap(~Pop)
+  geom_violin(aes(x=Pop,y=Freq,fill=Pop,color=Pop)) 
+
+p_ac <- af_data %>% 
+  ggplot() + 
+  geom_violin(aes(x=Pop,y=Freq,fill=Pop,color=Pop)) + facet_wrap(~age_class, nrow=1)
+
+plot_grid(p_all,p_ac,ncol=1, labels = c("A","B"))
 ```
 
 
@@ -153,8 +106,10 @@ geva_info %>%
 #
 csq <- read_tsv("data/hpc/vcsq/s0150.g24.csq.tsv",col_names = c("CSQ","Sample","Hap","Chr","Position","Consequence"),skip = 4)
 
+in_exclude_haps <- c("BR_5_121_S125_L004_1","BR_5_121_S125_L004_2","BR_5_123_S121_L004_1")
+
 csq_pos <- geva_info %>% 
-  left_join(csq,by="Position") %>% 
+    left_join(csq,by="Position") %>% 
   unite("Haplotype",Sample,Hap,sep = "_",remove = FALSE) %>% 
   extract(Consequence,into = "Category","([^\\|]*)",remove = FALSE) %>% 
   extract(Haplotype,into = "Location","([^_]*)",remove = FALSE) %>% 
@@ -166,14 +121,9 @@ csq_pos <- geva_info %>%
     ))
 ```
 
-
-To understand the selected haplotype we examine variant consequences on haps from inshore-only, and also exclude any inshore haps that cluster with the offshore. 
-There are three such inshore haps across two individuals. We exclude both these individuals. 
+Combining all this information we create the plot below
 
 ```{r}
-in_exclude_samples <- c("BR_5_123_S121_L004","BR_5_121_S125_L004")
-in_exclude_haps <- c("BR_5_121_S125_L004_1","BR_5_121_S125_L004_2","BR_5_123_S121_L004_1")
-
 n_inshore_haps <- 56
 n_offshore_haps <- 89
 
@@ -203,8 +153,6 @@ csq_pos_both <- csq_pos %>%
   mutate(selection_status = ifelse( !(Haplotype %in% c("BR_5_121_S125_L004_1","BR_5_121_S125_L004_2","BR_5_123_S121_L004_1")),"selected","background")) %>% 
   group_by(Position,ALT,Category,PostMedian) %>% 
   summarise(sel_count = sum(selection_status=="selected"), anc_count = sum(selection_status=="background"))
-  
-
 ```
 
 
@@ -218,18 +166,8 @@ g24_cds <- g24 %>% filter(feature_type=="CDS")
 
 dp <- csq_pos_both %>% 
   mutate(x=Position,y=PostMedian*5, sel=as.numeric(sel_count),anc=as.numeric(anc_count)) %>% 
-  select(x,y,Category,sel,anc) #%>% 
-#  pivot_longer(cols=c("sel","anc"),names_to = "pop",values_to = "hap_count") %>% 
-  
+  select(x,y,Category,sel,anc) 
 
-# library(scatterpie)
-# ggplot() +
-# geom_scatterpie(aes(y=y/300,x=x,group=Category,radius=0.1),data=dp,cols=c("sel","anc")) 
-#  ggplot() + geom_point(aes(y=PostMedian*5,x=Position,color=Category))
-```
-
-
-```{r}
 p_in <- csq_pos_in %>% 
   mutate(hap_freq=HAP_COUNT/n_inshore_haps) %>% 
   filter(!is.na(Consequence)) %>% 
@@ -238,7 +176,7 @@ p_in <- csq_pos_in %>%
   geom_point(aes(y=PostMedian*5,x=Position,color=Category,size=hap_freq)) +
   scale_size_area("Frequency",max_size = 3) +
   theme_pubclean() + theme(legend.position = "right") +
-    ylab("Allele Age (years before present)") + 
+    ylab("Allele Age / Ybp") + 
   xlab("") + 
   geom_hline(aes(yintercept=1e4)) + 
   xlim(275000,285000)
@@ -251,7 +189,7 @@ p_off <- csq_pos_off %>%
   geom_point(aes(y=PostMedian*5,x=Position,color=Category,size=hap_freq)) +
   scale_size_area(max_size = 3) +
   theme_pubclean() +
-    ylab("Allele Age (years before present)") + 
+    ylab("Allele Age / Ybp") + 
   xlab("") + 
   xlim(275000,285000)
 
@@ -283,6 +221,7 @@ prow <- plot_grid(p_in+ theme(legend.position="none"),
 plot_grid(prow,legend,nrow = 1,rel_widths = c(0.85,0.15))
 ggsave("figures/allele_age.png",width = 10,height = 8)
 ```
+
 There are quite a few missense variants in the inshore copy. We can export the resulting protein sequence to see if there are any consequences of this change
 
 ```bash

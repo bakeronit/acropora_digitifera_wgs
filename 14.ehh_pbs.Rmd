@@ -249,7 +249,7 @@ highlight_sweeps <- ehh_sweep_manhattan_data %>%
   ))
 
 highlight_regions <- highlight_sweeps %>% 
-  filter(grepl("s0150.g24",x = genes) | grepl("s0005.g341",genes)) %>% 
+  filter(grepl("s0150.g24",x = genes)) %>% # | grepl("s0005.g341",genes)) %>% 
   filter(population=="IN")
 
 
@@ -285,30 +285,69 @@ knitr::include_graphics("figures/pbs_ehh_manhattan.png")
 
 # Genes associated with the intersection of significant PBS and EHH regions
 
+We used a [python script](./scripts/pbs2bed.py) to identify regions where the population branch statistic for each population exceeded the significance threshold for a false discovery rate of 1%. 
+
 ```bash
 cat data/hpc/selection2/pbs/plink2_noheader.pbs | awk 'BEGIN{OFS="\t"}{print $1,$2,$3}' | ./scripts/pbs2bed.py -t 0.76 > data/hpc/selection2/pbs/pbs_in.bed
-
 cat data/hpc/selection2/pbs/plink2_noheader.pbs | awk 'BEGIN{OFS="\t"}{print $1,$2,$4}' | ./scripts/pbs2bed.py -t 0.49 > data/hpc/selection2/pbs/pbs_no.bed
-
 cat data/hpc/selection2/pbs/plink2_noheader.pbs | awk 'BEGIN{OFS="\t"}{print $1,$2,$5}' | ./scripts/pbs2bed.py -t 0.44 > data/hpc/selection2/pbs/pbs_so.bed
+
+# 10% FDR
+cat data/hpc/selection2/pbs/plink2_noheader.pbs | awk 'BEGIN{OFS="\t"}{print $1,$2,$3}' | ./scripts/pbs2bed.py -t 0.6 > data/hpc/selection2/pbs/pbs_in.bed
+cat data/hpc/selection2/pbs/plink2_noheader.pbs | awk 'BEGIN{OFS="\t"}{print $1,$2,$4}' | ./scripts/pbs2bed.py -t 0.47 > data/hpc/selection2/pbs/pbs_no.bed
+cat data/hpc/selection2/pbs/plink2_noheader.pbs | awk 'BEGIN{OFS="\t"}{print $1,$2,$5}' | ./scripts/pbs2bed.py -t 0.41 > data/hpc/selection2/pbs/pbs_so.bed
+
 ```
+
+Bedtools (v2.30.0) was then used to find genes that intersected with these significant intervals and these in turn were then intersected with sweep regions identified via EHH statistics.  
 
 ```bash
 cd data/hpc/selection2/
-bedtools intersect -u -b pbs_in.bed -a ../../../genome/adig-v2-ncbi.gff | awk '$3=="gene"' > pbs_genes_in.gff
+bedtools intersect -wo -b pbs_in.bed -a ../../../genome/adig-v2-ncbi.gff | awk '$14>0 && $3=="gene"' > pbs_genes_in.gff
 bedtools intersect -wao -a pbs_genes_in.gff -b ../../tracks/sweeps.gff3 | grep 'inshore' > pbs_genes_in_sweeps.tsv
 
-bedtools intersect -u -b pbs_no.bed -a ../../../genome/adig-v2-ncbi.gff | awk '$3=="gene"' > pbs_genes_no.gff
+bedtools intersect -wo -b pbs_no.bed -a ../../../genome/adig-v2-ncbi.gff | awk '$14>0 && $3=="gene"' > pbs_genes_no.gff
 bedtools intersect -wao -a pbs_genes_no.gff -b ../../tracks/sweeps.gff3 | grep 'northoffshore' > pbs_genes_no_sweeps.tsv
 
-bedtools intersect -u -b pbs_so.bed -a ../../../genome/adig-v2-ncbi.gff | awk '$3=="gene"' > pbs_genes_so.gff
+bedtools intersect -wo -b pbs_so.bed -a ../../../genome/adig-v2-ncbi.gff | awk '$14>0 && $3=="gene"' > pbs_genes_so.gff
 bedtools intersect -wao -a pbs_genes_so.gff -b ../../tracks/sweeps.gff3 | grep 'southoffshore' > pbs_genes_so_sweeps.tsv
+```
+
+```{r}
+# If not present run 09.annotate
+uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv", show_col_types = FALSE) %>% 
+  mutate(go=go_ipr) %>% 
+  dplyr::select(-go_ipr)
 ```
 
 
 ```{r}
+read_sg <- function(path){
+  read_tsv(path,col_names = NULL,show_col_types = FALSE) %>% 
+  unite("region_id",X14,X17,X18,sep="_") %>% 
+  tidyr::extract(X9,into="gene_id",regex="ID=([^B]+)") %>% 
+  dplyr::select(region_id,gene_id, max_pbs=X12,sum_pbs=X13,max_ehh=X19)
+}
 
+sweep_genes <- rbind(
+  read_sg("data/hpc/selection2/pbs/pbs_genes_in_sweeps.tsv") %>% add_column(pop="inshore"),
+  read_sg("data/hpc/selection2/pbs/pbs_genes_no_sweeps.tsv") %>% add_column(pop="northoffshore"),
+  read_sg("data/hpc/selection2/pbs/pbs_genes_so_sweeps.tsv") %>% add_column(pop="southoffshore")
+) %>% 
+  group_by(region_id,gene_id,pop) %>% 
+  summarise(max_pbs = max(max_pbs),sum_pbs=sum(sum_pbs),max_ehh=max(max_ehh))
 ```
+
+
+
+
+```{r}
+candidate_genes_table <- sweep_genes %>% 
+  left_join(uniprot_gene_annot,by=c("gene_id"="geneid"))
+```
+
+
+
 
 
 
