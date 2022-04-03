@@ -12,5 +12,7 @@ do_realsfs(){
 
 export -f do_realsfs
 
-parallel -j 3 do_realsfs ::: inshore north_offshore south_offshore
+do_realsfs jp
+
+#parallel -j 3 do_realsfs ::: inshore north_offshore south_offshore
 

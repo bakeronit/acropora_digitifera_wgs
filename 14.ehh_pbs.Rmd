@@ -252,27 +252,38 @@ highlight_regions <- highlight_sweeps %>%
   filter(grepl("s0150.g24",x = genes)) %>% # | grepl("s0005.g341",genes)) %>% 
   filter(population=="IN")
 
+fix_pops <- function(data){
+  data %>% 
+    mutate(population = case_when(
+    population=="IN" ~ "Inshore",
+    population=="NO" ~ "North Offshore",
+    population=="SO" ~ "South Offshore"
+  ))
+}
 
 mh_plot <- pbs_manhattan_data %>% 
   filter(PBS>0) %>% 
+  fix_pops() %>% 
   ggplot() + 
   geom_point(aes(x=abs_pos/1e6,y=PBS,color=as.character(scaffold_num %% 2)),size=0.02) + 
-  geom_point(data = pbs_ehh_overlapping,aes(x=abs_pos/1e6,y=PBS),color="blue",size=0.1) +   
-  geom_linerange(data=highlight_sweeps, aes(xmin=(abs_start/1e6)-0.1,xmax=(abs_end/1e6)+0.1,y=-0.25),size=1.5,color="purple",alpha=1) +
-  geom_linerange(data=highlight_regions, aes(xmin=(abs_start/1e6)-1,xmax=(abs_end/1e6)+1,y=-0.25),size=1000,color="yellow",alpha=0.5) +
+  geom_point(data = pbs_ehh_overlapping %>% fix_pops(),aes(x=abs_pos/1e6,y=PBS),color="blue",size=0.1) +   
+  geom_linerange(data=highlight_sweeps %>% fix_pops(), aes(xmin=(abs_start/1e6)-0.1,xmax=(abs_end/1e6)+0.1,y=-0.25),size=1.5,color="red",alpha=1) +
+  geom_linerange(data=highlight_regions %>% fix_pops(), aes(xmin=(abs_start/1e6)-1,xmax=(abs_end/1e6)+1,y=-0.25),size=1000,color="yellow",alpha=0.5) +
   #  geom_point(data = to_label,aes(x=abs_pos/1e6,y=PBS),color="purple",size=0.5) + 
 #  geom_label_repel(data = to_label,aes(x=abs_pos/1e6,y=PBS, label=dated_locus_number),size=2,nudge_y=1,nudge_x = -10) + 
   ylab("Population Branch Statistic") + xlab("Genome Position / Mb") + ylim(-0.3,NA) +
   scale_color_grey() +
+  scale_y_continuous(breaks=c(0,2,4)) +
   theme_bw() +
     theme(panel.grid = element_blank(),
         legend.position = "none",
         legend.text = element_text(),
-        axis.text.y = element_text(size=6),
-        axis.text.x = element_text(size=6),
-        axis.title.x = element_text(size=8),
-        axis.title.y = element_text(size=8),
-        strip.text = element_text(size=6))  + facet_wrap(~population,ncol = 1)
+        axis.text.y = element_text(size=8),
+        axis.text.x = element_text(size=8),
+        axis.title.x = element_text(size=10),
+        axis.title.y = element_text(size=10),
+        strip.background = element_blank(),
+        strip.text = element_text(size=8))  + facet_wrap(~population,ncol = 1)
 ggsave(mh_plot,filename = "figures/pbs_ehh_manhattan.png",width = 6.75,height = 3)
 ```
 
@@ -311,6 +322,14 @@ bedtools intersect -wao -a pbs_genes_no.gff -b ../../tracks/sweeps.gff3 | grep '
 
 bedtools intersect -wo -b pbs_so.bed -a ../../../genome/adig-v2-ncbi.gff | awk '$14>0 && $3=="gene"' > pbs_genes_so.gff
 bedtools intersect -wao -a pbs_genes_so.gff -b ../../tracks/sweeps.gff3 | grep 'southoffshore' > pbs_genes_so_sweeps.tsv
+```
+
+Bedtools was also used to simply find ehh-based sweeps overlapping with significant pbs regions
+
+```bash
+bedtools intersect -u -b pbs_in.bed -a ../../tracks/sweeps.gff3  | grep 'inshore' > sweeps_in_pbs.gff
+bedtools intersect -u -b pbs_no.bed -a ../../tracks/sweeps.gff3  | grep 'northoffshore' > sweeps_no_pbs.gff
+bedtools intersect -u -b pbs_so.bed -a ../../tracks/sweeps.gff3  | grep 'southoffshore' > sweeps_so_pbs.gff
 ```
 
 ```{r}

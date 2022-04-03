@@ -22,13 +22,16 @@ We only used variants from scaffold with a length greater than 1Mbp in which acc
 <!-- - Eight haplotypes (4 samples) from each reef in **MSMC**. -->
 
 ## 0. Mutation rate estimate
-The per generation mutation rate of *A.digitifera* estimated based on a divergence time of 15.5 Millions years is 2.89e-8 in [@Mao2018]. However, the recent updated Acropora coral divergence time in [@Shinzato2020] is 25-50 million years which gave us a smaller per generation mutation rate of 1.2e-8 based on previous calculation and we thus used the calibrated mutation rate in our analyses.
+The per generation mutation rate of *A.digitifera* estimated based on a divergence time of 15.5 Million years to *A. tenuis* is 2.89e-8 in [@Mao2018]. A more recent study that used numerous fossil calibration points and 818 orthologous genes points toward a much older divergence time of 50Mya [@Shinzato2020]. Given the inherent uncertainties in these estimates we chose a value of 37.5Mya as this lies at the midpoint between the youngest Acropora fossils (25 Mya) [@Santodomingo2015-yl] and more ancient estimates from whole genome analyses [@Shinzato2020]. To translate these divergence times to mutation rates we updated calculations in [@Mao2018] as follows; 
 
 ```bash
 #(79427941/(79427942+363368171)/(2 × 15.5)) x 5 × 10−6 = 2.89 × 10−8
 #calibrate divergence time to 37.5
 (79427941/(79427942+363368171)/(2 × 37.5)) x 5 × 10−6 = 1.20 x 10-8
 ```
+
+This gave a per generation mutation rate of 1.2e-8 that we used for all analyses.
+
 ## 1. PSMC analysis
 
 We first used bcftools mpileup and call functions to get sample-specific SNP data sets, in which we removed sites with mean map and base quality < 30. Then appied psmc to each sample with 64 atomic time (-p 4+25*2+4+6).

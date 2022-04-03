@@ -11,6 +11,8 @@ knitr::opts_chunk$set(echo = FALSE,message=FALSE,warning = FALSE)
 library(tidyverse)
 library(ggpubr)
 library(cowplot)
+library(ggpubr)
+library(ggsci)
 ```
 
 Analyses with SMC++ and fastsimcoal both indicated the presence of a strong bottleneck (most likely founder effect) in all three populations.  These bottleneck effects would have contributed to drift, which, combined with low migration rates would have resulted in the clear divergence observed in population structure analyses.  Here we used fastsimcoal analyses to disentangle these effects.  To do this we constructed a model (called `no_bott`) that was based on the best fitting model, but, where all changes in Ne were removed, effectively keeping the population size the same as the ancestral population with subdivision on splits.  This model is detailed in [3.out.no_bott.est](data/hpc/fastsimcoal/no_bott/3.out.no_bott.est) and [3.out.no_bott.tpl](data/hpc/fastsimcoal/no_bott/3.out.no_bott.tpl)
@@ -51,8 +53,25 @@ if (!file.exists("data/r_essentials/24_fst.rds")){
   fst_sum <- read_rds("data/r_essentials/24_fst.rds")  
 }
   
-fst_sum %>% ggplot(aes(x=Pair)) + geom_boxplot(aes(y=HUDSON_FST,fill=model))
-```
+p_fst <- fst_sum %>% 
+  ggplot(aes(x=Pair)) + 
+  geom_boxplot(aes(y=HUDSON_FST,fill=model)) + 
+  scale_fill_discrete(labels = c("IMc","No Bottleneck")) +
+  theme_pubclean() +
+  theme(legend.title = element_blank()) +
+  xlab("Population Pair") + ylab("Fst")
 
+nobott_pca <- read_tsv("data/hpc/fastsimcoal/no_bott/3.out.no_bott/pca/3.out.no_bott_1_1.eigenvec") %>% 
+  tidyr::extract(`#IID`,"Location",regex = "([^_]+)",remove=FALSE)
+
+p_pca <- nobott_pca %>% 
+  ggplot(aes(x=PC1,y=PC2)) + 
+  geom_point(aes(color=Location)) +
+  theme_pubclean() +
+  scale_color_startrek()
+
+plot_grid(p_fst,p_pca,nrow=1,labels = c("A","B"))
+ggsave("figures/fig-s17.png",width = 6.5,height = 4)
+```
 
 

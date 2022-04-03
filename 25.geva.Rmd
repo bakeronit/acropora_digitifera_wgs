@@ -47,7 +47,8 @@ bcftools csq -f BLFC01000154.1_aa.fasta -g s0150.g24.gff BLFC01000154.1_aaref.vc
 
 ## Haem Peroxidase locus on BLFC01000154.1
 
-We used results from GEVA in combination with allele frequency and variant consequence information to investigate variants overlapping `s0150.g24` in detail.  To facilitate this we first used plink2 to calculate allele frequencies in each population separately.
+We used results from GEVA in combination with allele frequency and variant consequence information to investigate variants overlapping `s0150.g24` in detail.  
+A plot of these allele frequencies by population indicates a large number of high-frequency derived alleles in the inshore population compared with the two offshore populations. This is expected since the inshore population was under selection.  Interestingly, when we break this down further we see that low frequency alleles in the inshore population are far younger than high frequency ones with the switch occurring between 2000 and 10000 generations ago. This strong dichotomy between young, rare alleles and old frequent ones is not present in the reference (offshore) populations. It suggests that most rare alleles in the inshore population reflect variants that have arisen since the onset of strong selection at this locus.
 
 ```{r}
 # Read allele age info from GEVA and join with physical position info
@@ -62,45 +63,6 @@ geva_pos <- geva_sites %>%
   left_join(markers)
 ```
 
-
-```bash
-plink2 --vcf BLFC01000154.1_aaref.vcf.gz --allow-extra-chr --freq 'cols=chrom,pos,ref,alt,altfreq'  --pheno populations.txt --loop-cats 'site'
-paste plink2.*.afreq | awk '{OFS="\t";print $1,$2,$4,$5,$6,$12,$18}' > BLFC01000154.1_plink2.all.afreq
-```
-
-```bash
-gunzip -c BLFC01000154.1_aaref.vcf.gz | grep -v '^#' | awk '{OFS="\t";print $1,$2,$4,$5,$8}' > BLFC01000154.1_aaref_allele_info.tsv
-```
-
-A plot of these allele frequencies by population indicates a large number of high-frequency derived alleles in the inshore population compared with the two offshore populations. This is expected since the inshore population was under selection.  Interestingly, when we break this down further we see that low frequency alleles in the inshore population are far younger than high frequency ones with the switch occurring between 2000 and 10000 generations ago. This strong dichotomy between young, rare alleles and old frequent ones is not present in the reference (offshore) populations. It suggests that most rare alleles in the inshore population reflect variants that have arisen since the onset of strong selection at this locus.
-
-```{r}
-# Read allele frequencies from PLINK and join with geva ages
-#
-allele_counts <- read_tsv("data/hpc/vcsq/BLFC01000154.1_plink2.all.afreq",col_names = c("CHROM","POS","REF","ALT","IN","NO","SO"),skip = 1) 
-
-geva_info <- geva_pos %>% 
-  left_join(allele_counts,by=c("Position"="POS"))
-
-af_data <- geva_info %>% 
-  filter(dplyr::between(Position,275513,284565)) %>% 
-  group_by(MarkerID) %>% 
-  summarise(PostMedian,IN,NO,SO) %>% 
-  mutate(age_class = cut(PostMedian,breaks=c(0,2000,5000,10000,Inf))) %>% 
-  pivot_longer(cols=c("IN","NO","SO"), names_to = "Pop",values_to = "Freq")
-
-p_all <-  af_data %>% 
-  ggplot() + 
-  geom_violin(aes(x=Pop,y=Freq,fill=Pop,color=Pop)) 
-
-p_ac <- af_data %>% 
-  ggplot() + 
-  geom_violin(aes(x=Pop,y=Freq,fill=Pop,color=Pop)) + facet_wrap(~age_class, nrow=1)
-
-plot_grid(p_all,p_ac,ncol=1, labels = c("A","B"))
-```
-
-
 ```{r}
 # Read haplotype-aware consequence info and join with geva_info
 #
@@ -108,8 +70,8 @@ csq <- read_tsv("data/hpc/vcsq/s0150.g24.csq.tsv",col_names = c("CSQ","Sample","
 
 in_exclude_haps <- c("BR_5_121_S125_L004_1","BR_5_121_S125_L004_2","BR_5_123_S121_L004_1")
 
-csq_pos <- geva_info %>% 
-    left_join(csq,by="Position") %>% 
+csq_pos <- csq %>% 
+  left_join(geva_pos,by="Position") %>% 
   unite("Haplotype",Sample,Hap,sep = "_",remove = FALSE) %>% 
   extract(Consequence,into = "Category","([^\\|]*)",remove = FALSE) %>% 
   extract(Haplotype,into = "Location","([^_]*)",remove = FALSE) %>% 
@@ -118,7 +80,11 @@ csq_pos <- geva_info %>%
     Category=="missense" ~ "Missense",
     Category=="splice_region" ~ "Splice Region",
     Category=="synonymous" ~ "Synonymous"
-    ))
+    )) %>% 
+  ungroup() %>% 
+  group_by(Position) %>% 
+  mutate(total_haps=n_distinct(Haplotype)) #%>% 
+#  filter(total_haps<140) # Remove SNPs with high frequency in both WA populations
 ```
 
 Combining all this information we create the plot below
@@ -126,71 +92,101 @@ Combining all this information we create the plot below
 ```{r}
 n_inshore_haps <- 56
 n_offshore_haps <- 89
+sweep_age <- 8269.349
 
-csq_pos_in <- csq_pos %>% 
-  filter(Clock=="J") %>% 
-  filter(Filtered==1) %>% 
-  filter(Location %in% c("BR","AI")) %>% 
-  filter(!(Haplotype %in% in_exclude_haps)) %>% 
-  group_by(Position,ALT) %>% 
-  mutate(HAP_COUNT=n_distinct(Haplotype)) %>% 
-  mutate(hap_freq=HAP_COUNT/n_inshore_haps)
-  
-
-csq_pos_off <- csq_pos %>% 
-  filter(Clock=="J") %>% 
-  filter(Filtered==1) %>% 
-  filter(!(Location %in% c("BR","AI"))) %>% 
-  group_by(Position,ALT) %>% 
-  mutate(HAP_COUNT=n_distinct(Haplotype)) %>% 
-  mutate(hap_freq = HAP_COUNT/n_offshore_haps)
-
-csq_pos_both <- csq_pos %>% 
-  ungroup() %>% 
-  filter(between(Position,275513,284565)) %>% 
-  filter(Clock=="J") %>% 
-  filter(Filtered==1) %>% 
-  mutate(selection_status = ifelse( !(Haplotype %in% c("BR_5_121_S125_L004_1","BR_5_121_S125_L004_2","BR_5_123_S121_L004_1")),"selected","background")) %>% 
-  group_by(Position,ALT,Category,PostMedian) %>% 
-  summarise(sel_count = sum(selection_status=="selected"), anc_count = sum(selection_status=="background"))
-```
-
-
-
-```{r}
 g24 <- read_tsv("data/hpc/vcsq/s0150.g24.mod.gff",col_names = c("Chr","Prog","feature_type","start","end")) 
   
 g24_ex <- g24 %>% filter(feature_type=="exon")
 g24_gene <- g24 %>% filter(feature_type=="gene")
 g24_cds <- g24 %>% filter(feature_type=="CDS")
 
-dp <- csq_pos_both %>% 
-  mutate(x=Position,y=PostMedian*5, sel=as.numeric(sel_count),anc=as.numeric(anc_count)) %>% 
-  select(x,y,Category,sel,anc) 
 
-p_in <- csq_pos_in %>% 
-  mutate(hap_freq=HAP_COUNT/n_inshore_haps) %>% 
-  filter(!is.na(Consequence)) %>% 
+hap_based_af <- csq_pos %>% 
+  ungroup() %>% 
+  filter(between(Position,g24_gene$start,g24_gene$end)) %>% 
+  filter(Clock=="J") %>% 
+  filter(Filtered==1) %>% 
+  mutate(selection_status = ifelse( (!(Haplotype %in% c("BR_5_121_S125_L004_1","BR_5_121_S125_L004_2","BR_5_123_S121_L004_1")) & (Location %in% c("BR","AI"))),"Selected","Background")) %>% 
+  group_by(Position,Category,PostMedian) %>% 
+  summarise(
+    Selected = sum(selection_status=="Selected")/n_inshore_haps, 
+    Background = sum(selection_status=="Background")/(n_offshore_haps+3),
+    Age = PostMedian*5
+    ) %>% 
+  mutate(age_class = cut(Age,breaks=c(0,8000,Inf))) %>% 
+  pivot_longer(cols=c("Selected","Background"), names_to = "haptype",values_to = "Freq") %>% 
+  mutate(freq_class = cut(Freq,breaks=c(0,0.25,0.5,0.75,1.0))) %>% 
+  distinct()
+
+p_all <-  hap_based_af %>% 
+  ggplot() + 
+  geom_violin(aes(x=haptype,y=Freq,fill=haptype,color=haptype)) 
+
+p_ac <- hap_based_af %>% 
+  ggplot() + 
+  geom_violin(aes(x=haptype,y=Freq,fill=haptype,color=haptype)) + 
+#  geom_jitter(aes(x=haptype,y=Freq,color=haptype),height=0) + 
+  facet_wrap(~age_class, nrow=1)
+
+plot_grid(p_all,p_ac,ncol=1, labels = c("A","B"))
+```
+
+```{r}
+hap_based_af %>% 
+  ggplot() + 
+  geom_violin(aes(x=haptype,y=Freq,fill=haptype,color=haptype)) + 
+  facet_wrap(~age_class, nrow=1) + 
+  theme_pubclean() + guides(fill="none",color="none") + 
+  xlab("") + ylab("Allele Frequency")
+
+ggsave("figures/fig-s20.png", width = 6.5,height = 4)
+
+hap_based_af %>% 
+  ungroup() %>% 
+  dplyr::group_by(age_class,haptype) %>% 
+  dplyr::summarise(count=n())
+```
+
+
+```{r}
+library(colorspace)
+cat_colors <- qualitative_hcl(4, palette = "Dark 2")
+names(cat_colors) <- c("Missense","Non Coding","Splice Region","Synonymous")
+
+csq_plot_data <- csq_pos %>% 
+  filter(Clock=="J") %>% 
+  filter(Filtered==1) %>% 
+  group_by(Position) %>% 
+  mutate(total_haps = n_distinct(Haplotype)) %>% 
+  ungroup() %>% 
+  mutate(selection_status = ifelse( (!(Haplotype %in% c("BR_5_121_S125_L004_1","BR_5_121_S125_L004_2","BR_5_123_S121_L004_1")) & (Location %in% c("BR","AI"))),"Selected","Background")) %>%
+  mutate(selection_status_order = ifelse(selection_status=="Selected",1,2)) %>% 
+  group_by(Position,selection_status) %>% 
+  dplyr::summarise(Category,PostMedian,selection_status_order,total_haps,hap_count = n_distinct(Haplotype)) %>% 
+  mutate(hap_freq = ifelse( selection_status=="Selected", hap_count/n_inshore_haps,hap_count/(n_offshore_haps+3))) %>% 
+  distinct()
+
+p_snps <- csq_plot_data %>%   
+  filter(total_haps<=140) %>% # Remove SNPs that are nearly monomorphic (derived AF>95%)
   ggplot() + scale_y_log10(limits=c(5e3,NA)) +
-  geom_linerange(data=g24_ex, aes(xmin=start,xmax=end,y=1e4),size=1000,color="yellow",alpha=0.2) +  
-  geom_point(aes(y=PostMedian*5,x=Position,color=Category,size=hap_freq)) +
+  geom_linerange(data=g24_ex, aes(xmin=start,xmax=end,y=1e4),size=1000,color="grey",alpha=0.2) +  
+  geom_point(aes(y=PostMedian*5,x=Position,color=Category,size=hap_freq),alpha=0.95) +
+#  geom_point(aes(x=278594,y=6051*5),color="black",size=3) +
+#  geom_point(aes(x=281245,y=6051*5),color="black",size=3) +
+  facet_wrap(~reorder(selection_status,selection_status_order),ncol = 1,strip.position = "left") +
+  scale_color_manual(values=cat_colors) +
   scale_size_area("Frequency",max_size = 3) +
-  theme_pubclean() + theme(legend.position = "right") +
+  theme_pubclean() + theme(legend.position = "right") + 
+  theme(strip.background = element_rect(fill = "transparent",color="black"), 
+        axis.text.x = element_blank(), 
+        axis.ticks.x = element_blank(),
+        axis.text.y = element_blank(),
+        axis.title.x = element_text(size=12),
+        strip.text = element_text(size=12)) +
     ylab("Allele Age / Ybp") + 
   xlab("") + 
-  geom_hline(aes(yintercept=1e4)) + 
-  xlim(275000,285000)
-
-p_off <- csq_pos_off %>% 
-  mutate(hap_freq=HAP_COUNT/n_inshore_haps) %>% 
-  filter(!is.na(Consequence)) %>% 
-  ggplot() + scale_y_log10(limits=c(5e3,NA)) +
-  geom_linerange(data=g24_ex, aes(xmin=start,xmax=end,y=1e4),size=1000,color="yellow",alpha=0.2) +  
-  geom_point(aes(y=PostMedian*5,x=Position,color=Category,size=hap_freq)) +
-  scale_size_area(max_size = 3) +
-  theme_pubclean() +
-    ylab("Allele Age / Ybp") + 
-  xlab("") + 
+#  geom_hline(aes(yintercept=sweep_age,alpha=selection_status),size=0.5,color="black") +
+  scale_alpha_manual(values=c(0,0.5)) + guides(alpha="none", fill="none") +
   xlim(275000,285000)
 
 library(gggenes)
@@ -202,25 +198,40 @@ g24_sub <- g24 %>%
 
 p_gene <- g24_gene %>% ggplot() +
   geom_gene_arrow(aes(y=Chr,xmin=start,xmax=end, forward = FALSE)) +
-  geom_subgene_arrow(data=g24_sub,aes(xmin=275513,xmax=284565,xsubmin=start,xsubmax=end,y=Chr,fill=feature_type), forward=FALSE, alpha=0.5) +
+  geom_subgene_arrow(data=g24_sub,aes(xmin=275513,xmax=284565,xsubmin=start,xsubmax=end,y=Chr,fill=feature_type), forward=FALSE, alpha=0.9) +
     ylab("") + theme_genes() +
-  xlim(275000,285000) + theme(legend.position="bottom", legend.title = element_blank())
+  xlim(275000,285000) + 
+  theme(legend.position="bottom", 
+        text = element_text(size=14), 
+        axis.text.x = element_text(size=14),
+#        strip.text = element_text(size=12),
+        legend.title = element_blank())
 
 legend <- get_legend(
   # create some space to the left of the legend
-  p_in + theme(legend.box.margin = margin(0, 0, 0, 12))
+  p_snps + theme(legend.box.margin = margin(0, 0, 0, 12), legend.title = element_blank()) +
+    theme(legend.position = "bottom", legend.key = element_blank())
 )
 
-prow <- plot_grid(p_in+ theme(legend.position="none"),
-                  p_off+ theme(legend.position="none"),
+pcol <- plot_grid(p_snps+ theme(legend.position="none"),
                   p_gene ,
                   ncol=1,
-                  align = "v",
-                  rel_heights = c(0.45,0.45,0.3))
+                  align = "v",axis="lr",
+                  rel_heights = c(0.9,0.15))
 
-plot_grid(prow,legend,nrow = 1,rel_widths = c(0.85,0.15))
-ggsave("figures/allele_age.png",width = 10,height = 8)
+ggsave(pcol,filename = "figures/allele_age.png",width = 10,height = 8)
+
+#plot_grid(pcol,legend,nrow = 1,rel_widths = c(0.85,0.15))
+ggsave(legend,filename = "figures/allele_age_legend.png",width = 8,height = 2)
 ```
+
+An interesting feature of this plot is the very large number of missense variants in the second exon.  Let's count how many of these there are compared with the background
+
+```{r}
+csq_plot_data %>% filter(between(Position,282258,282894)) %>% group_by(selection_status,Category) %>% summarise(count=n_distinct(Position))
+```
+
+
 
 There are quite a few missense variants in the inshore copy. We can export the resulting protein sequence to see if there are any consequences of this change
 

@@ -1,0 +1,74 @@
+---
+title: "Phylogenetic analysis of haem peroxidases"
+bibliography: bibliography.bib
+output:
+  github_document:
+    pandoc_args: --webtex
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message=FALSE,warning = FALSE)
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+```
+
+We identified haem peroxidases from within *Acropora digitifera* as all proteins annotated with Interproscan domain `IPR019791`.  These were then used as a query set to identify haem peroxidases in other coral species using BLASTP as follows;
+
+```bash
+# Example for Acropora millepora (amil)
+blastp -db other_species/amil_1.1.maker_006.proteins.fasta -query pxproteins.fasta -max_target_seqs 5 -outfmt 6 -evalue 1e-10 | awk '{print $2}' | sort -u | xargs -I{} samtools faidx other_species/amil_1.1.maker_006.proteins.fasta {} > amil.fasta
+```
+
+This produced a total of 105 sequences (including Acropora digitifera proteins) that we aligned using the MAFFT plugin in Geneious.  We then masked positions with less than 50% aligned bases to produce a final alignment with length 679. 
+
+IQ-Tree was then used to perform model finding and tree inference as follows;
+
+```bash
+iqtree -s px_align.fasta -B 1000
+```
+
+
+```{r}
+library(ggtree)
+tf <- read.tree("data/hpc/peroxidases/px_align.fasta.contree")
+tf <- read.tree("data/hpc/peroxidases/px_align.fasta.treefile")
+
+px_tree_data <- data.frame(tip=tf$tip.label) %>% 
+  extract(tip,"species","([a-z0-9]+)",remove = F) 
+  
+
+ggtree(tf) %<+% px_tree_data + 
+  geom_tiplab(aes(color=species)) +
+  geom_nodelab()
+
+
+library(phytools)
+
+adig_cluster_tips <- px_tree_data %>% filter(grepl(tip,pattern="s0150")) %>% pull(tip)
+
+adig_cluster_mrca <- getMRCA(tf, adig_cluster_tips)
+
+library(ape)
+
+tf_cluster <- extract.clade(tf,adig_cluster_mrca)
+px_tree_data_cluster <- px_tree_data %>% filter(tip %in% tf_cluster$tip.label)
+
+tf_cluster_rooted <- root(tf_cluster,outgroup = "plut2.m8.32969.m1")
+
+species <- c("adig"="Acropora digitifera","amil"="Acropora millepora","aten"="Acropora tenuis","plut2"="Porites lutea","pspe"="Pachyseris speciosa")
+
+ggtree(tf_cluster_rooted) %<+% px_tree_data_cluster + 
+  geom_tiplab(aes(color=species),size=2) +
+  geom_nodelab(size=2) + 
+  scale_color_discrete(labels=species) +
+  theme(legend.position = "bottom", text = element_text(size=6), legend.title = element_blank()) + 
+  xlim(NA,5)
+  
+
+ggsave("figures/fig-s18.png",height = 6,width = 5)
+```
+
+
+
+

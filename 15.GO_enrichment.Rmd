@@ -31,14 +31,18 @@ candidate_regions_table <- read_rds("data/r_essentials/candidate_regions_genes_e
 
 candidate_genes_table <- candidate_regions_table %>% 
   separate_rows(genes,sep=";") %>% 
-  left_join(uniprot_gene_annot, by = c("genes"="geneid") )
+  left_join(uniprot_gene_annot, by = c("genes"="geneid") ) %>% 
+  unite("region_id",chr,start,end,sep = "_",remove = FALSE)
 ```
+
+
+
 
 In a previous analysis (see [10.identify_selective_genomic_windows](10.identify_selective_genomic_windows.md) we identified a total of `r nrow(candidate_regions_table)` candidate selective sweep regions.  A summary of sweep regions and the number of genes covered by them in each population is shown below;
 
 ```{r}
 candidate_genes_table %>% 
-  mutate(region_id = paste(chr,start,end,collapse = "_")) %>% 
+#  mutate(region_id = paste(chr,start,end,collapse = "_")) %>% 
   group_by(pop) %>% 
   dplyr::summarise(numgenes = n(), nregions = length(unique(region_id))) %>% 
   knitr::kable()
@@ -331,9 +335,9 @@ barplot <- pg_go %>%
         legend.position = "bottom",
         legend.text = element_text(),
         axis.text.y = element_blank(),
-        axis.text.x = element_text(size=6),
-        axis.title.x = element_text(size=6),
-        strip.text = element_text(size=6),
+        axis.text.x = element_text(size=8),
+        axis.title.x = element_text(size=8),
+        strip.text = element_text(size=8),
         strip.background = element_blank()) + 
   ylab("") + 
   facet_wrap(~pop_names) +

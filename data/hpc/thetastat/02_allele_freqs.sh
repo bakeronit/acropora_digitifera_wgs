@@ -17,5 +17,7 @@ do_pop(){
 
 export -f do_pop
 
-parallel -j 3 do_pop ::: inshore north_offshore south_offshore
+do_pop jp
+
+#parallel -j 3 do_pop ::: inshore north_offshore south_offshore
 
