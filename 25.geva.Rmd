@@ -13,7 +13,7 @@ library(ggpubr)
 library(cowplot)
 ```
 
-To investigate the timing of selection in relation to the emergence of variants at selective sweeps we used [GEVA](https://github.com/pkalbers/geva) [@Albers2020-vl] (Genealogical Estimation of Variant Age) to estimate the age of all 7.7M variants genome-wide that were present within our sample of phased haplotypes (see [03.phasing](03.phasing.md)). 
+To investigate the timing of selection in relation to the emergence of variants at selective sweeps we used [GEVA](https://github.com/pkalbers/geva) [@Albers2020-vl] (Genealogical Estimation of Variant Age) to estimate the age of variants at selected loci. 
 
 One requirement for GEVA is that the ancestral and derived alleles are identified for each SNP. We used [est-sfs](http://www.homepages.ed.ac.uk/pkeightl//software) [@Keightley2018-dh] for this task as follows;
   
@@ -51,19 +51,23 @@ We used results from GEVA in combination with allele frequency and variant conse
 A plot of these allele frequencies by population indicates a large number of high-frequency derived alleles in the inshore population compared with the two offshore populations. This is expected since the inshore population was under selection.  Interestingly, when we break this down further we see that low frequency alleles in the inshore population are far younger than high frequency ones with the switch occurring between 2000 and 10000 generations ago. This strong dichotomy between young, rare alleles and old frequent ones is not present in the reference (offshore) populations. It suggests that most rare alleles in the inshore population reflect variants that have arisen since the onset of strong selection at this locus.
 
 ```{r}
-# Read allele age info from GEVA and join with physical position info
-sites_files <- list.files("data/hpc/geva/chroms/BLFC01000154.1/","*.sites",full.names = TRUE)
+if ( !file.exists("data/r_essentials/geva_pos.rds")){
 
-options(readr.show_col_types = FALSE)
-geva_sites <- map_dfr(sites_files,read_table, col_types=cols())
+  # Read allele age info from GEVA and join with physical position info
+  sites_files <- list.files("data/hpc/geva/chroms/BLFC01000154.1/","*.sites",full.names = TRUE)
 
-markers <- read_table("data/hpc/geva/chroms/BLFC01000154.1/BLFC01000154.1_geva.marker.txt")
+  options(readr.show_col_types = FALSE)
+  geva_sites <- map_dfr(sites_files,read_table, col_types=cols())
 
-geva_pos <- geva_sites %>% 
-  left_join(markers)
-```
+  markers <- read_table("data/hpc/geva/chroms/BLFC01000154.1/BLFC01000154.1_geva.marker.txt")
 
-```{r}
+  geva_pos <- geva_sites %>% 
+    left_join(markers)
+  write_rds(geva_pos,"data/r_essentials/geva_pos.rds")
+} else {
+  geva_pos <- read_rds("data/r_essentials/geva_pos.rds")
+}
+
 # Read haplotype-aware consequence info and join with geva_info
 #
 csq <- read_tsv("data/hpc/vcsq/s0150.g24.csq.tsv",col_names = c("CSQ","Sample","Hap","Chr","Position","Consequence"),skip = 4)
@@ -223,6 +227,9 @@ ggsave(pcol,filename = "figures/allele_age.png",width = 10,height = 8)
 
 #plot_grid(pcol,legend,nrow = 1,rel_widths = c(0.85,0.15))
 ggsave(legend,filename = "figures/allele_age_legend.png",width = 8,height = 2)
+```
+```{r}
+knitr::include_graphics("figures/allele_age.png")
 ```
 
 An interesting feature of this plot is the very large number of missense variants in the second exon.  Let's count how many of these there are compared with the background

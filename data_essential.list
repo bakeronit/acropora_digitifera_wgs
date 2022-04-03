@@ -144,7 +144,15 @@ data/hpc/symbiont/d2s/wa_matrix.txt
 data/r_essentials/24_fst.rds
 data/hpc/fastsimcoal/no_bott/3.out.no_bott/pca/3.out.no_bott_1_1.eigenvec
 
+
+# 25 GEVA
+
+data/hpc/vcsq/s0150.g24.csq.tsv
+data/r_essentials/geva_pos.rds
+data/hpc/vcsq/s0150.g24.mod.gff
+
 # 27 Peroxidases
+
 data/hpc/peroxidases/px_align.fasta.treefile
 data/hpc/peroxidases/px_align.fasta
 
