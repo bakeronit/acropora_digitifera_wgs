@@ -144,6 +144,12 @@ data/hpc/symbiont/d2s/wa_matrix.txt
 data/r_essentials/24_fst.rds
 data/hpc/fastsimcoal/no_bott/3.out.no_bott/pca/3.out.no_bott_1_1.eigenvec
 
+# 27 Peroxidases
+data/hpc/peroxidases/px_align.fasta.treefile
+data/hpc/peroxidases/px_align.fasta
+
+
+
 # x10 outgroup analysis
 data/hpc/pcangsd/samples.txt
 data/hpc/pcangsd/all_bam.txt

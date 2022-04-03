@@ -20,7 +20,9 @@ We identified haem peroxidases from within *Acropora digitifera* as all proteins
 blastp -db other_species/amil_1.1.maker_006.proteins.fasta -query pxproteins.fasta -max_target_seqs 5 -outfmt 6 -evalue 1e-10 | awk '{print $2}' | sort -u | xargs -I{} samtools faidx other_species/amil_1.1.maker_006.proteins.fasta {} > amil.fasta
 ```
 
-This produced a total of 105 sequences (including Acropora digitifera proteins) that we aligned using the MAFFT plugin in Geneious.  We then masked positions with less than 50% aligned bases to produce a final alignment with length 679. 
+In this case "other species" included *Acropora millepora*, *Acropora tenuis*, *Pachyseris speciosa* and *Porites lutea*.  All were chosen because they have high quality assembled genomes and corresponding gene model sets. 
+
+This produced a total of 105 sequences (including *Acropora digitifera* proteins) that we aligned using MAFFT.  We then masked positions with less than 50% aligned bases to produce a final alignment with length 679. 
 
 IQ-Tree was then used to perform model finding and tree inference as follows;
 
@@ -29,9 +31,8 @@ iqtree -s px_align.fasta -B 1000
 ```
 
 
-```{r}
+```{r, include=FALSE}
 library(ggtree)
-tf <- read.tree("data/hpc/peroxidases/px_align.fasta.contree")
 tf <- read.tree("data/hpc/peroxidases/px_align.fasta.treefile")
 
 px_tree_data <- data.frame(tip=tf$tip.label) %>% 
@@ -41,8 +42,10 @@ px_tree_data <- data.frame(tip=tf$tip.label) %>%
 ggtree(tf) %<+% px_tree_data + 
   geom_tiplab(aes(color=species)) +
   geom_nodelab()
+```
 
 
+```{r}
 library(phytools)
 
 adig_cluster_tips <- px_tree_data %>% filter(grepl(tip,pattern="s0150")) %>% pull(tip)
