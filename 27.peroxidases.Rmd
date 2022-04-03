@@ -67,8 +67,10 @@ ggtree(tf_cluster_rooted) %<+% px_tree_data_cluster +
   scale_color_discrete(labels=species) +
   theme(legend.position = "bottom", text = element_text(size=6), legend.title = element_blank()) + 
   xlim(NA,5)
-  
+```
 
+
+```{r}
 ggsave("figures/fig-s18.png",height = 6,width = 5)
 ```
 
