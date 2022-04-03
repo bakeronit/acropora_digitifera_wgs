@@ -94,11 +94,8 @@ data/r_essentials/pbs_thresholds.rds
 
 # 17_dating (work in progress)
 
-data/hpc/startmrca/regions/BLFC01000593_400000_450001.vcf
-data/hpc/startmrca/regions/BLFC01000298_200000_350001.vcf
+data/hpc/startmrca/regions/BLFC01000154_250000_300001_aaref.vcf
 data/r_essentials/17_tmrca_data.rds
-data/r_essentials/17_sweep_regions.rds
-data/r_essentials/17_furcation_data.rds
 
 # 18 Check
 

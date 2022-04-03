@@ -17,13 +17,14 @@ The software [startmrca](https://github.com/jhavsmith/startmrca) [@Smith2018-xt]
 `startmrca` relies on the concept of a "focal allele" which in-theory should represent the allele that is under selection, however, in-practise it need only represent an allele on the same haplotype as the selected allele in strong linkage disequilibrium with it. 
 
 In order to estimate the timing of selection at a locus we need the following information;
+
   - The position of the focal allele
   - The identity of the focal allele at this position (0 or 1 for a biallelic SNP)
   - A list of individuals with haplotypes containing the focal allele
   - A list of individuals without the focal allele
 
 
-#### Haem Peroxidase Locus BLFC01000154_250000_300001
+#### Visualisation of haplotypes at the Haem Peroxidase Locus BLFC01000154_250000_300001
 
 Our strongest signature of a selective sweep was identified at locus `BLFC01000154_250000_300001` in the inshore population.
 
@@ -46,7 +47,6 @@ hh <- data2haplohh(hap_file = vcf_file,
                    polarize_vcf = FALSE,
                    vcf_reader = "data.table")
 
-#position <- 282923
 position <- 281245
 marker_index <- which(positions(hh)==position)
 ```
@@ -136,20 +136,12 @@ haps_alleles %>% filter(allele==0) %>% filter(location=="inshore")
 
 ## Running STARTMRCA
 
-After completing manual checks on putative sweep loci we ran startmrca on each of them as follows;
+Our goal was to estimate the timing of selection on the gene `s0150.g24` which contained 75 sites whose allele frequencies and make them potential candidates for the beneficial allele.  We chose 3 of these spanning the width of the gene and then ran startmrca on each as follows;
 
-- We used `vcftools` to extract a phased vcf file specific to the region under analysis (1Mb region centered on the focal allele)
-- We then used the script [03_run_tmrca.sh](data/hpc/startmrca/03_run_tmrca.sh) which itself calls [run_startmrca.R](data/hpc/startmrca/run_startmrca.R). 
+- We used `vcftools` to extract a phased vcf file across a 1Mb region centered on `s0150.g24`. This extraction was performed based on the vcf file where the ancestral allele has been assigned to the reference.
+- We then ran startmrca using the script [03_run_tmrca.sh](data/hpc/startmrca/03_run_tmrca.sh) which itself calls [run_startmrca.R](data/hpc/startmrca/run_startmrca.R). 
 
-This process was run for all regions.  Notet that the `run_startmrca` script uses a chain length of 20000, 
-
-# Results
-
-Preliminary results are shown below for all loci passing QC.  The dates shown are based on a mutation rate of 1.2e-8 and a recombination rate of 3.2e-8.  This mutation rate is the same as used in other analyses (SMC++, fastSimCoal) and the recombination rate is based on a linkage map for *Acropora millepora* published by Dixon et al [@Dixon2015-x] which had a length of 1358 centimorgans (cM). Assuming a genome size of 430mb for *A. millepora* this corresponds to a mean recombination rate of 3.16e-8 per base per generation, which we rounded to 3.2e-8. A range is given by showing the sampling of the posterior distribution in the last 1000 MCMC steps. 
-
-One of the main things that can be seen here is that relatively few loci pass the QC checks for use with startmrca.  This limits the analysis a little but we are able to see dating estimates for several loci involved in enriched go terms.  The broad pattern of timing is also interesting because it shows a peak in the number of loci dating to around 6kya which approximately matches the time when sea levels reached similar heights to what they are today.
-
-
+For each of our three loci we check convergence using the Gelman diagnostic.  Then report the median estimate for the TMRCA.  Dates shown are based on a mutation rate of 1.2e-8 and a recombination rate of 3.2e-8.  This mutation rate is the same as used in other analyses (SMC++, fastSimCoal) and the recombination rate is based on a linkage map for *Acropora millepora* published by Dixon et al [@Dixon2015-x] which had a length of 1358 centimorgans (cM). Assuming a genome size of 430mb for *A. millepora* this corresponds to a mean recombination rate of 3.16e-8 per base per generation, which we rounded to 3.2e-8. 
 
 
 ```{r, include=FALSE}
@@ -196,7 +188,14 @@ gelman_pe <- function(x){
 gdr <- locus_mcmc_lists %>% sapply(gelman_pe) %>% t() %>% as.data.frame() %>% rownames_to_column("locus")
 
 converged <- gdr %>% filter(V2<2) %>% pull(locus)
+```
 
-tmrca_data %>% group_by(locus) %>% dplyr::select(time=V1) %>% summarise(median(time)*5)
+
+```{r}
+tmrca_data %>% 
+  filter(locus %in% converged) %>% 
+  group_by(locus) %>% 
+  dplyr::select(time=V1,rep) %>% 
+  summarise(median(time)*5, nchains=length(unique(rep))) %>% knitr::kable()
 ```
 

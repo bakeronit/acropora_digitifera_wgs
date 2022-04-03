@@ -4,4 +4,5 @@
 
 data/hpc/vcf_file/Adigi.v2.indv74_phased.vcf.gz
 data/hpc/vcf_file/Adigi.v2.filtered.vcf.gz
+data/hpc/geva/Adigi.v2.indv74_phased_aaref.vcf.gz
 
