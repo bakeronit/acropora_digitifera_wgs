@@ -83,12 +83,14 @@ data/hpc/pcangsd/all.lengths.scaf.txt
 
 # 14_ehh_pbs
 
-data/r_essentials/14_inout_stats.rds
-data/r_essentials/14_pbs_inout.rds
 data/hpc/ragtag/ehh_sweeps_scaff.tsv
 data/hpc/ragtag/all.lengths.scaf.txt
 data/hpc/selection2/pbs/pbs_sweeps.scaff.tsv
 data/r_essentials/pbs_thresholds.rds
+
+# 15_GO_enrichment
+
+
 
 # 17_dating (work in progress)
 

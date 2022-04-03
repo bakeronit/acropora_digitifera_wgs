@@ -31,7 +31,7 @@ This repository contains complete computational methods including source code, p
 - Selection analysis based on [EHH](08.ehh_stats.md) and [allele frequency](12.pbs.md)
 - [Comparison between EHH and allele-frequency-based approaches](14.ehh_pbs.md)
 - [Identification of the top 1% of regions putatively under selection](10.identify_selective_genomic_windows.md)
-- [GO Enrichment of genes under selection](11.GO_enrichment.md)
+- [GO Enrichment of genes under selection](15.GO_enrichment.md)
 - [Estimating the TMRCA for selective sweeps](17.dating_the_selection.md)
 - [Phylogenetic tree of haem peroxidases](27.peroxidases.md)
 
