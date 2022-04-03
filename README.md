@@ -28,16 +28,19 @@ This repository contains complete computational methods including source code, p
 - [Dissecting the symbiont reads](23.symbionts.md)
 
 **Signatures of selection in the coral host**
-- Selection analysis based on [EHH](08.ehh_stats.md) and [allele frequency](12.pcangsd_selection.md)
-- [Comparison between EHH and allele-frequency-based approaches](14.ehh_pbs_pcangsd.md)
+- Selection analysis based on [EHH](08.ehh_stats.md) and [allele frequency](12.pbs.md)
+- [Comparison between EHH and allele-frequency-based approaches](14.ehh_pbs.md)
 - [Identification of the top 1% of regions putatively under selection](10.identify_selective_genomic_windows.md)
 - [GO Enrichment of genes under selection](11.GO_enrichment.md)
 - [Estimating the TMRCA for selective sweeps](17.dating_the_selection.md)
+- [Phylogenetic tree of haem peroxidases](27.peroxidases.md)
 
 
 **Miscellaneous**
 - [Functional annotation of genes](09.annotate_genes.md)
 - [Checking the mislocated sample using radseq data](18.radseq_check.md)
+- [Estimating the age of individual alleles](25.geva.md)
+
 
 ### How to use this repository
 All of the sections above are provided as processed markdown files. Clicking the link should display a web readable page with text, a few select commands and plots and tables. The code used to generate these pages is provided in the corresponding .Rmd file. If you would like to run the code in these files yourself you will need to;
