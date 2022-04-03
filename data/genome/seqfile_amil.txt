@@ -1,0 +1,4 @@
+((ncbi,oist),amil);
+ ncbi /data/GCA_014634065.1_Adig_2.0_genomic.fna
+ oist /data/oist.fasta
+ *amil /data/Amil.v2.01.chrs.fasta

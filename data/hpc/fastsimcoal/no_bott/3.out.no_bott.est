@@ -1,0 +1,24 @@
+// Priors and rules file
+// *********************
+
+[PARAMETERS]
+//#isInt? #name   #dist.#min  #max 
+//all Ns are in number of haploid individuals
+1 ANCSIZE unif 4e+05 4e+05 output
+1 NAOFF unif 3e+05 3e+05 output
+1 NAI unif 1e+05 1e+05 output
+1 NAN unif 1.5e+05 1.5e+05 output
+1 NAS unif 1.5e+05 1.5e+05 output
+1 NI unif 1e+05 1e+05 output
+1 NN unif 1.5e+05 1.5e+05 output
+1 NS unif 1.5e+05 1.5e+05 output
+1 TDIV1 unif 8.010000e+02 9.970500e+02 output
+1 TDIV2 unif TDIV1 1.624050e+03 output paramInRange
+0 MIGN logunif 1.772000e-04 1.918000e-04 output
+0 MIGS logunif 1.757000e-04 1.917000e-04 output
+0 MIGO logunif 4.000000e-07 1.826000e-04 output
+
+[COMPLEX PARAMETERS]
+0   RESIZE1 = NAOFF/NAN hide
+0   RESIZE2 = ANCSIZE/NAI hide
+

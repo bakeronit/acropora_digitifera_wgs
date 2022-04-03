@@ -27,11 +27,11 @@ if ( !file.exists("data/r_essentials/10_windowed_ehh.rds")){
   windowed_ihs <- list.files(path = "data/hpc/selection2/ihs", pattern = "windows$", full.names = TRUE) %>% 
     map_dfr(read_windowed_ihs) %>% 
     add_column(stat = "ihs") %>% 
-    select(-sd)
+    dplyr::select(-sd)
 
   windowed_xpstats <- list.files("data/hpc/selection2",pattern = ".xp[a-z]{3}.norm.50kb.windows$",recursive = TRUE,full.names = TRUE,include.dirs = TRUE) %>% 
       map_dfr(read_windowed_xpstats) %>% 
-    select(chr,start,end,nsnp,frac=fracA,percentile=percentileA,pop,stat)
+    dplyr::select(chr,start,end,nsnp,frac=fracA,percentile=percentileA,pop,stat)
 
 
   windowed_ehh <- rbind(windowed_ihs,windowed_xpstats)
@@ -39,9 +39,10 @@ if ( !file.exists("data/r_essentials/10_windowed_ehh.rds")){
   write_rds(windowed_ehh,"data/r_essentials/10_windowed_ehh.rds")
 } else {
   windowed_ehh <- read_rds("data/r_essentials/10_windowed_ehh.rds")
-  windowed_ihs <- windowed_ehh %>% filter(stat=="ihs")
-  windowed_xpstats <- windowed_ehh %>% filter(stat %in% c("xpehh","xpnsl"))
 }
+
+windowed_ihs <- windowed_ehh %>% filter(stat=="ihs")
+windowed_xpstats <- windowed_ehh %>% filter(stat %in% c("xpehh","xpnsl"))
 
 all_regions <- windowed_ehh %>% 
   dplyr::select(chr,start,end) %>% 
@@ -163,6 +164,13 @@ To facilitate downstream analyses we annotated candidate regions by
   
 The complete list of these annotated candidate regions is available as a supplementary table in the paper
 
+These analyses rely on a BED formatted file with the genomic coordinates of all genes.
+
+```bash
+cat ../../genome/adig-v2-ncbi.gff | awk 'BEGIN{OFS="\t"}$3=="gene"{print $1,$4,$5,$9}' | sed 's/ID=//' | sort -u  > allgenes.bed
+```
+
+
 ```{r results='hide'}
 # Annotate regions with gene information
 
@@ -173,11 +181,11 @@ allgenes <- read_tsv("data/hpc/annotation/allgenes.bed",col_names = c("chr","sta
 
 genes_in_region <- function(regions){
   regions %>% 
-  mutate(chr=str_remove(chr,"\\.1")) %>% 
+#  mutate(chr=str_remove(chr,"\\.1")) %>% 
   bedr.join.region(allgenes, check.chr = FALSE) %>% 
   filter(geneid!=".") %>% 
   dplyr::select(chr,start,end,pop,geneid) %>% 
-  right_join(regions %>% mutate(chr=str_remove(chr,"\\.1")))  
+  right_join(regions) %>% mutate(chr=str_remove(chr,"\\.1"))  
 }
 
 inshore_genes <- genes_in_region(inshore_candidate_regions)
@@ -277,7 +285,7 @@ if ( !file.exists("data/r_essentials/candidate_regions_genes_ehh.rds")){
   raw_ehh_stats <- list.files("data/hpc/selection2",pattern = "*.norm$",recursive = TRUE,full.names = TRUE) %>% 
     map_dfr(read_ehh_stat) %>% 
     mutate(chr=str_remove(chr,"\\.1")) %>% 
-    rename(pos=chr_pos)
+    dplyr::rename(pos=chr_pos)
 
   candidate_regions_genes_ehh <- c("inshore","northoffshore","southoffshore") %>% 
     map_dfr(add_ehh_raw_annotation,raw_ehh_stats,candidate_regions_genes_ehhwin)
@@ -301,7 +309,7 @@ candidate_regions_genes_ehh %>%
   mutate(start=start+1) %>% 
   mutate(chr=paste(chr,".1",collapse = "",sep="")) %>% 
   mutate(ID = paste(chr,":",start,"-",end,collapse="",sep="")) %>% 
-  mutate(attributes = paste("ID=",ID,";genes=",genes,collapse = "",sep = "")) %>% 
+  mutate(attributes = paste("ID=",ID,";genes=",genes,";pop=",pop,collapse = "",sep = "")) %>% 
   ungroup() %>% 
   dplyr::select(chr,source,feature,start,end,frac,strand,phase,attributes) %>% 
     write_tsv("data/hpc/tracks/sweeps.gff3",col_names = FALSE)
@@ -317,9 +325,9 @@ supp_table4 <- candidate_regions_genes_ehh %>%
   separate_rows(genes,sep=";") %>% 
   left_join(uniprot_gene_annot, by = c("genes"="geneid") ) %>% 
   group_by(chr,start,end,pop,frac,stats,max_ihs_pos,max_ihs,max_xpehh_pos,max_xpehh,max_xpnsl_pos,max_xpnsl) %>% 
-  summarise(protein_names = paste(unique(protein), collapse = ";"), gene_ids = paste(unique(genes),collapse = ";")) %>% 
+  dplyr::summarise(protein_names = paste(unique(protein), collapse = ";"), gene_ids = paste(unique(genes),collapse = ";")) %>% 
   mutate(pop=case_when(pop=="inshore"~"Inshore", pop=="northoffshore"~"North Offshore", pop=="southoffshore"~"South Offshore")) %>% 
-  rename_all(recode,chr="Scaffold",start="Start", end="End",pop="Population",protein_names="Gene names in this window",gene_ids="Gene ids in this window",frac="Fraction with z-score > 2") %>% 
+  dplyr::rename_all(recode,chr="Scaffold",start="Start", end="End",pop="Population",protein_names="Gene names in this window",gene_ids="Gene ids in this window",frac="Fraction with z-score > 2") %>% 
   ungroup()
 
 write_tsv(supp_table4,"cache/supp_table4.tsv") # For upload to google sheets  

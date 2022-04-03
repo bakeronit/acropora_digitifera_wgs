@@ -22,21 +22,25 @@ This repository contains complete computational methods including source code, p
 - [Demographic history based on SMC](07.demographic_history.md)
 - [Demographic model fitting using fastsimcoal](22a.fastsimcoal_fitting.md)
 - [Demographic model validation by simulation](22b.fastsimcoal_sim.md)
+- [Demographic model without a bottleneck](24.nobottle_sim.md)
 
 **Symbiodiniaceae profiles**
 - [Dissecting the symbiont reads](23.symbionts.md)
 
 **Signatures of selection in the coral host**
-- Selection analysis based on [EHH](08.ehh_stats.md) and [allele frequency](12.pcangsd_selection.md)
-- [Comparison between EHH and allele-frequency-based approaches](14.ehh_pbs_pcangsd.md)
+- Selection analysis based on [EHH](08.ehh_stats.md) and [allele frequency](12.pbs.md)
+- [Comparison between EHH and allele-frequency-based approaches](14.ehh_pbs.md)
 - [Identification of the top 1% of regions putatively under selection](10.identify_selective_genomic_windows.md)
-- [GO Enrichment of genes under selection](11.GO_enrichment.md)
+- [GO Enrichment of genes under selection](15.GO_enrichment.md)
 - [Estimating the TMRCA for selective sweeps](17.dating_the_selection.md)
+- [Phylogenetic tree of haem peroxidases](27.peroxidases.md)
 
 
 **Miscellaneous**
 - [Functional annotation of genes](09.annotate_genes.md)
 - [Checking the mislocated sample using radseq data](18.radseq_check.md)
+- [Estimating the age of individual alleles](25.geva.md)
+
 
 ### How to use this repository
 All of the sections above are provided as processed markdown files. Clicking the link should display a web readable page with text, a few select commands and plots and tables. The code used to generate these pages is provided in the corresponding .Rmd file. If you would like to run the code in these files yourself you will need to;
@@ -53,13 +57,18 @@ Download additional data not hosted on github due to size constraints
 cd acropora_digitifera_wgs
 wget 'https://cloudstor.aarnet.edu.au/plus/s/6GcW7OUebjrgASm/download' -O data_essential.tgz
 tar -zxvf data_essential.tgz 
+```
 
-*Optional download (large files)*
+
+*Optional:* download (large files).  Includes the full phased and unphased SNP sets
+
+```bash
 wget 'https://cloudstor.aarnet.edu.au/plus/s/Y9Vjkmz3BLL5ogd/download' -O data_large.tgz
 tar -zxvf data_large.tgz 
 ```
 
 Open the project file in RStudio and open the desired file. After installing any required R packages the code should run and produce plots and tables identical to those shown in the web links above.
 
-### Parallelisation in HPC
-Some codes provided in the markdown bash chunks show how to run command for a single scaffold or a single sample. Most jobs that require to run in HPC were performed using `snakemake` or GNU `parallel` to achieve parallelisation. The actually scripts can be found in [smk](scripts/smk) or [bash](scripts/bash). Sometimes, jobs will fail in `snakemake` pipeline, this is common in `shapeit` or `selscan` when there is no SNPs in certain scaffold left after the filtering step and it will raise an error. You can `--keep-going` or `-k` in `snakemake` command line to keep independent jobs going and simply ignore the failed results.
+### Code Portability
+In general the code provided here is for illustration purposes only.  In many cases the commands we provide should work as-is on your system.  In some cases however, we have provided scripts that include strategies for parallelisation (eg via gnu parallel, or using a PBS job management system).  These are highly platform specific and you will need to modify them to run on your own system.
+

@@ -1,0 +1,198 @@
+---
+title: "Population Branch Statistic (PBS) in EHH sweep regions"
+output: 
+  github_document
+bibliography: bibliography.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
+library(tidyverse)
+library(ggpubr)
+library(bedr)
+```
+
+Regions identified as sweeps via EHH statistics also tended to coincide with extreme values of the population branch statistic (PBS) 
+
+
+```{r, results='hide'}
+#map_ehh_regions_to_scaffolds
+
+# Read the translated equivalent of ehh_bed (translated with command below)
+#python ../../../scripts/translate_coords.py ehh_sweeps.tsv  ragtag_output/ragtag.scaffolds.agp > ehh_sweeps_scaff.tsv
+
+ehh_sweeps <- read_rds("data/r_essentials/candidate_regions_genes_ehh.rds") %>% 
+    mutate(chr=str_trim(chr))
+
+sweep_lengths <- ehh_sweeps %>% 
+  mutate(length = end-start)
+
+ehh_sweeps_scaff <- read_tsv("data/hpc/ragtag/ehh_sweeps_scaff.tsv", col_names = colnames(ehh_sweeps)) %>% 
+  mutate(end = start + sweep_lengths$length)  
+  
+
+
+offsets <- read_tsv("data/hpc/ragtag/all.lengths.scaf.txt", col_names = c("chr","length"),show_col_types = FALSE) %>% 
+  arrange(desc(length)) %>%
+  dplyr::mutate(offset=lag(cumsum(length),default=0)) %>% 
+  dplyr::mutate(scaffold_num=row_number())
+
+ehh_sweep_manhattan_data <- ehh_sweeps_scaff %>% 
+  left_join(offsets) %>% 
+  dplyr::mutate(abs_start = start + offset, abs_end = end + offset)
+```
+
+
+```{r, results='hide'}
+pop_names <- c("inshore"="Inshore","northoffshore"="North Offshore","southoffshore"="South Offshore")
+
+pbs_manhattan_data <- read_rds("data/r_essentials/pbsdata.rds") %>% 
+  extract(population,into="population",regex = "PBS_(.*)")
+
+
+pbs_thresholds <- read_rds("data/r_essentials/pbs_thresholds.rds")
+
+pbs_ehh_overlapping <- read_tsv("data/hpc/selection2/pbs/pbs_sweeps.scaff.tsv",col_names = c("chr","pos","pos2","PBS_IN","PBS_NO","PBS_SO")) %>% 
+  dplyr::select(-pos2) %>% 
+  pivot_longer(cols = starts_with("PBS"), values_to = "PBS",names_to = "population") %>% 
+  left_join(offsets,by=c("chr"="chr")) %>% 
+  dplyr::mutate(abs_pos= pos + offset) %>% 
+  extract(population,into="population",regex = "PBS_(.*)") %>% 
+  left_join(pbs_thresholds,by=c("population"="loc")) %>% 
+  filter(PBS>=pbs_thresh)
+
+# pbs_ehh_overlapping %>% 
+#   filter(PBS>4) %>% 
+#   left_join(pbs_manhattan_data,by=c("chr","pos")) %>% head()
+
+
+highlight_sweeps <- ehh_sweep_manhattan_data %>% 
+  mutate(population = case_when(
+    pop=="inshore" ~ "IN",
+    pop=="northoffshore" ~ "NO",
+    pop=="southoffshore" ~ "SO"
+  ))
+
+highlight_regions <- highlight_sweeps %>% 
+  filter(grepl("s0150.g24",x = genes)) %>% # | grepl("s0005.g341",genes)) %>% 
+  filter(population=="IN")
+
+fix_pops <- function(data){
+  data %>% 
+    mutate(population = case_when(
+    population=="IN" ~ "Inshore",
+    population=="NO" ~ "North Offshore",
+    population=="SO" ~ "South Offshore"
+  ))
+}
+
+mh_plot <- pbs_manhattan_data %>% 
+  filter(PBS>0) %>% 
+  fix_pops() %>% 
+  ggplot() + 
+  geom_point(aes(x=abs_pos/1e6,y=PBS,color=as.character(scaffold_num %% 2)),size=0.02) + 
+  geom_point(data = pbs_ehh_overlapping %>% fix_pops(),aes(x=abs_pos/1e6,y=PBS),color="blue",size=0.1) +   
+  geom_linerange(data=highlight_sweeps %>% fix_pops(), aes(xmin=(abs_start/1e6)-0.1,xmax=(abs_end/1e6)+0.1,y=-0.25),size=1.5,color="red",alpha=1) +
+  geom_linerange(data=highlight_regions %>% fix_pops(), aes(xmin=(abs_start/1e6)-1,xmax=(abs_end/1e6)+1,y=-0.25),size=1000,color="yellow",alpha=0.5) +
+  #  geom_point(data = to_label,aes(x=abs_pos/1e6,y=PBS),color="purple",size=0.5) + 
+#  geom_label_repel(data = to_label,aes(x=abs_pos/1e6,y=PBS, label=dated_locus_number),size=2,nudge_y=1,nudge_x = -10) + 
+  ylab("Population Branch Statistic") + xlab("Genome Position / Mb") + ylim(-0.3,NA) +
+  scale_color_grey() +
+  scale_y_continuous(breaks=c(0,2,4)) +
+  theme_bw() +
+    theme(panel.grid = element_blank(),
+        legend.position = "none",
+        legend.text = element_text(),
+        axis.text.y = element_text(size=8),
+        axis.text.x = element_text(size=8),
+        axis.title.x = element_text(size=10),
+        axis.title.y = element_text(size=10),
+        strip.background = element_blank(),
+        strip.text = element_text(size=8))  + facet_wrap(~population,ncol = 1)
+ggsave(mh_plot,filename = "figures/pbs_ehh_manhattan.png",width = 6.75,height = 3)
+```
+
+```{r}
+knitr::include_graphics("figures/pbs_ehh_manhattan.png")
+```
+
+**Figure 1:** Manhattan plots showing the coincidence of extreme values of the population branch statistic (PBS) and regions under selection identified by EHH based scans.  PBS estimates for each population are shown as points with the other two considered as outgroups. Points are shown in black and grey to indicate transitions between alternating pseudo-chromosomes via mapping to the A. millepora assembly from Fuller et al (Fuller et al. 2020). The purple shaded baseline shows the location of regions identified as candidates for positive selection using EHH-based scans.  Blue points indicate windows where outlying PBS values are coincident with EHH scans.
+
+
+# Genes associated with the intersection of significant PBS and EHH regions
+
+We used a [python script](./scripts/pbs2bed.py) to identify regions where the population branch statistic for each population exceeded the significance threshold for a false discovery rate of 1%. 
+
+```bash
+cat data/hpc/selection2/pbs/plink2_noheader.pbs | awk 'BEGIN{OFS="\t"}{print $1,$2,$3}' | ./scripts/pbs2bed.py -t 0.76 > data/hpc/selection2/pbs/pbs_in.bed
+cat data/hpc/selection2/pbs/plink2_noheader.pbs | awk 'BEGIN{OFS="\t"}{print $1,$2,$4}' | ./scripts/pbs2bed.py -t 0.49 > data/hpc/selection2/pbs/pbs_no.bed
+cat data/hpc/selection2/pbs/plink2_noheader.pbs | awk 'BEGIN{OFS="\t"}{print $1,$2,$5}' | ./scripts/pbs2bed.py -t 0.44 > data/hpc/selection2/pbs/pbs_so.bed
+
+# 10% FDR
+cat data/hpc/selection2/pbs/plink2_noheader.pbs | awk 'BEGIN{OFS="\t"}{print $1,$2,$3}' | ./scripts/pbs2bed.py -t 0.6 > data/hpc/selection2/pbs/pbs_in.bed
+cat data/hpc/selection2/pbs/plink2_noheader.pbs | awk 'BEGIN{OFS="\t"}{print $1,$2,$4}' | ./scripts/pbs2bed.py -t 0.47 > data/hpc/selection2/pbs/pbs_no.bed
+cat data/hpc/selection2/pbs/plink2_noheader.pbs | awk 'BEGIN{OFS="\t"}{print $1,$2,$5}' | ./scripts/pbs2bed.py -t 0.41 > data/hpc/selection2/pbs/pbs_so.bed
+
+```
+
+Bedtools (v2.30.0) was then used to find genes that intersected with these significant intervals and these in turn were then intersected with sweep regions identified via EHH statistics.  
+
+```bash
+cd data/hpc/selection2/
+bedtools intersect -wo -b pbs_in.bed -a ../../../genome/adig-v2-ncbi.gff | awk '$14>0 && $3=="gene"' > pbs_genes_in.gff
+bedtools intersect -wao -a pbs_genes_in.gff -b ../../tracks/sweeps.gff3 | grep 'inshore' > pbs_genes_in_sweeps.tsv
+
+bedtools intersect -wo -b pbs_no.bed -a ../../../genome/adig-v2-ncbi.gff | awk '$14>0 && $3=="gene"' > pbs_genes_no.gff
+bedtools intersect -wao -a pbs_genes_no.gff -b ../../tracks/sweeps.gff3 | grep 'northoffshore' > pbs_genes_no_sweeps.tsv
+
+bedtools intersect -wo -b pbs_so.bed -a ../../../genome/adig-v2-ncbi.gff | awk '$14>0 && $3=="gene"' > pbs_genes_so.gff
+bedtools intersect -wao -a pbs_genes_so.gff -b ../../tracks/sweeps.gff3 | grep 'southoffshore' > pbs_genes_so_sweeps.tsv
+```
+
+Bedtools was also used to simply find ehh-based sweeps overlapping with significant pbs regions
+
+```bash
+bedtools intersect -u -b pbs_in.bed -a ../../tracks/sweeps.gff3  | grep 'inshore' > sweeps_in_pbs.gff
+bedtools intersect -u -b pbs_no.bed -a ../../tracks/sweeps.gff3  | grep 'northoffshore' > sweeps_no_pbs.gff
+bedtools intersect -u -b pbs_so.bed -a ../../tracks/sweeps.gff3  | grep 'southoffshore' > sweeps_so_pbs.gff
+```
+
+```{r}
+# If not present run 09.annotate
+uniprot_gene_annot <- read_tsv("data/hpc/annotation/uniprot_gene_annot.tsv", show_col_types = FALSE) %>% 
+  mutate(go=go_ipr) %>% 
+  dplyr::select(-go_ipr)
+```
+
+
+```{r}
+read_sg <- function(path){
+  read_tsv(path,col_names = NULL,show_col_types = FALSE) %>% 
+  unite("region_id",X14,X17,X18,sep="_") %>% 
+  tidyr::extract(X9,into="gene_id",regex="ID=([^B]+)") %>% 
+  dplyr::select(region_id,gene_id, max_pbs=X12,sum_pbs=X13,max_ehh=X19)
+}
+
+sweep_genes <- rbind(
+  read_sg("data/hpc/selection2/pbs/pbs_genes_in_sweeps.tsv") %>% add_column(pop="inshore"),
+  read_sg("data/hpc/selection2/pbs/pbs_genes_no_sweeps.tsv") %>% add_column(pop="northoffshore"),
+  read_sg("data/hpc/selection2/pbs/pbs_genes_so_sweeps.tsv") %>% add_column(pop="southoffshore")
+) %>% 
+  group_by(region_id,gene_id,pop) %>% 
+  summarise(max_pbs = max(max_pbs),sum_pbs=sum(sum_pbs),max_ehh=max(max_ehh))
+```
+
+
+
+
+```{r}
+candidate_genes_table <- sweep_genes %>% 
+  left_join(uniprot_gene_annot,by=c("gene_id"="geneid"))
+```
+
+
+
+
+
+
+

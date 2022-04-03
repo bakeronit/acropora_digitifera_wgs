@@ -26,9 +26,19 @@ if [ "DIFFESS" != "" ]; then
 fi
 
 
+DIFFLARGE=$(diff <(cat data_large.list | grep -v '^#' | grep -v '^$') <(tar -tf data_large.tgz))
+
+if ! [ -e data_large.tgz ] || [ "$DIFFLARGE" != "" ]; then
+	echo "Rebuilding data_large.tgz"
+	tar -zcvf data_large.tgz -T <(cat data_large.list | grep -v '^#')
+	# Upload to cloudstor if needed
+	rclone copy --progress --no-traverse data_large.tgz CloudStor:/Shared/wa_digitifera/
+	echo "Done uploading data_large.tgz"
+fi 
+
+
 
 # DIFF=$(diff <(cat data.list | grep -v '^#' | grep -v '^$') <(tar -tf data.tgz))
-# DIFFLARGE=$(diff <(cat data_large.list | grep -v '^#' | grep -v '^$') <(tar -tf data_large.tgz))
 # if [ "$DIFF" != "" ]; then
 # 	echo "Rebuilding data.tgz"
 # 	tar -zcvf data.tgz -T <(cat data.list | grep -v '^#')
@@ -38,11 +48,4 @@ fi
 # fi
 # 
 # 
-# if ! [ -e data_large.tgz ] || [ "$DIFFLARGE" != "" ]; then
-# 	echo "Rebuilding data_large.tgz"
-# 	tar -zcvf data_large.tgz -T <(cat data_large.list | grep -v '^#')
-# 	# Upload to cloudstor if needed
-# 	rclone copy --progress --no-traverse data_large.tgz CloudStor:/Shared/wa_digitifera/
-# 	echo "Done uploading data_large.tgz"
-# fi
-# 
+

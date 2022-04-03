@@ -276,8 +276,10 @@ if ( file.exists("data/r_essentials/22b_pbs_combined_long.rds")){
 
 ```{r}
 th <- pbs_combined_long %>% filter(fpr<0.01) %>% group_by(loc) %>% dplyr::summarise(pbs_thresh=min(PBS))
+th01 <- pbs_combined_long %>% filter(fpr<0.1) %>% group_by(loc) %>% dplyr::summarise(pbs_thresh=min(PBS))
 
 write_rds(th,"data/r_essentials/pbs_thresholds.rds")
+write_rds(th01,"data/r_essentials/pbs_thresholds01.rds")
 
 pbs_combined_long %>% 
   ggplot(aes(x=PBS,y=fpr)) + 

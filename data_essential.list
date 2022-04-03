@@ -25,6 +25,8 @@ data/hpc/popgen/northoffshore.filtered_windowed.td
 data/hpc/popgen/southoffshore.filtered_windowed.td
 
 data/r_essentials/ld_summary_data.rds
+data/hpc/private_alleles/0.9.priv
+data/hpc/private_alleles/1.0.priv
 
 # 05_popstructure
 
@@ -64,9 +66,10 @@ data/r_essentials/top_ehh_g3.rds
 data/hpc/annotation/all_ipr.tsv
 data/hpc/annotation/Adigitifera_uniprot_blastp.outfmt6
 data/hpc/annotation/Adigitifera_uniprot_blastx.outfmt6
-data/hpc/annotation/uniprot-yourlist.tab
-
+data/hpc/annotation/uniprot-yourlist.xlsx
 data/hpc/annotation/allgenes_ids_extracted_from_gff.txt
+data/genome/adig-v2-ncbi.gff
+
 
 # 10_identify windows
 
@@ -74,32 +77,26 @@ data/r_essentials/10_windowed_ehh.rds
 data/hpc/annotation/allgenes.bed
 data/r_essentials/candidate_regions_genes_ehh.rds
 
-# 11_go_enrich (no new files)
-
-# 12_pcangsd
+# 12_pbs
 data/r_essentials/pbsdata.rds
 data/hpc/pcangsd/all.lengths.scaf.txt
-data/r_essentials/12_all_thetas.rds
-data/r_essentials/pcangsd_pvalue_hist.png
-data/r_essentials/pcangsd_manhattan.png
 
 
 # 14_ehh_pbs
 
-data/r_essentials/14_inout_stats.rds
-data/r_essentials/14_pbs_inout.rds
 data/hpc/ragtag/ehh_sweeps_scaff.tsv
 data/hpc/ragtag/all.lengths.scaf.txt
 data/hpc/selection2/pbs/pbs_sweeps.scaff.tsv
 data/r_essentials/pbs_thresholds.rds
 
+# 15_GO_enrichment
+
+
+
 # 17_dating (work in progress)
 
-data/hpc/startmrca/regions/BLFC01000593_400000_450001.vcf
-data/hpc/startmrca/regions/BLFC01000298_200000_350001.vcf
+data/hpc/startmrca/regions/BLFC01000154_250000_300001_aaref.vcf
 data/r_essentials/17_tmrca_data.rds
-data/r_essentials/17_sweep_regions.rds
-data/r_essentials/17_furcation_data.rds
 
 # 18 Check
 
@@ -143,11 +140,51 @@ data/hpc/symbiont/ITS2_reads_mapping/sample_it2_div.txt
 data/hpc/symbiont/d2s/wa_matrix.txt
 
 
+# 24 Simulation without bottleneck
+
+data/r_essentials/24_fst.rds
+data/hpc/fastsimcoal/no_bott/3.out.no_bott/pca/3.out.no_bott_1_1.eigenvec
+
+
+# 25 GEVA
+
+data/hpc/vcsq/s0150.g24.csq.tsv
+data/r_essentials/geva_pos.rds
+data/hpc/vcsq/s0150.g24.mod.gff
+
+# 27 Peroxidases
+
+data/hpc/peroxidases/px_align.fasta.treefile
+data/hpc/peroxidases/px_align.fasta
 
 
 
+# x10 outgroup analysis
+data/hpc/pcangsd/samples.txt
+data/hpc/pcangsd/all_bam.txt
+data/hpc/pcangsd/jpwa.cov
+data/hpc/pcangsd/jpwa.tree
+data/hpc/iqtree/partition.nex.best_scheme.nex.treefile
 
 
+# x20 fineStructure
+data/hpc/fineStructure/adigitifera_linked.chunkcounts.out
+data/hpc/fineStructure/adigitifera_linked_mcmc.xml
+data/hpc/fineStructure/adigitifera_linked_tree.xml
+
+
+
+# x30 Ragtag
+data/hpc/ragtag/ragtag_output/ragtag.scaffolds.agp
+
+
+# x40 LiftOver
+data/genome/oist_lengths.txt
+data/genome/ncbi_lengths.txt
+data/genome/oist_genes.bed
+data/genome/ncbi_genes.bed
+
+data/genome/adig-v2-ncbi.gff
 
 
 

@@ -1,0 +1,80 @@
+---
+title: "Population Branch Statistics"
+output: 
+  github_document
+bibliography: bibliography.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.retina = 2)
+library(tidyverse)
+library(ggpubr)
+```
+
+As a complement to the EHH-based scans for signatures of selection we also searched for signatures based on differences in allele frequency between populations. For this we used the population branch statistic (see [@Yi2010-br]) which is designed to measure the degree to which allele frequencies at a specific locus in one population have differentiated from other populations.  
+
+Since the PBS is based on Fst we first used plink2 to calculate pairwise Fst values for all pairs of populations as follows;
+
+```bash
+plink2 --vcf Adigi.v2.filtered.vcf.gz --fst site report-variants --pheno populations.txt --allow-extra-chr --out pbs/plink2
+```
+
+Outputs were then converted to pbs values using an [awk script](data/hpc/selection2/plinkfst2pbs.awk)
+
+```bash
+echo "IN NO SO" > pbs/plink2.pbs
+paste pbs/plink2.IN.NO.fst.var pbs/plink2.IN.SO.fst.var pbs/plink2.NO.SO.fst.var | awk -f plinkfst2pbs.awk >> pbs/plink2.pbs
+```
+
+To plot these values as a Manhattan plot we first convert coordinates into chromosomes using RagTag
+
+```bash
+tail -n+2 pbs/plink2.pbs > pbs/plink2_noheader.pbs
+python ../../../scripts/translate_coords.py pbs/plink2_noheader.pbs ../ragtag/ragtag_output/ragtag.scaffolds.agp >pbs/plink2.pbs_scaff.tsv
+```
+
+```{r}
+if ( !file.exists("data/r_essentials/pbsdata.rds")){
+  pbsoriginal_coords <- read_tsv("data/hpc/selection2/pbs/plink2_noheader.pbs",col_names = c("scaff","scaff_pos","PBS_IN_scaff","PBS_NO_scaff","PBS_SO_scaff"))
+  pbsragtag <- read_tsv("data/hpc/selection2/pbs/plink2.pbs_scaff.tsv",col_types = cols(),col_names = c("chr","pos","PBS_IN","PBS_NO","PBS_SO")) 
+
+  pbsdata <- cbind(pbsragtag,pbsoriginal_coords) %>% 
+    dplyr::select(chr,pos,scaff,scaff_pos,PBS_IN,PBS_NO,PBS_SO) %>% 
+    pivot_longer(starts_with("PBS"),names_to = "population",values_to="PBS") 
+
+  # This is a huge dataset but we would only like to keep (a) the very highest PBS values and (b) a random sample of the lowest ones
+  pbs_high <- pbsdata %>% 
+    filter(PBS>0.2)
+  
+  pbs_low <- pbsdata %>% 
+    filter(PBS<0.5) %>% 
+    slice_sample(n=nrow(pbs_high))
+  
+  pbsdata <- rbind(pbs_high,pbs_low)
+  
+  lengths <- read_tsv("data/hpc/pcangsd/all.lengths.scaf.txt",col_names = c("scaffold","length"))
+  offsets <- lengths %>% arrange(desc(length)) %>% 
+  dplyr::mutate(offset=cumsum(length)-length) %>% 
+  dplyr::mutate(scaffold_num = row_number())
+
+  manhattan_data <- pbsdata %>% 
+  left_join(offsets,by=c("chr"="scaffold")) %>% 
+  mutate(abs_pos = pos+offset) 
+  
+  write_rds(manhattan_data,"data/r_essentials/pbsdata.rds",compress = "gz")
+} else {
+  manhattan_data <- read_rds("data/r_essentials/pbsdata.rds")
+}
+```
+
+```{r pbs-manhattan-plot}
+manhattan_data %>% 
+  ggplot() + 
+  scale_x_discrete(labels=c("PBS_IN"="Inshore","PBS_NO"="North Offshore","PBS_SO"="South Offshore")) +
+  geom_point(aes(x=abs_pos/1e6,y=PBS,color=as.character(scaffold_num %% 2)),size=0.1) + 
+  ylab("Population Branch Statistic") + xlab("Genome Position / Mb") + 
+  theme_pubclean() + theme(legend.position = "None") + facet_wrap(~population,ncol = 1)
+```
+
+**Figure 1:** Manhattan plots showing the distribution of values of the population branch statistic (PBS) across the genome. Each plot shows PBS with a different focal population.
+

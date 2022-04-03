@@ -161,7 +161,7 @@ The mapping coverage in the symbiont mitochondrial genome was generally low and 
 We then used bcftools to make genotype calls and then filtered these calls for quality as follows; snps were excluded if they were within 3 bp around indels, if they had less than 10 quality score, and if their coverage depth was twice bigger than the average depth or less than three.
 
 ```bash
-mean_cov=$(sample depth {sample}_mito.bam | awk '{sum += $3}END{print sum/NR}')
+mean_cov=$(samtools depth {sample}_mito.bam | awk '{sum += $3}END{print sum/NR}')
 mean_cov=$(print "%.0f" $mean_cov)
 let max_dp=mean_cov*2
 
