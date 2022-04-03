@@ -14,7 +14,7 @@ source(file = "scripts/color_scheme.R")
 
 ### Sampling sites
 
-Samples were collected from three locations in Kimberley region, we labeled them inshore, north offshore, and south offshore reflecting their geographic origin and habitat. Sample sizes are 30 from inshore, 20 from north offshore, and 25 from south offshore. The exact locations are shown in the map below.
+Samples were collected from six locations in northwestern Australia. This included Adele Island (AI) and Beagle Reef (BR) from the inshore Kimberley region, Ashmore Reef (AR) from north offshore, and three locations in the Rowley Shoals (RS1-3) in south offshore. They are grouped into three broad regions, inshore (IN), north offshore (NO) and south offshore (SO) reflecting their geographic origin and habitat. Sample sizes are 30 from inshore, 20 from north offshore, and 25 from south offshore. The exact locations are shown in the map below.
 
 ```{r}
 # loading packages for map ploting
@@ -89,7 +89,7 @@ ggdraw() + draw_plot(p1) + draw_plot(p2, x = 0.17, y = 0.65, width = 0.3, height
 ```
 
 ### Sequencing and data processing
-Raw data was sequenced and demultiplexed by California Institute for Quantitative Bioscience qb3 sequencing centre. In total, we obtained 911,977Mbp sequencing data of 75 samples as fastq files. We had 25, 30, and 20 samples sequenced from offshore south, inshore, and offshore north, respectively. All of the raw data have been deposited with NCBI under bioproject [XXX](dummy).
+Raw data was sequenced and demultiplexed by California Institute for Quantitative Bioscience qb3 sequencing centre. In total, we obtained 911,977Mbp sequencing data of 75 samples as fastq files. We had 25, 30, and 20 samples sequenced from offshore south, inshore, and offshore north, respectively. All of the raw data have been deposited with NCBI under bioproject [PRJNA805369](https://www.ncbi.nlm.nih.gov/bioproject/?term=PRJNA805369).
 
 We applied [GATK4 best practices](https://gatk.broadinstitute.org/hc/en-us/sections/360007226651-Best-Practices-Workflows) for germline short variant discovery using a reproducible and scalable pipeline written with [snakemake](https://github.com/bakeronit/snakemake-gatk4-non-model). As part of this pipeline, fastq files were mapped to the *Acropora digitifera* genome ([GCA_014634065.1_Adig_2.0](https://www.ncbi.nlm.nih.gov/assembly/GCA_014634065.1)) using bwa. The average mapping rate was over 96.97% and most regions of the genome were covered by at least one read. The mean mapping depth was 19.52X and several samples were sequenced at high depth. On average, approximately 80% (79.86%) of genome regions were covered by at least one read.
 

@@ -25,6 +25,8 @@ data/hpc/popgen/northoffshore.filtered_windowed.td
 data/hpc/popgen/southoffshore.filtered_windowed.td
 
 data/r_essentials/ld_summary_data.rds
+data/hpc/private_alleles/0.9.priv
+data/hpc/private_alleles/1.0.priv
 
 # 05_popstructure
 
@@ -141,10 +143,25 @@ data/hpc/symbiont/d2s/wa_matrix.txt
 # 24 Simulation without bottleneck
 
 data/r_essentials/24_fst.rds
+data/hpc/fastsimcoal/no_bott/3.out.no_bott/pca/3.out.no_bott_1_1.eigenvec
+
+# x10 outgroup analysis
+data/hpc/pcangsd/samples.txt
+data/hpc/pcangsd/all_bam.txt
+data/hpc/pcangsd/jpwa.cov
+data/hpc/pcangsd/jpwa.tree
+data/hpc/iqtree/partition.nex.best_scheme.nex.treefile
+
+
+# x20 fineStructure
+data/hpc/fineStructure/adigitifera_linked.chunkcounts.out
+data/hpc/fineStructure/adigitifera_linked_mcmc.xml
+data/hpc/fineStructure/adigitifera_linked_tree.xml
 
 
 
-
+# x30 Ragtag
+data/hpc/ragtag_output/ragtag.scaffolds.agp
 
 
 # x40 LiftOver

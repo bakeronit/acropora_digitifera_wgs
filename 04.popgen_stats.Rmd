@@ -264,7 +264,7 @@ paste plink2.IN.afreq plink2.NO.afreq plink2.SO.afreq | awk '{print $1,$2,$4,$5,
 
 Note that the awk script accepts an argument `mv` that determines the threshold allele frequency for "fixation".  The script always requires that the allele be absent (freq=0) in the other populations.
 
-When the threshold is set at complete fixation just a single SNP is identified at `BLFC01000154.1 282919` which is fixed in Inshore and absent elsewhere.  This SNP is surrounded by other SNPs with very high (but not quite fixed) frequencies and is located within a gene `adig_s0150.g21` that has a blast hit to Peroxidasin and is on one of our identified putative selective sweeps. See [17.dating_the_selection](17.dating_the_selection.md) for the estimated age of this sweep.
+When the threshold is set at complete fixation just a single SNP is identified at `BLFC01000154.1 282919` which is fixed in Inshore and absent elsewhere.  This SNP is surrounded by other SNPs with very high (but not quite fixed) frequencies and is located within a gene `adig_s0150.g24` that has a blast hit to Peroxidasin and is on one of our identified putative selective sweeps. See [17.dating_the_selection](17.dating_the_selection.md) for the estimated age of this sweep.
 
 If the threshold is set lower to 0.9 far more SNPs (95) are identified but all are in the inshore population and all are concentrated in just four loci. Two of these fall within putative sweeps and two fall just outside them within 50kb. A full list of these loci is available as the file [0.9.priv](data/hpc/private_alleles/0.9.priv)
 

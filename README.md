@@ -22,6 +22,7 @@ This repository contains complete computational methods including source code, p
 - [Demographic history based on SMC](07.demographic_history.md)
 - [Demographic model fitting using fastsimcoal](22a.fastsimcoal_fitting.md)
 - [Demographic model validation by simulation](22b.fastsimcoal_sim.md)
+- [Demographic model without a bottleneck](24.nobottle_sim.md)
 
 **Symbiodiniaceae profiles**
 - [Dissecting the symbiont reads](23.symbionts.md)
@@ -53,8 +54,12 @@ Download additional data not hosted on github due to size constraints
 cd acropora_digitifera_wgs
 wget 'https://cloudstor.aarnet.edu.au/plus/s/6GcW7OUebjrgASm/download' -O data_essential.tgz
 tar -zxvf data_essential.tgz 
+```
 
-*Optional download (large files)*
+
+*Optional:* download (large files).  Includes the full phased and unphased SNP sets
+
+```bash
 wget 'https://cloudstor.aarnet.edu.au/plus/s/Y9Vjkmz3BLL5ogd/download' -O data_large.tgz
 tar -zxvf data_large.tgz 
 ```

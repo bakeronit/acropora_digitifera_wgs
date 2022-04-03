@@ -1,5 +1,5 @@
 ---
-title: "Demographic history - Sequentially Markov Cross-coalescence analysis"
+title: "Demographic history with SMC"
 output: 
   github_document:
     toc: TRUE
@@ -25,7 +25,9 @@ We only used variants from scaffold with a length greater than 1Mbp in which acc
 The per generation mutation rate of *A.digitifera* estimated based on a divergence time of 15.5 Million years to *A. tenuis* is 2.89e-8 in [@Mao2018]. A more recent study that used numerous fossil calibration points and 818 orthologous genes points toward a much older divergence time of 50Mya [@Shinzato2020]. Given the inherent uncertainties in these estimates we chose a value of 37.5Mya as this lies at the midpoint between the youngest Acropora fossils (25 Mya) [@Santodomingo2015-yl] and more ancient estimates from whole genome analyses [@Shinzato2020]. To translate these divergence times to mutation rates we updated calculations in [@Mao2018] as follows; 
 
 ```bash
+# Original calculation in Mao et al
 #(79427941/(79427942+363368171)/(2 × 15.5)) x 5 × 10−6 = 2.89 × 10−8
+
 #calibrate divergence time to 37.5
 (79427941/(79427942+363368171)/(2 × 37.5)) x 5 × 10−6 = 1.20 x 10-8
 ```
@@ -242,10 +244,9 @@ plot_grid(smc_plot,cp, ncol = 1, align = "hv", axis = "lr", rel_heights = c(0.3,
 In SMC++, we re-ran the estimate using three mutation rates/generation time (3, 5, and 7 years) and also the splitting time.
 
 - 1.2e-8 calculated in this study.
-- 1.86e-8 from Ira Cooke et al 2020
-- 2.89e-8 from Mat et al 2018
+- 1.86e-8 from Cooke et al 2020
+- 2.89e-8 from Matz et al 2018
 
-**The variance in bottleneck time**
 
 ```{r}
 if ( !file.exists("data/r_essentials/07_main_data.rds")){
@@ -289,7 +290,6 @@ bot_plot <- botmin %>%
   theme(legend.position = "none",plot.margin = margin(0,0,0,0))
 ```
 
-**The variance in splitting time**
 
 ```{r}
 if (!file.exists("data/r_essentials/07_split_data.rds")){
@@ -331,8 +331,9 @@ plot_grid(bot_plot,split_plot, nrow = 1, label_size = 12,align = "h", axis = "b"
 #ggsave("fig-s10.jpg",width = 6.75,height = 3.6)
 ```
 
+Figure 3:  Variation in the estimated timing of key demographic events under different mutation rates and generation times. All estimates were obtained using SMC++. A. the bottleneck time of inshore (IN), north offshore (NO), and south offshore (SO) A. digitifera populations. B. the split time between each pair of populations.
 
-## Reference
+## References
 
 
 
