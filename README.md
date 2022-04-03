@@ -69,5 +69,6 @@ tar -zxvf data_large.tgz
 
 Open the project file in RStudio and open the desired file. After installing any required R packages the code should run and produce plots and tables identical to those shown in the web links above.
 
-### Parallelisation in HPC
-Some codes provided in the markdown bash chunks show how to run command for a single scaffold or a single sample. Most jobs that require to run in HPC were performed using `snakemake` or GNU `parallel` to achieve parallelisation. The actually scripts can be found in [smk](scripts/smk) or [bash](scripts/bash). Sometimes, jobs will fail in `snakemake` pipeline, this is common in `shapeit` or `selscan` when there is no SNPs in certain scaffold left after the filtering step and it will raise an error. You can `--keep-going` or `-k` in `snakemake` command line to keep independent jobs going and simply ignore the failed results.
+### Code Portability
+In general the code provided here is for illustration purposes only.  In many cases the commands we provide should work as-is on your system.  In some cases however, we have provided scripts that include strategies for parallelisation (eg via gnu parallel, or using a PBS job management system).  These are highly platform specific and you will need to modify them to run on your own system.
+

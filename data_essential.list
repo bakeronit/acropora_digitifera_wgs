@@ -67,8 +67,9 @@ data/hpc/annotation/all_ipr.tsv
 data/hpc/annotation/Adigitifera_uniprot_blastp.outfmt6
 data/hpc/annotation/Adigitifera_uniprot_blastx.outfmt6
 data/hpc/annotation/uniprot-yourlist.xlsx
-
 data/hpc/annotation/allgenes_ids_extracted_from_gff.txt
+data/genome/adig-v2-ncbi.gff
+
 
 # 10_identify windows
 
@@ -174,7 +175,7 @@ data/hpc/fineStructure/adigitifera_linked_tree.xml
 
 
 # x30 Ragtag
-data/hpc/ragtag_output/ragtag.scaffolds.agp
+data/hpc/ragtag/ragtag_output/ragtag.scaffolds.agp
 
 
 # x40 LiftOver
