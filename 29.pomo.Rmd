@@ -1,0 +1,65 @@
+---
+title: "Polymorphism aware phylogenetic analysis with IQ-Tree"
+bibliography: bibliography.bib
+output:
+  github_document:
+    pandoc_args: --webtex
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE,message=FALSE,warning = FALSE)
+library(tidyverse)
+source("scripts/color_scheme.R")
+
+location_colors <- c(myCol,"#7C878EFF")
+names(location_colors) <- c("Inshore","North Offshore","South Offshore","Japan")
+```
+
+As an additional check to ensure that we identified the correct phylogenetic relationships between the three WA reefs and Japan we analysed genome-wide SNPs with the polymorphism-aware models in IQ-Tree. 
+
+First we used ANGSD to calculate allele frequencies at all putatively neutral sites from our set of high quality SNPs. One advantage of using PoMo models in IQ-tree over our SFS-based analysis with fastsimcoal2 and PCA analysis with pcangsd is that they are robust to the choice of sites.  We therefore aggressively filtered sites, removing those with minor allele frequency less than 0.15.  This threshold was chosen to ensure that the lowest acceptable allele count was 2 (in the smallest pop; Japan). 
+
+```{r}
+library(ggtree)
+library(treeio)
+library(ape)
+library(phytools)
+
+tr <- read.iqtree("data/hpc/pomo/all_clean_nolow.cf.treefile")
+trr <- midpoint.root(tr@phylo)
+
+#trr <- drop.tip(trr,"aten")
+#trr <- drop.tip(trr,"amil")
+
+uce_st <- data.frame(tiplab=tr@phylo$tip.label) %>% 
+  mutate(newlab = case_when(
+    grepl("^adi$",tiplab) ~ "Acropora digitifera : Genome",
+    grepl("^aten$",tiplab) ~ "Acropora tenuis : Genome",
+    grepl("^amil$",tiplab) ~ "Acropora millepora : Genome",
+        grepl("^JP",tiplab) ~ "Acropora digitifera : Japan",
+    grepl("^SO", tiplab) ~ "Acropora digitifera : SO",
+    grepl("^NO", tiplab) ~ "Acropora digitifera : NO",    
+    grepl("^IN", tiplab) ~ "Acropora digitifera : IN",    
+  )) %>% 
+  separate(newlab,into = c("species","location"), sep=" : ", remove = FALSE) %>% 
+  mutate(newlab = case_when(
+    newlab=="Acropora millepora : Genome" ~ "Acropora millepora",
+    newlab=="Acropora tenuis : Genome" ~ "Acropora tenuis",
+    TRUE ~ location
+  ))
+  
+# Correct branch lengths for PoMo model so that they are comparable to 
+# standard phylogenetic approches .. ie substitutions/site
+trr$edge.length <- trr$edge.length/(9^2)
+
+location_colors2 <- c(myCol,"#7C878EFF","#FFCD00FF")
+names(location_colors2) <- c("IN","NO","SO","Japan","Genome")
+ggtree(trr) %<+% uce_st + 
+  geom_tippoint(aes(color=location)) + scale_color_manual(values = location_colors2) +
+  geom_tiplab(aes(label=newlab),align = F) +
+#  geom_nodelab(nudge_x = -0.1, nudge_y = 0.09) +
+  theme(legend.position = "none", legend.title = element_blank()) +
+  xlim(NA,6/81) + geom_treescale()
+
+ggsave(filename = "figures/fig-s5.jpg", width = 6.3,height = 5.6)
+```

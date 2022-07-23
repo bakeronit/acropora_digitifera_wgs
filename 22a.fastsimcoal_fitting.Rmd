@@ -31,6 +31,50 @@ bcftools +prune -m 0.3 -e'F_MISSING>=0.01' -w 1000 Adigi.nongenic.vcf.gz -o Adig
 ```bash
 python easysfs.py -i Adigi.nongenic.r03nomiss.vcf.gz -p popfile.txt -a --GQ 20 --dtype int -o sfs --proj=58,40,52
 ```
+
+After generating we visualise the SFS as a series of heatmaps. 
+
+```{r}
+read_sfs <- function(path,d1name,d2name){
+  sfs <- read_table(path,skip = 2,col_names = FALSE,na="0") %>% 
+  pivot_longer(-X1) %>% 
+  extract(X1,into=d1name,regex = paste(d1name,"_([0-9]+)",sep=""),convert=TRUE) %>% 
+  extract(name,into=d2name,regex = "X([0-9]+)",convert = TRUE) 
+  sfs[,2] <- sfs[,2]-2
+#  sfs[1,"value"] <- NA
+  sfs
+}
+
+sfs10 <- read_sfs("data/hpc/fastsimcoal/sfs/Adigi_jointMAFpop1_0.obs","d1","d0") %>% 
+  add_column(pair="10") %>% dplyr::rename(x=d1,y=d0)
+sfs20 <- read_sfs("data/hpc/fastsimcoal/sfs/Adigi_jointMAFpop2_0.obs","d2","d0") %>% 
+  add_column(pair="20") %>% dplyr::rename(x=d2,y=d0)
+sfs21 <- read_sfs("data/hpc/fastsimcoal/sfs/Adigi_jointMAFpop2_1.obs","d2","d1") %>% 
+  add_column(pair="21") %>% dplyr::rename(x=d2,y=d1)
+
+sfs <- rbind(sfs10,sfs20,sfs21)
+```
+
+
+```{r}
+sfs %>% 
+  mutate(pair = case_when(
+    pair=="10" ~ "North Offshore - Inshore",
+    pair=="20" ~ "South Offshore - Inshore",
+    pair=="21" ~ "South Offshore - North Offshore"
+  )) %>% 
+  dplyr::rename(freq=value) %>% 
+ggplot(aes(x=x,y=y)) + 
+  geom_raster(aes(fill=log10(freq))) +
+  scale_fill_viridis_c() + 
+  facet_wrap(~pair, scales = "free") +
+  xlab("Population A") + 
+  ylab("Population B") + theme_pubclean() +
+  theme(legend.position = "bottom")
+ggsave("figures/fig-S16A.png",width = 7,height = 4)
+```
+
+
 ## Model Selection
 
 We used a hierarchical approach to model selection, first testing alternative models for the tree topology (divergence), then alternative migration and growth scenarios based on the best topology.
@@ -186,3 +230,6 @@ gr_ll %>% group_by(model.lab) %>% slice_min(aic,n=1) %>% select(-c(model,run)) %
 
 bs_df %>% group_by(param) %>% dplyr::summarise(lowerbound=quantile(value,probs=c(0.05)),upperbound=quantile(value,probs=c(0.95))) %>% knitr::kable()
 ```
+
+
+

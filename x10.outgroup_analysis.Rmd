@@ -180,23 +180,24 @@ While the analysis above provides information on relative differentiation betwee
 The resulting tree (rooted at Acropora tenuis) recovers the expected relative divergences between species (Aten vs Amil > Amil vs Adi).  These divergences (Adi vs Amil ~ 25Mya) are clearly much larger than between population samples of Acropora digitifera, which agrees with our assessment that these are recently diverged.  Notably, samples from Japan, Inshore and Offshore locations do not follow the population structure observed in PCA-based methods which may reflect poor resolution of UCEs at this level. 
 
 ```{r}
-ucetree <- read.iqtree("data/hpc/iqtree/partition.nex.best_scheme.nex.treefile")
+#ucetree <- read.iqtree("data/hpc/iqtree/partition.nex.best_scheme.nex.treefile")
 
-rucetree <- root(ucetree,node=34)
-rucetree <- treeio::drop.tip(rucetree,"FI-1-3")
-rucetree <- treeio::drop.tip(rucetree,"MI-1-4")
+ucetree <- read.iqtree("data/hpc/iqtree/pomo_partition.nex.best_scheme.nex.treefile")
 
-uce_st <- data.frame(tiplab=rucetree@phylo$tip.label) %>% 
+rucetree <- root.phylo(ucetree@phylo,"aten")#root(ucetree,node="aten")
+rucetree <- midpoint.root(ucetree@phylo)#root(ucetree,node="aten")
+
+#rucetree <- phytools::reroot(ucetree@phylo,getMRCA(ucetree@phylo,c("aten","amil")))
+
+uce_st <- data.frame(tiplab=rucetree$tip.label) %>% 
   mutate(newlab = case_when(
     grepl("^adi$",tiplab) ~ "Acropora digitifera : Genome",
     grepl("^aten$",tiplab) ~ "Acropora tenuis : Genome",
-        grepl("^adi_D",tiplab) ~ "Acropora digitifera : Japan",
-    grepl("^adi_R", tiplab) ~ "Acropora digitifera : SO",
-    grepl("^adi_AR", tiplab) ~ "Acropora digitifera : NO",    
-    grepl("^adi_AI", tiplab) ~ "Acropora digitifera : IN",    
-    grepl("^adi_BR", tiplab) ~ "Acropora digitifera : IN",    
-    grepl("^MI", tiplab) ~ "Acropora tenuis : GBR",
-    grepl("^FI", tiplab) ~ "Acropora tenuis : GBR",
+        grepl("^D",tiplab) ~ "Acropora digitifera : Japan",
+    grepl("^R", tiplab) ~ "Acropora digitifera : SO",
+    grepl("^AR", tiplab) ~ "Acropora digitifera : NO",    
+    grepl("^AI", tiplab) ~ "Acropora digitifera : IN",    
+    grepl("^BR", tiplab) ~ "Acropora digitifera : IN",    
     grepl("^amil", tiplab) ~ "Acropora millepora : Genome",    
   )) %>% 
   separate(newlab,into = c("species","location"), sep=" : ", remove = FALSE)
@@ -209,7 +210,7 @@ ggtree(rucetree) %<+% uce_st +
   geom_tippoint(aes(color=location)) + scale_color_manual(values = location_colors2) +
   geom_tiplab(aes(label=newlab),align = F) +
   theme(legend.position = "bottom", legend.title = element_blank()) +
-  xlim(NA,0.35) + geom_treescale()
+  xlim(NA,0.55) + geom_treescale()
 
 ggsave(filename = "figures/fig-s7.jpg", width = 6.3,height = 5.6)
 #ggsave(filename = "figures/iqtree.png")

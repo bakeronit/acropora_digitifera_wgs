@@ -93,7 +93,7 @@ mh_plot <- pbs_manhattan_data %>%
   geom_point(aes(x=abs_pos/1e6,y=PBS,color=as.character(scaffold_num %% 2)),size=0.02) + 
   geom_point(data = pbs_ehh_overlapping %>% fix_pops(),aes(x=abs_pos/1e6,y=PBS),color="blue",size=0.1) +   
   geom_linerange(data=highlight_sweeps %>% fix_pops(), aes(xmin=(abs_start/1e6)-0.1,xmax=(abs_end/1e6)+0.1,y=-0.25),size=1.5,color="red",alpha=1) +
-  geom_linerange(data=highlight_regions %>% fix_pops(), aes(xmin=(abs_start/1e6)-1,xmax=(abs_end/1e6)+1,y=-0.25),size=1000,color="yellow",alpha=0.5) +
+  geom_linerange(data=highlight_regions %>% fix_pops(), aes(xmin=(abs_start/1e6)-0.2,xmax=(abs_end/1e6)+0.2,y=-0.25),size=1000,color="black",alpha=1) +
   #  geom_point(data = to_label,aes(x=abs_pos/1e6,y=PBS),color="purple",size=0.5) + 
 #  geom_label_repel(data = to_label,aes(x=abs_pos/1e6,y=PBS, label=dated_locus_number),size=2,nudge_y=1,nudge_x = -10) + 
   ylab("Population Branch Statistic") + xlab("Genome Position / Mb") + ylim(-0.3,NA) +
@@ -103,13 +103,14 @@ mh_plot <- pbs_manhattan_data %>%
     theme(panel.grid = element_blank(),
         legend.position = "none",
         legend.text = element_text(),
-        axis.text.y = element_text(size=8),
-        axis.text.x = element_text(size=8),
-        axis.title.x = element_text(size=10),
-        axis.title.y = element_text(size=10),
+        axis.text.y = element_text(size=9),
+        axis.text.x = element_text(size=9),
+        axis.title.x = element_text(size=11),
+        axis.title.y = element_text(size=11),
         strip.background = element_blank(),
-        strip.text = element_text(size=8))  + facet_wrap(~population,ncol = 1)
-ggsave(mh_plot,filename = "figures/pbs_ehh_manhattan.png",width = 6.75,height = 3)
+        strip.text = element_text(size=9))  + facet_wrap(~population,ncol = 1)
+#ggsave(mh_plot,filename = "figures/pbs_ehh_manhattan.pdf",width = 16.9,height = 7.5, units = "cm")
+ggsave(mh_plot,filename = "figures/pbs_ehh_manhattan.png",width = 16.9,height = 7.5, units = "cm",dpi = 300)
 ```
 
 ```{r}

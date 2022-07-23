@@ -38,12 +38,8 @@ cp ~/Projects/atenuis_wgs/hpc/gatk3/FI-1-3_merged_marked.bam .
 #../pcangsd/jp_bam.txt 
 #
 # Adi WA
-#../pcangsd/wa_bam.txt 
+#../pcangsd/wa_bam.txt  
 #
-
-
-
-
 
 
 

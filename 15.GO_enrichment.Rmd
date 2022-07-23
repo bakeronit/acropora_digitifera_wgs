@@ -327,7 +327,7 @@ barplot <- pg_go %>%
   geom_col(aes(alpha=is_enriched,fill=ontology,color=ontology),size=0.1) +
   scale_color_manual(values = hclcols,labels = c("Biological process", "Cellular component", "Molecular function")) +
   scale_fill_manual(values = hclcols,labels = c("Biological process", "Cellular component", "Molecular function")) +  
-  geom_text(data=text_label_data,aes(label=text_label), hjust=-0.1,size=1.5) +
+  geom_text(data=text_label_data,aes(label=text_label), hjust=-0.1,size=2.5) +
   theme_bw() + 
   guides(alpha="none") +
   labs(x=expression(-Log[10](P)),y="",fill="") +
@@ -335,9 +335,9 @@ barplot <- pg_go %>%
         legend.position = "bottom",
         legend.text = element_text(),
         axis.text.y = element_blank(),
-        axis.text.x = element_text(size=8),
-        axis.title.x = element_text(size=8),
-        strip.text = element_text(size=8),
+        axis.text.x = element_text(size=9),
+        axis.title.x = element_text(size=11),
+        strip.text = element_text(size=9),
         strip.background = element_blank()) + 
   ylab("") + 
   facet_wrap(~pop_names) +
@@ -363,16 +363,24 @@ hc <- hclust(as.dist(jdm_included))
 hc_order <- hc$order
 names(hc_order) <- rownames(jdm_included)[hc$order]
 
-#hcp <- as.phylo(hc)
+# Edit term labels to make them shorter
+tree_data_trim <- tree_data %>% 
+  mutate(term_label = case_when(
+    term_label=="GO:0000981 DNA-binding transcription factor activity, RNA polymerase II-specific" ~ "GO:0000981 DNA-binding transcription factor activity",
+    term_label=="GO:0007186 G protein-coupled receptor signaling pathway" ~ "GO:0007186 G protein-coupled receptor signaling",
+#    term_label=="GO:0016879 ligase activity, forming carbon-nitrogen bonds" ~ "GO:0016879 ligase activity, forming C-N bonds",
+    TRUE ~ term_label
+  ))
 
-tree <- ggtree(as.phylo(hc)) %<+% tree_data + 
-geom_tiplab(aes(label = term_label),align = TRUE, size=2) + 
+tree <- ggtree(as.phylo(hc)) %<+% tree_data_trim + 
+geom_tiplab(aes(label = term_label),align = TRUE, size=2.8) + 
   xlim(0,10) 
 
 bpt <- (barplot + theme(legend.position = "none")) %>% insert_left(tree, width = 1.2)
-ggsave(bpt,filename = "figures/go_enrichment_wide.png",height = 2,width = 6.75)
+#ggsave(bpt,filename = "figures/go_enrichment_wide.png",height = 2,width = 6.75)
+ggsave(bpt,filename = "figures/go_enrichment_wide.pdf",height = 5.5,width = 16.9, units = "cm")
 leg_b <- ggdraw(leg_b)
-ggsave(leg_b,filename = "figures/go_legend.png",width = 6.75,height = 0.5)
+ggsave(leg_b,filename = "figures/go_legend.pdf",width = 16.9,height = 1.25,units = "cm")
 
 
 bpt

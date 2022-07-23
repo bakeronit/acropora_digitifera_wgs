@@ -54,7 +54,7 @@ A plot of these allele frequencies by population indicates a large number of hig
 if ( !file.exists("data/r_essentials/geva_pos.rds")){
 
   # Read allele age info from GEVA and join with physical position info
-  sites_files <- list.files("data/hpc/geva/chroms/BLFC01000154.1/","*.sites",full.names = TRUE)
+  sites_files <- list.files("data/hpc/geva/chroms/BLFC01000154.1/","*.sites2.txt",full.names = TRUE)
 
   options(readr.show_col_types = FALSE)
   geva_sites <- map_dfr(sites_files,read_table, col_types=cols())
@@ -64,6 +64,11 @@ if ( !file.exists("data/r_essentials/geva_pos.rds")){
   geva_pos <- geva_sites %>% 
     left_join(markers)
   write_rds(geva_pos,"data/r_essentials/geva_pos.rds")
+  
+  
+#  pairs_files <- list.files("data/hpc/geva/chroms/BLFC01000154.1/","*.pairs.txt",full.names = TRUE)
+#  geva_pairs <- map_dfr(pairs_files,read_table, col_types=cols())
+  
 } else {
   geva_pos <- read_rds("data/r_essentials/geva_pos.rds")
 }
@@ -87,15 +92,14 @@ csq_pos <- csq %>%
     )) %>% 
   ungroup() %>% 
   group_by(Position) %>% 
-  mutate(total_haps=n_distinct(Haplotype)) #%>% 
-#  filter(total_haps<140) # Remove SNPs with high frequency in both WA populations
+  mutate(total_haps=n_distinct(Haplotype)) 
 ```
 
 Combining all this information we create the plot below
 
 ```{r}
-n_inshore_haps <- 56
-n_offshore_haps <- 89
+n_inshore_haps <- 57
+n_offshore_haps <- 91
 sweep_age <- 8269.349
 
 g24 <- read_tsv("data/hpc/vcsq/s0150.g24.mod.gff",col_names = c("Chr","Prog","feature_type","start","end")) 
@@ -109,42 +113,67 @@ hap_based_af <- csq_pos %>%
   ungroup() %>% 
   filter(between(Position,g24_gene$start,g24_gene$end)) %>% 
   filter(Clock=="J") %>% 
-  filter(Filtered==1) %>% 
+  # Mostly we can distinguish selected vs background on the basis of location, however three haplotypes (below) need manual fixing for this
+  # BR_5_121 is mislabelled so we need to set its status to background and BR_5_123 has a haplotype from inshore that clusters with the selected clade
   mutate(selection_status = ifelse( (!(Haplotype %in% c("BR_5_121_S125_L004_1","BR_5_121_S125_L004_2","BR_5_123_S121_L004_1")) & (Location %in% c("BR","AI"))),"Selected","Background")) %>% 
-  group_by(Position,Category,PostMedian) %>% 
+  group_by(Position,Category,PostMode) %>% 
   summarise(
     Selected = sum(selection_status=="Selected")/n_inshore_haps, 
-    Background = sum(selection_status=="Background")/(n_offshore_haps+3),
-    Age = PostMedian*5
+    Background = sum(selection_status=="Background")/n_offshore_haps,
+    Total = n()/148,
+    N_Concordant,
+    N_Discordant,
+    Age = PostMode*5
     ) %>% 
-  mutate(age_class = cut(Age,breaks=c(0,8000,Inf))) %>% 
+  mutate(age_class = cut(Age,breaks=c(0,15000,Inf))) %>% 
   pivot_longer(cols=c("Selected","Background"), names_to = "haptype",values_to = "Freq") %>% 
   mutate(freq_class = cut(Freq,breaks=c(0,0.25,0.5,0.75,1.0))) %>% 
   distinct()
 
 p_all <-  hap_based_af %>% 
+    filter(Freq>0) %>% 
+  filter(Total<1) %>%
   ggplot() + 
   geom_violin(aes(x=haptype,y=Freq,fill=haptype,color=haptype)) 
 
 p_ac <- hap_based_af %>% 
-  ggplot() + 
+  filter(Freq>0) %>% 
+  filter(Total<1) %>%
+    ggplot() + 
   geom_violin(aes(x=haptype,y=Freq,fill=haptype,color=haptype)) + 
-#  geom_jitter(aes(x=haptype,y=Freq,color=haptype),height=0) + 
   facet_wrap(~age_class, nrow=1)
 
-plot_grid(p_all,p_ac,ncol=1, labels = c("A","B"))
+#plot_grid(p_all,p_ac,ncol=1, labels = c("A","B"))
 ```
 
 ```{r}
 hap_based_af %>% 
+  filter(Freq>0) %>% 
+  filter(Total<1) %>%
   ggplot() + 
   geom_violin(aes(x=haptype,y=Freq,fill=haptype,color=haptype)) + 
   facet_wrap(~age_class, nrow=1) + 
   theme_pubclean() + guides(fill="none",color="none") + 
   xlab("") + ylab("Allele Frequency")
-
 ggsave("figures/fig-s20.png", width = 6.5,height = 4)
+```
 
+As a quality check on the GEVA estimates we examine the number of concordant and discordant pairs available for each allele.  We found that in general all alleles had sufficient Discordant pairs, however for low frequency alleles the number of concordant pairs was often quite low, sometimes as low as 1.  GEVA did not produce age estimates for alleles with no concordant pairs (ie present on a single haplotype).  In general, alleles with few concordant pairs and low frequency were also young, however among background haplotypes we found many alleles at low frequency that were also old. 
+
+```{r}
+hap_based_af %>% 
+  filter(Freq>0) %>% 
+  filter(Total<1) %>% # Remove if monomorphic across all haps (ie a Japan-only polymorphism)
+  ggplot(aes(x=PostMode*5,y=N_Concordant)) + 
+  scale_x_log10() +
+  geom_point(aes(color=Freq)) + 
+  scale_color_viridis_c() +
+  geom_vline(xintercept=1.5e4) +
+  facet_wrap(~haptype) 
+```
+
+
+```{r}
 hap_based_af %>% 
   ungroup() %>% 
   dplyr::group_by(age_class,haptype) %>% 
@@ -152,45 +181,75 @@ hap_based_af %>%
 ```
 
 
-```{r}
+```{r, include=FALSE}
 library(colorspace)
 cat_colors <- qualitative_hcl(4, palette = "Dark 2")
 names(cat_colors) <- c("Missense","Non Coding","Splice Region","Synonymous")
 
+simple_cat_colors <- c(cat_colors["Missense"],cat_colors["Splice Region"],"Other"="Black")
+
 csq_plot_data <- csq_pos %>% 
   filter(Clock=="J") %>% 
-  filter(Filtered==1) %>% 
   group_by(Position) %>% 
   mutate(total_haps = n_distinct(Haplotype)) %>% 
   ungroup() %>% 
   mutate(selection_status = ifelse( (!(Haplotype %in% c("BR_5_121_S125_L004_1","BR_5_121_S125_L004_2","BR_5_123_S121_L004_1")) & (Location %in% c("BR","AI"))),"Selected","Background")) %>%
   mutate(selection_status_order = ifelse(selection_status=="Selected",1,2)) %>% 
   group_by(Position,selection_status) %>% 
-  dplyr::summarise(Category,PostMedian,selection_status_order,total_haps,hap_count = n_distinct(Haplotype)) %>% 
-  mutate(hap_freq = ifelse( selection_status=="Selected", hap_count/n_inshore_haps,hap_count/(n_offshore_haps+3))) %>% 
-  distinct()
+  dplyr::summarise(Category,PostMode,selection_status_order,total_haps,hap_count = n_distinct(Haplotype)) %>% 
+  mutate(hap_freq = ifelse( selection_status=="Selected", hap_count/n_inshore_haps,hap_count/n_offshore_haps)) %>% 
+  distinct() %>% 
+  filter(total_haps<=140) %>% # Remove SNPs that are nearly monomorphic (derived AF>95%) because these don't differentiate between populations. 
+  filter(hap_freq>0) 
 
-p_snps <- csq_plot_data %>%   
-  filter(total_haps<=140) %>% # Remove SNPs that are nearly monomorphic (derived AF>95%)
-  ggplot() + scale_y_log10(limits=c(5e3,NA)) +
-  geom_linerange(data=g24_ex, aes(xmin=start,xmax=end,y=1e4),size=1000,color="grey",alpha=0.2) +  
-  geom_point(aes(y=PostMedian*5,x=Position,color=Category,size=hap_freq),alpha=0.95) +
-#  geom_point(aes(x=278594,y=6051*5),color="black",size=3) +
-#  geom_point(aes(x=281245,y=6051*5),color="black",size=3) +
+simple_csq_plot_data <- csq_plot_data %>% 
+  mutate(Category = case_when(
+    Category %in% c("Synonymous","Non Coding") ~ "Other",
+    TRUE ~ Category
+  )) 
+
+g24_poly <- g24_ex %>% 
+  mutate(exon_num=row_number()) %>%
+  mutate(x1=start) %>%  
+  mutate(x2=end) %>% 
+  mutate(x3=end) %>% 
+  mutate(x4=start) %>% 
+  select(exon_num,x1,x2,x3,x4) %>% 
+  pivot_longer(starts_with("x"),values_to = "x") %>% 
+  mutate(y = case_when(
+    name %in% c("x1","x2") ~ 3e3,
+    TRUE ~ 5e5
+  ))
+
+p_snps <- simple_csq_plot_data %>% 
+  ggplot() + scale_y_log10(limits=c(2.8e3,5e5), breaks = c(1e4,1e5), labels = c("10","100")) +
+  geom_polygon(data=g24_poly,aes(x=x,y=y,group=exon_num), fill="grey", alpha = 0.2) +
+  geom_linerange(data=simple_csq_plot_data %>% filter(Category!="Other"), aes(xmin=Position-20,xmax=Position+20,y=2.8e3,color=Category),size=2) +
+  geom_point(data = simple_csq_plot_data %>% filter(Category=="Other"),
+             aes(y=PostMode*5,x=Position,fill=hap_freq),shape=21) +
+  geom_point(data = simple_csq_plot_data %>% filter(Category!="Other") ,
+             aes(y=PostMode*5,x=Position,fill=hap_freq,color=Category),shape=21) +  
   facet_wrap(~reorder(selection_status,selection_status_order),ncol = 1,strip.position = "left") +
-  scale_color_manual(values=cat_colors) +
-  scale_size_area("Frequency",max_size = 3) +
-  theme_pubclean() + theme(legend.position = "right") + 
+  scale_color_manual("Variant Effect",values=simple_cat_colors[1:2]) + #, breaks = simple_cat_colors[1:2]) +
+  scale_fill_viridis_c("Frequency") +
+#  scale_size_area("Frequency",max_size = 1) +
+  theme_pubclean() + 
+  theme(legend.position = "bottom") + 
   theme(strip.background = element_rect(fill = "transparent",color="black"), 
+        text = element_text(size=10), 
         axis.text.x = element_blank(), 
         axis.ticks.x = element_blank(),
-        axis.text.y = element_blank(),
-        axis.title.x = element_text(size=12),
-        strip.text = element_text(size=12)) +
-    ylab("Allele Age / Ybp") + 
+      #  legend.title = element_blank()
+#        axis.text.y = element_blank(),
+#        axis.title.x = element_text(size=12),
+#        strip.text = element_text(size=12)
+#      base_size = 12) +
+) +
+    ylab("Allele Age, Kya") + 
   xlab("") + 
-#  geom_hline(aes(yintercept=sweep_age,alpha=selection_status),size=0.5,color="black") +
-  scale_alpha_manual(values=c(0,0.5)) + guides(alpha="none", fill="none") +
+#  geom_hline(aes(yintercept=15000,alpha=selection_status),size=0.5,color="black") +
+#  scale_alpha_manual(values=c(0,0.5)) + 
+  guides(alpha="none") +
   xlim(275000,285000)
 
 library(gggenes)
@@ -205,29 +264,35 @@ p_gene <- g24_gene %>% ggplot() +
   geom_subgene_arrow(data=g24_sub,aes(xmin=275513,xmax=284565,xsubmin=start,xsubmax=end,y=Chr,fill=feature_type), forward=FALSE, alpha=0.9) +
     ylab("") + theme_genes() +
   xlim(275000,285000) + 
-  theme(legend.position="bottom", 
-        text = element_text(size=14), 
-        axis.text.x = element_text(size=14),
+  theme(legend.position="none", 
+        text = element_text(size=8), 
+#        axis.text.x = element_text(size=14),
 #        strip.text = element_text(size=12),
         legend.title = element_blank())
 
 legend <- get_legend(
   # create some space to the left of the legend
-  p_snps + theme(legend.box.margin = margin(0, 0, 0, 12), legend.title = element_blank()) +
-    theme(legend.position = "bottom", legend.key = element_blank())
+  p_snps + theme(legend.box.margin = margin(0, 0, 0, 0)) +
+    theme(legend.position = "bottom",legend.box.just="center")#, legend.key = element_blank())
 )
 
-pcol <- plot_grid(p_snps+ theme(legend.position="none"),
+pcol <- plot_grid(p_snps + theme(legend.position="none"),
                   p_gene ,
                   ncol=1,
                   align = "v",axis="lr",
-                  rel_heights = c(0.9,0.15))
+                  rel_heights = c(0.85,0.15))
 
-ggsave(pcol,filename = "figures/allele_age.png",width = 10,height = 8)
+ggsave(pcol,filename = "figures/allele_age.pdf",width = 13,height = 8.6, units = "cm")
 
-#plot_grid(pcol,legend,nrow = 1,rel_widths = c(0.85,0.15))
-ggsave(legend,filename = "figures/allele_age_legend.png",width = 8,height = 2)
+pcol <- plot_grid(p_snps + theme(legend.position="bottom"),
+                  p_gene ,
+                  ncol=1,
+                  align = "v",axis="lr",
+                  rel_heights = c(0.85,0.15))
+plot_grid(pcol,legend,nrow = 1,rel_widths = c(0.85,0.15))
+ggsave(legend,filename = "figures/allele_age_legend.pdf",width = 14,height = 1.5, units = "cm")
 ```
+
 ```{r}
 knitr::include_graphics("figures/allele_age.png")
 ```
@@ -253,3 +318,5 @@ bcftools consensus  -f BLFC01000154.1_aa.fasta BLFC01000154.1_aaref_inshore.vcf.
 gffread -g BLFC01000154.1_inshore_consensus.fasta -y s0150.g24.protein_inshore.fa s0150.g24.gff
 samtools faidx ../annotation/protein.fa adig_s0150.g24.t1 > s0150.g24.protein.fa 
 ```
+
+

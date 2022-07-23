@@ -29,7 +29,7 @@ mcmcfile<-"data/hpc/fineStructure/adigitifera_linked_mcmc.xml" ## finestructure 
 treefile<-"data/hpc/fineStructure/adigitifera_linked_tree.xml" ## finestructure tree file
 
 ###### READ IN THE CHUNKCOUNT FILE
-dataraw<-as.matrix(read.table(chunkfile,row.names=1,header=T,skip=1)) # read in the pairwise coincidence 
+dataraw<-read.table(chunkfile,row.names=1,header=T,skip=1) # read in the pairwise coincidence 
 
 ###### READ IN THE MCMC FILES
 mcmcxml<-xmlTreeParse(mcmcfile) ## read into xml format
@@ -59,17 +59,50 @@ tree_data <- data.frame(sample_id=ttree$tip.label) %>%
 
 source("scripts/color_scheme.R")
 
-ttree %>% 
-  drop.tip("BR_5_121_S125_L004") %>% 
+ttree_dt <- ttree %>% 
+  drop.tip("BR_5_121_S125_L004")
+
+tree_plot <- ttree_dt %>% 
   ggtree() %<+% tree_data + 
   geom_tippoint(aes(color=loc)) +
-  geom_tiplab(aes(label=sample_label),align = F,size=2.5,hjust=-.1) +
+  geom_tiplab(aes(label=sample_label),align = F,size=3,hjust=-.1) +
   theme(legend.position = "bottom", legend.title = element_blank()) +
-  scale_color_manual(values=myCol) +
-  xlim(NA,4)
-  
-#ggsave(filename = "figures/fig-s3.jpg",width = 6.2,height = 7.8)
+  scale_color_manual(values=myCol) 
 ```
+
+
+```{r}
+library(ggpubr)
+require(aplot)
+
+hm_data <- dataraw[ttree_dt$tip.label,ttree_dt$tip.label]
+
+hmf_data <- hm_data %>% 
+  as.data.frame() %>% 
+  rownames_to_column("ID") %>% 
+  mutate(col_order = row_number()) %>% 
+  pivot_longer(-c(ID,col_order),names_to = "col")
+
+
+hmf_data$ID <- factor(hmf_data$ID, levels=unique(rownames(hm_data)))
+hmf_data$ID <- as.numeric(hmf_data$ID)
+
+hmf_data$col <- factor(hmf_data$col, levels=unique(rownames(hm_data)))
+hmf_data$col <- as.numeric(hmf_data$col)
+
+hmp <- ggplot(hmf_data) + 
+  geom_tile(aes(y=ID,x=col,fill=value)) + 
+  scale_fill_viridis_c() + 
+  theme_minimal() + 
+  theme(axis.ticks = element_blank(), axis.text = element_blank(), panel.grid = element_blank()) + 
+  xlab("") + ylab("") 
+  
+
+
+insert_left(hmp + theme(legend.title = element_blank()),tree_plot + guides(color="none") + xlim(NA,5), width = 0.3)
+ggsave("figures/fig-s3.jpg",width = 12,height = 10)
+```
+
 
 All nodes in this tree had bootstrap support of 0.99 or better. The tree clearly distinguishes our three locations as distinct clades, but also identifies some structure within these clades.  Two small clades (RS1_M11_840, RS1-2_422) and (BR-4-088, BR-4-077) were identified which contained samples with relatively low sequencing depth and presumably reflect small biases due to genotyping error that fineStructure is able to identify as structure.  Within the inshore samples however there did seem to be a genuine split between the two inshore locations AI (Adele Island) and BR (Beagle Reef).  
 

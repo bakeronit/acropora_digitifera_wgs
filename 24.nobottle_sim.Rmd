@@ -17,6 +17,8 @@ library(ggsci)
 
 Analyses with SMC++ and fastsimcoal both indicated the presence of a strong bottleneck (most likely founder effect) in all three populations.  These bottleneck effects would have contributed to drift, which, combined with low migration rates would have resulted in the clear divergence observed in population structure analyses.  Here we used fastsimcoal analyses to disentangle these effects.  To do this we constructed a model (called `no_bott`) that was based on the best fitting model, but, where all changes in Ne were removed, effectively keeping the population size the same as the ancestral population with subdivision on splits.  This model is detailed in [3.out.no_bott.est](data/hpc/fastsimcoal/no_bott/3.out.no_bott.est) and [3.out.no_bott.tpl](data/hpc/fastsimcoal/no_bott/3.out.no_bott.tpl)
 
+To work out input parameters for this model we took average Ne values from the 95% confidence interval ranges obtained from the best fitting IMc model.  Then, assuming that the overall population maintains its ancestral size we apportioned Ne into IN, NO and SO populations so that their final values matched the relative sizes in the most recent epoch in IMc.  
+
 Simulations with this model were generated using
 
 ```bash

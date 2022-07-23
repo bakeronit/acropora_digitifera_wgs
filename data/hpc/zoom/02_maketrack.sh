@@ -1,4 +1,4 @@
-pyGenomeTracks --tracks s0150.g24.ini --region BLFC01000154.1:200001-350001 \
+pyGenomeTracks --tracks s0150.g24.ini --region BLFC01000154.1:200001-350001 --width=16.9 --height=5.5 --fontSize=8 \
 	--outFileName s0150.g24.pdf
 
 
