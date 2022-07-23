@@ -23,6 +23,7 @@ This repository contains complete computational methods including source code, p
 - [Demographic model fitting using fastsimcoal](22a.fastsimcoal_fitting.md)
 - [Demographic model validation by simulation](22b.fastsimcoal_sim.md)
 - [Demographic model without a bottleneck](24.nobottle_sim.md)
+- [All .est and .tpl files used for alternative demographic models](data/models/)
 
 **Symbiodiniaceae profiles**
 - [Dissecting the symbiont reads](23.symbionts.md)

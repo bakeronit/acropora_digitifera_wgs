@@ -1,0 +1,29 @@
+// Priors and rules file
+// *********************
+
+[PARAMETERS]
+//#isInt? #name   #dist.#min  #max 
+//all Ns are in number of haploid individuals
+1 ANCSIZE unif 1000 1000000 output
+1 NAOFF unif 100 100000 output
+1 NAI unif 100 10000 output
+1 NAN unif 100 10000 output
+1 NAS unif 100 10000 output
+1 NI unif 1000 1000000 output
+1 NN unif 1000 1000000 output
+1 NS unif 1000 1000000 output
+1 TDIV1 unif 100 10000 output
+1 TDIV2 unif TDIV1 10000 output paramInRange
+
+[COMPLEX PARAMETERS]
+0   RESIZE1 = NAOFF/NAN hide
+0   RESIZE2 = ANCSIZE/NAI hide
+0   TI = NAI/NI hide
+0   TN = NAN/NN hide
+0   TS = NAS/NS hide
+0   LI = log(TI) hide
+0   LN = log(TN) hide
+0   LS = log(TS) hide
+0   RI = LI/TDIV2 output
+0   RN = LN/TDIV1 output
+0   RS = LS/TDIV1 output
