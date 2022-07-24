@@ -3,7 +3,7 @@
 This repository contains complete computational methods including source code, processed data outputs and explanatory notes.  It is an accompaniment to the paper;
 
 > Publication link TBA
-
+[![DOI](https://zenodo.org/badge/339641783.svg)](https://zenodo.org/badge/latestdoi/339641783)
 
 ### Table of Contents
 
