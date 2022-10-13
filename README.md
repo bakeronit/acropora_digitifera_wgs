@@ -1,9 +1,10 @@
 ## Population genetics of *Acropora digitifera* in North-Western Australia using whole genome sequencing
 
-This repository contains complete computational methods including source code, processed data outputs and explanatory notes.  It is an accompaniment to the paper;
+This repository contains complete computational methods including source code, processed data outputs and explanatory notes.  It is an accompaniment to the paper, as published in:
 
-> Publication link TBA
-[![DOI](https://zenodo.org/badge/339641783.svg)](https://zenodo.org/badge/latestdoi/339641783)
+Jia Zhang, Zoe T Richards, Arne A S Adam, Cheong Xin Chan, Chuya Shinzato, James Gilmour, Luke Thomas, Jan M Strugnell, David J Miller, Ira Cooke, Evolutionary responses of a reef-building coral to climate change at the end of the last glacial maximum, Molecular Biology and Evolution, 2022;, msac201, https://doi.org/10.1093/molbev/msac201
+
+This repository has also been archived on Zenodo: [![DOI](https://zenodo.org/badge/339641783.svg)](https://zenodo.org/badge/latestdoi/339641783)
 
 ### Table of Contents
 
