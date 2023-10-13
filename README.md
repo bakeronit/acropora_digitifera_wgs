@@ -57,16 +57,8 @@ Download additional data not hosted on github due to size constraints
 
 ```bash
 cd acropora_digitifera_wgs
-wget 'https://cloudstor.aarnet.edu.au/plus/s/6GcW7OUebjrgASm/download' -O data_essential.tgz
+wget 'http://data.qld.edu.au/public/Q5999/bakeronit/acropora_digitifera_wgs/data_essential.tgz' -O data_essential.tgz
 tar -zxvf data_essential.tgz 
-```
-
-
-*Optional:* download (large files).  Includes the full phased and unphased SNP sets
-
-```bash
-wget 'https://cloudstor.aarnet.edu.au/plus/s/Y9Vjkmz3BLL5ogd/download' -O data_large.tgz
-tar -zxvf data_large.tgz 
 ```
 
 Open the project file in RStudio and open the desired file. After installing any required R packages the code should run and produce plots and tables identical to those shown in the web links above.
